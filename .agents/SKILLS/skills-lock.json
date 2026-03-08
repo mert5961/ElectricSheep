@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "skills": {
+    "cursor-best-practices": {
+      "source": "siviter-xyz/dot-agent",
+      "sourceType": "github",
+      "computedHash": "83c6ea2105fc8f7255d1edd8cfa4424dee3523760f9812402ac84516039425ba"
+    },
+    "threejs-geometry": {
+      "source": "cloudai-x/threejs-skills",
+      "sourceType": "github",
+      "computedHash": "4e5757bf80a329810545c237e557e362fa14fd3a3e6a567ec1d75435be6b2dda"
+    },
+    "threejs-shaders": {
+      "source": "cloudai-x/threejs-skills",
+      "sourceType": "github",
+      "computedHash": "649ceb058edfb5cfd51e80fb3a6c57aca9bab4a9d3a03f6077aa9502be0c0771"
+    }
+  }
+}
