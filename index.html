@@ -14,63 +14,75 @@
     html, body {
       width: 100%;
       height: 100%;
-      overflow: hidden;
-      background: #000;
+      background: #111;
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       color: #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    #app {
-      position: relative;
-      width: 100%;
-      height: 100%;
+    .landing {
+      text-align: center;
     }
 
-    /* WebGL layer — behind everything */
-    #webgl-canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+    .landing h1 {
+      font-size: 28px;
+      font-weight: 600;
+      color: #eee;
+      margin-bottom: 8px;
+    }
+
+    .landing p {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 36px;
+    }
+
+    .landing .links {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+    }
+
+    .landing a {
       display: block;
+      padding: 14px 28px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      color: #ccc;
+      text-decoration: none;
+      font-size: 15px;
+      transition: background 0.15s;
     }
 
-    /* DOM overlay — control handles live here */
-    #overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
+    .landing a:hover {
+      background: rgba(255,255,255,0.15);
     }
 
-    #overlay .handle {
-      pointer-events: auto;
-    }
-
-    /* UI controls layer — buttons, sliders */
-    #ui {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-    }
-
-    #ui > * {
-      pointer-events: auto;
+    .landing a span {
+      display: block;
+      font-size: 11px;
+      color: #555;
+      margin-top: 4px;
     }
   </style>
 </head>
 <body>
-  <div id="app">
-    <canvas id="webgl-canvas"></canvas>
-    <div id="overlay"></div>
-    <div id="ui"></div>
+  <div class="landing">
+    <h1>Electric Sheep</h1>
+    <p>Projection mapping and visual orchestration</p>
+    <div class="links">
+      <a href="/control.html">
+        Control Screen
+        <span>Operator interface</span>
+      </a>
+      <a href="/output.html">
+        Output Screen
+        <span>Projector output</span>
+      </a>
+    </div>
   </div>
-  <script type="module" src="/src/main.js"></script>
 </body>
 </html>
