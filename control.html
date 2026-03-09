@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Electric Sheep — Control</title>
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      background: #111;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: #ccc;
+    }
+
+    #control-root {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+  </style>
+</head>
+<body>
+  <div id="control-root"></div>
+  <script type="module" src="/src/control-main.js"></script>
+</body>
+</html>
