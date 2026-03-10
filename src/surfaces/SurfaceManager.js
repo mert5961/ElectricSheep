@@ -1,4 +1,9 @@
 import { Surface } from './Surface.js';
+import {
+  EDIT_TARGET_CONTENT,
+  EDIT_TARGET_SUBTRACT,
+  EDIT_TARGET_SURFACE,
+} from './SurfaceConstants.js';
 
 export class SurfaceManager {
   constructor(scene, overlayEl) {
@@ -6,6 +11,8 @@ export class SurfaceManager {
     this._overlayEl = overlayEl;
     this._surfaces = new Map();
     this._activeSurfaceId = null;
+    this._debugVisible = true;
+    this._editTarget = EDIT_TARGET_SURFACE;
   }
 
   get activeSurface() {
@@ -20,9 +27,15 @@ export class SurfaceManager {
     return this._surfaces.size;
   }
 
+  get editTarget() {
+    return this._editTarget;
+  }
+
   addSurface(options = {}) {
     const surface = new Surface(options);
     surface.build(this._scene, this._overlayEl);
+    surface.setEditTarget(this._editTarget);
+    surface.setDebugVisible(this._debugVisible);
     this._surfaces.set(surface.id, surface);
     this.selectSurface(surface.id);
     return surface;
@@ -74,13 +87,43 @@ export class SurfaceManager {
     }
   }
 
-  setHandlesVisible(v) {
+  setEditTarget(target) {
+    if (
+      target !== EDIT_TARGET_SURFACE &&
+      target !== EDIT_TARGET_CONTENT &&
+      target !== EDIT_TARGET_SUBTRACT
+    ) {
+      return;
+    }
+    this._editTarget = target;
     for (const surface of this._surfaces.values()) {
-      surface.setHandlesVisible(v);
+      surface.setEditTarget(target);
+    }
+  }
+
+  setDebugVisible(v) {
+    this._debugVisible = v;
+    for (const surface of this._surfaces.values()) {
+      surface.setDebugVisible(v);
     }
   }
 
   serializeAll() {
     return this.all.map((s) => s.serialize());
+  }
+
+  clear() {
+    for (const id of Array.from(this._surfaces.keys())) {
+      this.removeSurface(id);
+    }
+  }
+
+  loadSerialized(surfaceStates) {
+    this.clear();
+    if (!Array.isArray(surfaceStates)) return;
+
+    surfaceStates.forEach((surfaceState) => {
+      this.addSurface(surfaceState);
+    });
   }
 }

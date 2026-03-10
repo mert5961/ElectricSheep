@@ -28,6 +28,8 @@ Geo Master defines *where* visuals appear in physical space. Users create and ed
 - Web-based canvas editor
 - Multiple projection surfaces
 - 4-corner surface manipulation (quad warping)
+- Independent content quad framing per surface
+- Multiple subtract quads per surface for exclusion regions
 - Real-world alignment (e.g. cabinets, walls, panels)
 - Feather edge blending
 - Surface selection and deletion
@@ -41,12 +43,27 @@ Each surface represents geometry only, not content.
 {
   "id": "surface-1",
   "name": "Cabinet Left Door",
-  "corners": [
+  "surfaceQuad": [
     {"x": 120, "y": 80},
     {"x": 280, "y": 75},
     {"x": 290, "y": 310},
     {"x": 115, "y": 320}
   ],
+  "contentQuad": [
+    {"x": 120, "y": 80},
+    {"x": 280, "y": 75},
+    {"x": 290, "y": 310},
+    {"x": 115, "y": 320}
+  ],
+  "subtractQuads": [
+    [
+      {"x": 155, "y": 130},
+      {"x": 235, "y": 128},
+      {"x": 150, "y": 232},
+      {"x": 240, "y": 230}
+    ]
+  ],
+  "activeSubtractQuadIndex": 0,
   "feather": 0.15,
   "visible": true,
   "assignedOutputId": "output-1"

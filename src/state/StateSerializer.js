@@ -7,7 +7,9 @@ export class StateSerializer {
     return JSON.stringify(surfaceManager.serializeAll(), null, 2);
   }
 
-  static deserialize(_json, _surfaceManager) {
-    // Will be implemented when save/load is needed
+  static deserialize(json, surfaceManager) {
+    const parsed = JSON.parse(json);
+    surfaceManager.loadSerialized(parsed);
+    return parsed;
   }
 }
