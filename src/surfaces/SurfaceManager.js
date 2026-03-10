@@ -1,4 +1,9 @@
 import { Surface } from './Surface.js';
+import {
+  EDIT_TARGET_CONTENT,
+  EDIT_TARGET_SUBTRACT,
+  EDIT_TARGET_SURFACE,
+} from './SurfaceConstants.js';
 
 export class SurfaceManager {
   constructor(scene, overlayEl) {
@@ -6,6 +11,8 @@ export class SurfaceManager {
     this._overlayEl = overlayEl;
     this._surfaces = new Map();
     this._activeSurfaceId = null;
+    this._debugVisible = true;
+    this._editTarget = EDIT_TARGET_SURFACE;
   }
 
   get activeSurface() {
@@ -13,17 +20,27 @@ export class SurfaceManager {
   }
 
   get all() {
-    return Array.from(this._surfaces.values());
+    return this._sortSurfaces();
   }
 
   get count() {
     return this._surfaces.size;
   }
 
+  get editTarget() {
+    return this._editTarget;
+  }
+
   addSurface(options = {}) {
-    const surface = new Surface(options);
+    const surface = new Surface({
+      ...options,
+      order: this._resolveInitialOrder(options.order),
+    });
     surface.build(this._scene, this._overlayEl);
+    surface.setEditTarget(this._editTarget);
+    surface.setDebugVisible(this._debugVisible);
     this._surfaces.set(surface.id, surface);
+    this._normalizeSurfaceOrder();
     this.selectSurface(surface.id);
     return surface;
   }
@@ -33,6 +50,7 @@ export class SurfaceManager {
     if (!surface) return;
     surface.dispose(this._scene);
     this._surfaces.delete(id);
+    this._normalizeSurfaceOrder();
     if (this._activeSurfaceId === id) {
       this._activeSurfaceId = null;
       const remaining = this.all;
@@ -74,13 +92,123 @@ export class SurfaceManager {
     }
   }
 
-  setHandlesVisible(v) {
+  setEditTarget(target) {
+    if (
+      target !== EDIT_TARGET_SURFACE &&
+      target !== EDIT_TARGET_CONTENT &&
+      target !== EDIT_TARGET_SUBTRACT
+    ) {
+      return;
+    }
+    this._editTarget = target;
     for (const surface of this._surfaces.values()) {
-      surface.setHandlesVisible(v);
+      surface.setEditTarget(target);
+    }
+  }
+
+  setDebugVisible(v) {
+    this._debugVisible = v;
+    for (const surface of this._surfaces.values()) {
+      surface.setDebugVisible(v);
     }
   }
 
   serializeAll() {
     return this.all.map((s) => s.serialize());
+  }
+
+  bringToFront(id) {
+    return this._moveSurfaceToIndex(id, this.count - 1);
+  }
+
+  sendToBack(id) {
+    return this._moveSurfaceToIndex(id, 0);
+  }
+
+  moveForward(id) {
+    const surfaces = this._sortSurfaces();
+    const currentIndex = surfaces.findIndex((surface) => surface.id === id);
+    if (currentIndex < 0 || currentIndex === surfaces.length - 1) {
+      return false;
+    }
+
+    [surfaces[currentIndex], surfaces[currentIndex + 1]] = [surfaces[currentIndex + 1], surfaces[currentIndex]];
+    this._applySurfaceOrder(surfaces);
+    return true;
+  }
+
+  moveBackward(id) {
+    const surfaces = this._sortSurfaces();
+    const currentIndex = surfaces.findIndex((surface) => surface.id === id);
+    if (currentIndex <= 0) {
+      return false;
+    }
+
+    [surfaces[currentIndex], surfaces[currentIndex - 1]] = [surfaces[currentIndex - 1], surfaces[currentIndex]];
+    this._applySurfaceOrder(surfaces);
+    return true;
+  }
+
+  clear() {
+    for (const id of Array.from(this._surfaces.keys())) {
+      this.removeSurface(id);
+    }
+  }
+
+  loadSerialized(surfaceStates) {
+    this.clear();
+    if (!Array.isArray(surfaceStates)) return;
+
+    surfaceStates.forEach((surfaceState) => {
+      this.addSurface(surfaceState);
+    });
+
+    this._normalizeSurfaceOrder();
+  }
+
+  _resolveInitialOrder(order) {
+    if (Number.isFinite(order)) {
+      return Math.max(0, Math.round(order));
+    }
+
+    return this._surfaces.size;
+  }
+
+  _sortSurfaces() {
+    return Array.from(this._surfaces.values()).sort((a, b) => {
+      if (a.order !== b.order) {
+        return a.order - b.order;
+      }
+
+      return a.id.localeCompare(b.id);
+    });
+  }
+
+  _normalizeSurfaceOrder() {
+    this._applySurfaceOrder(this._sortSurfaces());
+  }
+
+  _applySurfaceOrder(surfaces) {
+    surfaces.forEach((surface, index) => {
+      surface.setOrder(index);
+    });
+  }
+
+  _moveSurfaceToIndex(id, targetIndex) {
+    const surfaces = this._sortSurfaces();
+    const currentIndex = surfaces.findIndex((surface) => surface.id === id);
+    if (currentIndex < 0) {
+      return false;
+    }
+
+    const boundedTargetIndex = Math.max(0, Math.min(targetIndex, surfaces.length - 1));
+    if (currentIndex === boundedTargetIndex) {
+      return false;
+    }
+
+    const [surface] = surfaces.splice(currentIndex, 1);
+    surfaces.splice(boundedTargetIndex, 0, surface);
+    this._applySurfaceOrder(surfaces);
+    return true;
   }
 }

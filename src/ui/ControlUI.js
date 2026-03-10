@@ -3,21 +3,24 @@ export class ControlUI {
     this._rootEl = rootEl;
     this._bridge = bridge;
     this._mode = 'editor';
+    this._editTarget = 'surface';
     this._surfaceCount = 0;
     this._connected = false;
 
     this._statusDot = null;
     this._statusText = null;
     this._modeLabel = null;
+    this._editTargetLabel = null;
     this._surfaceCountLabel = null;
 
     this._build();
     this._startPing();
   }
 
-  updateState({ mode, surfaceCount }) {
+  updateState({ mode, editTarget, surfaceCount }) {
     this._connected = true;
     this._mode = mode;
+    this._editTarget = editTarget || this._editTarget;
     this._surfaceCount = surfaceCount;
     this._syncDisplay();
   }
@@ -27,6 +30,16 @@ export class ControlUI {
     this._statusText.textContent = this._connected ? 'Output connected' : 'Output not connected';
     this._modeLabel.textContent = this._mode === 'show' ? 'Show Mode' : 'Editor Mode';
     this._modeLabel.style.color = this._mode === 'show' ? '#f90' : '#6f6';
+    this._editTargetLabel.textContent = this._editTarget === 'content'
+      ? 'Content Quad'
+      : this._editTarget === 'subtract'
+        ? 'Subtract Quads'
+        : 'Surface Quad';
+    this._editTargetLabel.style.color = this._editTarget === 'content'
+      ? '#ffb454'
+      : this._editTarget === 'subtract'
+        ? '#ff6f61'
+        : '#66d4ff';
     this._surfaceCountLabel.textContent = `${this._surfaceCount} surface${this._surfaceCount !== 1 ? 's' : ''}`;
   }
 
@@ -92,6 +105,29 @@ export class ControlUI {
     modeButtons.append(editorBtn, showBtn);
     modeSection.append(this._modeLabel, modeButtons);
 
+    // Edit target section
+    const editTargetSection = this._section('Edit Target');
+    this._editTargetLabel = this._el('div', {
+      fontSize: '18px',
+      fontWeight: '600',
+      color: '#66d4ff',
+      marginBottom: '12px',
+    });
+    this._editTargetLabel.textContent = 'Surface Quad';
+
+    const editTargetButtons = this._el('div', { display: 'flex', gap: '8px' });
+    const surfaceTargetBtn = this._btn('Surface', () => {
+      this._bridge.send('setEditTarget', { target: 'surface' });
+    });
+    const contentTargetBtn = this._btn('Content', () => {
+      this._bridge.send('setEditTarget', { target: 'content' });
+    });
+    const subtractTargetBtn = this._btn('Subtract', () => {
+      this._bridge.send('setEditTarget', { target: 'subtract' });
+    });
+    editTargetButtons.append(surfaceTargetBtn, contentTargetBtn, subtractTargetBtn);
+    editTargetSection.append(this._editTargetLabel, editTargetButtons);
+
     // Surfaces section
     const surfaceSection = this._section('Surfaces');
     this._surfaceCountLabel = this._el('div', {
@@ -130,6 +166,7 @@ export class ControlUI {
       header,
       statusRow,
       modeSection,
+      editTargetSection,
       surfaceSection,
       outputSection,
       audioSection,

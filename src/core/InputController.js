@@ -5,10 +5,13 @@ export class InputController {
 
     this._isDragging = false;
     this._dragSurfaceId = null;
+    this._dragQuadType = null;
+    this._dragSubtractIndex = null;
     this._dragCornerIndex = -1;
+    this._dragHandleEl = null;
 
-    this.onCornerDrag = null;
-    this.onCornerDragEnd = null;
+    this.onQuadDrag = null;
+    this.onQuadDragEnd = null;
     this.onSurfaceSelect = null;
     this.onDeletePressed = null;
     this.onToggleShowMode = null;
@@ -33,11 +36,16 @@ export class InputController {
 
     this._isDragging = true;
     this._dragSurfaceId = handle.dataset.surfaceId;
+    this._dragQuadType = handle.dataset.quadType;
+    this._dragSubtractIndex = handle.dataset.subtractIndex === undefined
+      ? null
+      : parseInt(handle.dataset.subtractIndex, 10);
     this._dragCornerIndex = parseInt(handle.dataset.cornerIndex, 10);
+    this._dragHandleEl = handle;
     handle.style.cursor = 'grabbing';
 
     if (this.onSurfaceSelect) {
-      this.onSurfaceSelect(this._dragSurfaceId);
+      this.onSurfaceSelect(this._dragSurfaceId, this._dragQuadType, this._dragSubtractIndex);
     }
   }
 
@@ -45,24 +53,41 @@ export class InputController {
     if (!this._isDragging) return;
     e.preventDefault();
 
-    if (this.onCornerDrag) {
-      this.onCornerDrag(this._dragSurfaceId, this._dragCornerIndex, e.clientX, e.clientY);
+    if (this.onQuadDrag) {
+      this.onQuadDrag(
+        this._dragSurfaceId,
+        this._dragQuadType,
+        this._dragSubtractIndex,
+        this._dragCornerIndex,
+        e.clientX,
+        e.clientY,
+      );
     }
   }
 
   _handlePointerUp(e) {
     if (!this._isDragging) return;
 
-    const handle = e.target.closest('.handle');
-    if (handle) handle.style.cursor = 'grab';
+    if (this._dragHandleEl) {
+      this._dragHandleEl.style.cursor = 'grab';
+      this._dragHandleEl.releasePointerCapture?.(e.pointerId);
+    }
 
-    if (this.onCornerDragEnd) {
-      this.onCornerDragEnd(this._dragSurfaceId, this._dragCornerIndex);
+    if (this.onQuadDragEnd) {
+      this.onQuadDragEnd(
+        this._dragSurfaceId,
+        this._dragQuadType,
+        this._dragSubtractIndex,
+        this._dragCornerIndex,
+      );
     }
 
     this._isDragging = false;
     this._dragSurfaceId = null;
+    this._dragQuadType = null;
+    this._dragSubtractIndex = null;
     this._dragCornerIndex = -1;
+    this._dragHandleEl = null;
   }
 
   _handleKeyDown(e) {
