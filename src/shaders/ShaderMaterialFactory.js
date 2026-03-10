@@ -12,6 +12,7 @@ export class ShaderMaterialFactory {
     feather = DEFAULT_FEATHER,
     contentTransform = null,
     subtractTransforms = [],
+    subtractFeathers = [],
     subtractCount = 0,
   } = {}) {
     return new THREE.ShaderMaterial({
@@ -25,6 +26,9 @@ export class ShaderMaterialFactory {
         u_contentTransform: { value: contentTransform ? contentTransform.clone() : new THREE.Matrix3().identity() },
         u_subtractTransforms: {
           value: normalizeSubtractTransforms(subtractTransforms),
+        },
+        u_subtractFeathers: {
+          value: normalizeSubtractFeathers(subtractFeathers),
         },
         u_subtractCount: { value: subtractCount },
       },
@@ -44,6 +48,16 @@ function normalizeSubtractTransforms(transforms) {
   for (let i = 0; i < MAX_SUBTRACT_QUADS; i++) {
     const transform = transforms[i];
     normalized.push(transform ? transform.clone() : new THREE.Matrix3().identity());
+  }
+
+  return normalized;
+}
+
+function normalizeSubtractFeathers(feathers) {
+  const normalized = [];
+
+  for (let i = 0; i < MAX_SUBTRACT_QUADS; i++) {
+    normalized.push(Number.isFinite(feathers[i]) ? feathers[i] : 0);
   }
 
   return normalized;

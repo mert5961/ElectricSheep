@@ -3,6 +3,7 @@ uniform vec3  u_color;
 uniform float u_feather;
 uniform mat3  u_contentTransform;
 uniform mat3  u_subtractTransforms[MAX_SUBTRACT_QUADS];
+uniform float u_subtractFeathers[MAX_SUBTRACT_QUADS];
 uniform int   u_subtractCount;
 
 varying vec2 vSurfaceUv;
@@ -17,6 +18,28 @@ vec2 projectQuadUv(mat3 transform, vec2 position) {
   return projection.xy / projectionW;
 }
 
+float subtractKeepFactor(vec2 subtractUv, float feather) {
+  float edgeDistance = min(
+    min(subtractUv.x, 1.0 - subtractUv.x),
+    min(subtractUv.y, 1.0 - subtractUv.y)
+  );
+
+  if (feather <= 0.0001) {
+    return edgeDistance >= 0.0 ? 0.0 : 1.0;
+  }
+
+  float subtractMask = smoothstep(0.0, feather, edgeDistance);
+  return 1.0 - subtractMask;
+}
+
+float surfaceEdgeAlpha(float distanceToEdge, float feather) {
+  if (feather <= 0.0001) {
+    return distanceToEdge > 0.0 ? 1.0 : 0.0;
+  }
+
+  return smoothstep(0.0, feather, distanceToEdge);
+}
+
 void main() {
   vec2 contentUv = projectQuadUv(u_contentTransform, vSurfacePosition);
 
@@ -29,10 +52,10 @@ void main() {
 
   // Edge feather: fade alpha near all 4 edges using smoothstep
   float feather = clamp(u_feather, 0.0, 0.25);
-  float alphaL = smoothstep(0.0, feather, vSurfaceUv.x);
-  float alphaR = smoothstep(0.0, feather, 1.0 - vSurfaceUv.x);
-  float alphaB = smoothstep(0.0, feather, vSurfaceUv.y);
-  float alphaT = smoothstep(0.0, feather, 1.0 - vSurfaceUv.y);
+  float alphaL = surfaceEdgeAlpha(vSurfaceUv.x, feather);
+  float alphaR = surfaceEdgeAlpha(1.0 - vSurfaceUv.x, feather);
+  float alphaB = surfaceEdgeAlpha(vSurfaceUv.y, feather);
+  float alphaT = surfaceEdgeAlpha(1.0 - vSurfaceUv.y, feather);
   float alpha = alphaL * alphaR * alphaB * alphaT;
 
   for (int i = 0; i < MAX_SUBTRACT_QUADS; i++) {
@@ -41,17 +64,7 @@ void main() {
     }
 
     vec2 subtractUv = projectQuadUv(u_subtractTransforms[i], vSurfacePosition);
-    bool insideSubtractQuad = (
-      subtractUv.x >= 0.0 &&
-      subtractUv.x <= 1.0 &&
-      subtractUv.y >= 0.0 &&
-      subtractUv.y <= 1.0
-    );
-
-    if (insideSubtractQuad) {
-      alpha = 0.0;
-      break;
-    }
+    alpha *= subtractKeepFactor(subtractUv, u_subtractFeathers[i]);
   }
 
   gl_FragColor = vec4(gradient, alpha);

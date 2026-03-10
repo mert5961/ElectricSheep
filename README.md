@@ -56,15 +56,21 @@ Each surface represents geometry only, not content.
     {"x": 115, "y": 320}
   ],
   "subtractQuads": [
-    [
-      {"x": 155, "y": 130},
-      {"x": 235, "y": 128},
-      {"x": 150, "y": 232},
-      {"x": 240, "y": 230}
-    ]
+    {
+      "quad": [
+        {"x": 155, "y": 130},
+        {"x": 235, "y": 128},
+        {"x": 150, "y": 232},
+        {"x": 240, "y": 230}
+      ],
+      "feather": 0.04,
+      "visible": true,
+      "order": 0
+    }
   ],
   "activeSubtractQuadIndex": 0,
   "feather": 0.15,
+  "order": 1,
   "visible": true,
   "assignedOutputId": "output-1"
 }

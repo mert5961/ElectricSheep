@@ -33,7 +33,7 @@ export class App {
     this._wireFrameLoop();
     this.surfaces.setEditTarget(this._editTarget);
     this.ui.setEditTarget(this._editTarget);
-    this.ui.updateActiveSurface(this.surfaces.activeSurface);
+    this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
 
     if (this._bridge) {
       this._wireBridge();
@@ -73,7 +73,7 @@ export class App {
     this._editTarget = target;
     this.surfaces.setEditTarget(target);
     this.ui.setEditTarget(target);
-    this.ui.updateActiveSurface(this.surfaces.activeSurface);
+    this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
 
     if (this._bridge) {
       this._broadcastState();
@@ -108,13 +108,13 @@ export class App {
       if (surface && quadType === EDIT_TARGET_SUBTRACT && Number.isInteger(subtractIndex)) {
         surface.selectSubtractQuad(subtractIndex);
       }
-      this.ui.updateActiveSurface(this.surfaces.activeSurface);
+      this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
     };
 
     this.input.onDeletePressed = () => {
       if (this._mode !== MODE_EDITOR) return;
       this.surfaces.removeActiveSurface();
-      this.ui.updateActiveSurface(this.surfaces.activeSurface);
+      this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
       if (this._bridge) this._broadcastState();
     };
 
@@ -126,13 +126,20 @@ export class App {
   _wireUI() {
     this.ui.onAddSurface = () => {
       this.surfaces.addSurface();
-      this.ui.updateActiveSurface(this.surfaces.activeSurface);
+      this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
       if (this._bridge) this._broadcastState();
     };
 
     this.ui.onFeatherChange = (value) => {
       const surface = this.surfaces.activeSurface;
       if (surface) surface.updateFeather(value);
+    };
+
+    this.ui.onSubtractFeatherChange = (value) => {
+      const surface = this.surfaces.activeSurface;
+      if (!surface) return;
+      if (!surface.setSubtractQuadFeather(value)) return;
+      this.ui.updateActiveSurface(surface, this.surfaces.count);
     };
 
     this.ui.onEditTargetChange = (target) => {
@@ -143,7 +150,7 @@ export class App {
       const surface = this.surfaces.activeSurface;
       if (!surface) return;
       surface.addSubtractQuad();
-      this.ui.updateActiveSurface(surface);
+      this.ui.updateActiveSurface(surface, this.surfaces.count);
       if (this._bridge) this._broadcastState();
     };
 
@@ -151,7 +158,7 @@ export class App {
       const surface = this.surfaces.activeSurface;
       if (!surface) return;
       if (!surface.removeActiveSubtractQuad()) return;
-      this.ui.updateActiveSurface(surface);
+      this.ui.updateActiveSurface(surface, this.surfaces.count);
       if (this._bridge) this._broadcastState();
     };
 
@@ -159,7 +166,39 @@ export class App {
       const surface = this.surfaces.activeSurface;
       if (!surface) return;
       if (!surface.cycleSubtractQuad(direction)) return;
-      this.ui.updateActiveSurface(surface);
+      this.ui.updateActiveSurface(surface, this.surfaces.count);
+    };
+
+    this.ui.onBringToFront = () => {
+      const surface = this.surfaces.activeSurface;
+      if (!surface) return;
+      if (!this.surfaces.bringToFront(surface.id)) return;
+      this.ui.updateActiveSurface(surface, this.surfaces.count);
+      if (this._bridge) this._broadcastState();
+    };
+
+    this.ui.onSendToBack = () => {
+      const surface = this.surfaces.activeSurface;
+      if (!surface) return;
+      if (!this.surfaces.sendToBack(surface.id)) return;
+      this.ui.updateActiveSurface(surface, this.surfaces.count);
+      if (this._bridge) this._broadcastState();
+    };
+
+    this.ui.onMoveForward = () => {
+      const surface = this.surfaces.activeSurface;
+      if (!surface) return;
+      if (!this.surfaces.moveForward(surface.id)) return;
+      this.ui.updateActiveSurface(surface, this.surfaces.count);
+      if (this._bridge) this._broadcastState();
+    };
+
+    this.ui.onMoveBackward = () => {
+      const surface = this.surfaces.activeSurface;
+      if (!surface) return;
+      if (!this.surfaces.moveBackward(surface.id)) return;
+      this.ui.updateActiveSurface(surface, this.surfaces.count);
+      if (this._bridge) this._broadcastState();
     };
 
     this.ui.onFullscreen = () => {
@@ -186,7 +225,7 @@ export class App {
 
     this._bridge.on('addSurface', () => {
       this.surfaces.addSurface();
-      this.ui.updateActiveSurface(this.surfaces.activeSurface);
+      this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
       this._broadcastState();
     });
 

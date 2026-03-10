@@ -8,10 +8,14 @@ import {
   transformQuad,
 } from './QuadTransform.js';
 import {
+  DEFAULT_SUBTRACT_FEATHER,
   EDIT_TARGET_CONTENT,
   EDIT_TARGET_SUBTRACT,
   EDIT_TARGET_SURFACE,
+  MAX_SUBTRACT_FEATHER,
   MAX_SUBTRACT_QUADS,
+  MAX_SURFACE_FEATHER,
+  SURFACE_RENDER_ORDER_STEP,
 } from './SurfaceConstants.js';
 
 let surfaceCounter = 0;
@@ -60,6 +64,12 @@ const OUTLINE_THEME = {
   subtract: { color: 0xff6f61 },
 };
 
+const OUTLINE_RENDER_ORDER_OFFSET = {
+  surface: 1,
+  content: 2,
+  subtract: 3,
+};
+
 function normalizeColor(color) {
   if (color instanceof THREE.Color) {
     return color.clone();
@@ -72,23 +82,78 @@ function normalizeColor(color) {
   return null;
 }
 
+function clampFeather(value, maxFeather) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(Math.max(value, 0.0), maxFeather);
+}
+
+function normalizeOrder(order, fallback = 0) {
+  if (!Number.isFinite(order)) return fallback;
+  return Math.max(0, Math.round(order));
+}
+
+function cloneSubtractQuadEntry(subtractQuad) {
+  return {
+    quad: cloneQuad(subtractQuad.quad),
+    feather: subtractQuad.feather,
+    visible: subtractQuad.visible,
+    order: subtractQuad.order,
+  };
+}
+
+function createSubtractQuadEntry({
+  quad,
+  feather = 0.0,
+  visible = true,
+  order = 0,
+} = {}) {
+  return {
+    quad: cloneQuad(quad),
+    feather: clampFeather(feather, MAX_SUBTRACT_FEATHER),
+    visible: visible !== false,
+    order: normalizeOrder(order),
+  };
+}
+
+function reindexSubtractQuads(subtractQuads) {
+  return subtractQuads
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .map((subtractQuad, index) => ({
+      ...cloneSubtractQuadEntry(subtractQuad),
+      order: index,
+    }));
+}
+
 function normalizeSubtractQuads(subtractQuads) {
   if (!Array.isArray(subtractQuads)) return [];
 
-  return subtractQuads
-    .map((entry) => {
-      if (Array.isArray(entry)) {
-        return cloneQuad(entry);
-      }
+  return reindexSubtractQuads(
+    subtractQuads
+      .map((entry, index) => {
+        if (Array.isArray(entry)) {
+          return createSubtractQuadEntry({
+            quad: entry,
+            feather: 0.0,
+            visible: true,
+            order: index,
+          });
+        }
 
-      if (entry && Array.isArray(entry.quad)) {
-        return cloneQuad(entry.quad);
-      }
+        if (entry && Array.isArray(entry.quad)) {
+          return createSubtractQuadEntry({
+            quad: entry.quad,
+            feather: entry.feather ?? 0.0,
+            visible: entry.visible,
+            order: entry.order ?? index,
+          });
+        }
 
-      return null;
-    })
-    .filter(Boolean)
-    .slice(0, MAX_SUBTRACT_QUADS);
+        return null;
+      })
+      .filter(Boolean)
+      .slice(0, MAX_SUBTRACT_QUADS),
+  );
 }
 
 function clampSubtractIndex(index, subtractQuads) {
@@ -101,6 +166,10 @@ function createUniformMatrixArray() {
   return Array.from({ length: MAX_SUBTRACT_QUADS }, () => new THREE.Matrix3().identity());
 }
 
+function createUniformFloatArray() {
+  return Array.from({ length: MAX_SUBTRACT_QUADS }, () => 0);
+}
+
 export class Surface {
   constructor({
     id = null,
@@ -111,6 +180,7 @@ export class Surface {
     activeSubtractQuadIndex = null,
     corners = null,
     feather = 0.05,
+    order = 0,
     color = null,
     visible = true,
     assignedOutputId = null,
@@ -124,7 +194,8 @@ export class Surface {
     this.contentQuad = cloneQuad(contentQuad || initialSurfaceQuad);
     this.subtractQuads = normalizeSubtractQuads(subtractQuads);
     this._activeSubtractQuadIndex = clampSubtractIndex(activeSubtractQuadIndex, this.subtractQuads);
-    this.feather = Math.min(Math.max(feather, 0.0), 0.25);
+    this.feather = clampFeather(feather, MAX_SURFACE_FEATHER);
+    this.order = normalizeOrder(order);
     this.color = normalizeColor(color) || new THREE.Color(
       0.2 + Math.random() * 0.6,
       0.2 + Math.random() * 0.6,
@@ -172,8 +243,16 @@ export class Surface {
   }
 
   get activeSubtractQuad() {
+    return this.activeSubtractQuadEntry?.quad || null;
+  }
+
+  get activeSubtractQuadEntry() {
     if (this._activeSubtractQuadIndex < 0) return null;
     return this.subtractQuads[this._activeSubtractQuadIndex] || null;
+  }
+
+  get activeSubtractFeather() {
+    return this.activeSubtractQuadEntry?.feather ?? 0.0;
   }
 
   get subtractQuadLimit() {
@@ -200,17 +279,20 @@ export class Surface {
       feather: this.feather,
       contentTransform: this._lastValidContentTransform,
       subtractTransforms: createUniformMatrixArray(),
+      subtractFeathers: createUniformFloatArray(),
       subtractCount: 0,
     });
 
     this.mesh = new THREE.Mesh(this._geometry, this._material);
     this.mesh.visible = this.visible;
     this.mesh.userData.surfaceId = this.id;
+    this._syncRenderOrder();
     scene.add(this.mesh);
 
     this._surfaceOutline = this._createOutline(OUTLINE_THEME.surface.color);
     this._contentOutline = this._createOutline(OUTLINE_THEME.content.color);
     scene.add(this._surfaceOutline, this._contentOutline);
+    this._syncRenderOrder();
 
     this._syncSurfaceGeometry();
     this._syncContentTransform();
@@ -239,7 +321,10 @@ export class Surface {
       const surfaceTransform = solveQuadToQuadMatrix(previousSurfaceQuad, this.surfaceQuad);
       if (surfaceTransform) {
         this.contentQuad = transformQuad(surfaceTransform, this.contentQuad);
-        this.subtractQuads = this.subtractQuads.map((subtractQuad) => transformQuad(surfaceTransform, subtractQuad));
+        this.subtractQuads = this.subtractQuads.map((subtractQuad) => ({
+          ...cloneSubtractQuadEntry(subtractQuad),
+          quad: transformQuad(surfaceTransform, subtractQuad.quad),
+        }));
       }
 
       this._syncSurfaceGeometry();
@@ -254,7 +339,9 @@ export class Surface {
 
       this._activeSubtractQuadIndex = targetIndex;
       this.subtractQuads = this.subtractQuads.map((subtractQuad, index) => (
-        index === targetIndex ? cloneQuad(quad) : subtractQuad
+        index === targetIndex
+          ? { ...cloneSubtractQuadEntry(subtractQuad), quad: cloneQuad(quad) }
+          : subtractQuad
       ));
     } else {
       return;
@@ -267,10 +354,41 @@ export class Surface {
   }
 
   updateFeather(value) {
-    this.feather = Math.min(Math.max(value, 0.0), 0.25);
+    this.feather = clampFeather(value, MAX_SURFACE_FEATHER);
     if (this._material) {
       this._material.uniforms.u_feather.value = this.feather;
     }
+  }
+
+  updateSubtractQuad(quad, subtractIndex = null) {
+    this.updateQuad(EDIT_TARGET_SUBTRACT, quad, subtractIndex);
+  }
+
+  setSubtractQuadFeather(value, subtractIndex = null) {
+    const targetIndex = clampSubtractIndex(
+      subtractIndex ?? this._activeSubtractQuadIndex,
+      this.subtractQuads,
+    );
+    if (targetIndex < 0) {
+      return false;
+    }
+
+    this._activeSubtractQuadIndex = targetIndex;
+    const feather = clampFeather(value, MAX_SUBTRACT_FEATHER);
+    this.subtractQuads = this.subtractQuads.map((subtractQuad, index) => (
+      index === targetIndex
+        ? { ...cloneSubtractQuadEntry(subtractQuad), feather }
+        : subtractQuad
+    ));
+
+    this._syncSubtractMask();
+    this._syncDebugState();
+    return true;
+  }
+
+  setOrder(order) {
+    this.order = normalizeOrder(order, this.order);
+    this._syncRenderOrder();
   }
 
   addSubtractQuad() {
@@ -280,13 +398,19 @@ export class Surface {
 
     this.subtractQuads = [
       ...this.subtractQuads,
-      createQuadFromUnitBounds(this.surfaceQuad, {
-        minX: 0.32,
-        maxX: 0.68,
-        minY: 0.32,
-        maxY: 0.68,
+      createSubtractQuadEntry({
+        quad: createQuadFromUnitBounds(this.surfaceQuad, {
+          minX: 0.32,
+          maxX: 0.68,
+          minY: 0.32,
+          maxY: 0.68,
+        }),
+        feather: DEFAULT_SUBTRACT_FEATHER,
+        visible: true,
+        order: this.subtractQuads.length,
       }),
     ];
+    this.subtractQuads = reindexSubtractQuads(this.subtractQuads);
     this._activeSubtractQuadIndex = this.subtractQuads.length - 1;
 
     this._rebuildSubtractDebugElements();
@@ -301,7 +425,9 @@ export class Surface {
       return false;
     }
 
-    this.subtractQuads = this.subtractQuads.filter((_, index) => index !== this._activeSubtractQuadIndex);
+    this.subtractQuads = reindexSubtractQuads(
+      this.subtractQuads.filter((_, index) => index !== this._activeSubtractQuadIndex),
+    );
     this._activeSubtractQuadIndex = clampSubtractIndex(this._activeSubtractQuadIndex, this.subtractQuads);
 
     this._rebuildSubtractDebugElements();
@@ -386,9 +512,10 @@ export class Surface {
       name: this.name,
       surfaceQuad: cloneQuad(this.surfaceQuad),
       contentQuad: cloneQuad(this.contentQuad),
-      subtractQuads: this.subtractQuads.map((subtractQuad) => cloneQuad(subtractQuad)),
+      subtractQuads: this.subtractQuads.map((subtractQuad) => cloneSubtractQuadEntry(subtractQuad)),
       activeSubtractQuadIndex: this._activeSubtractQuadIndex,
       feather: this.feather,
+      order: this.order,
       color: [this.color.r, this.color.g, this.color.b],
       visible: this.visible,
       assignedOutputId: this.assignedOutputId,
@@ -402,7 +529,8 @@ export class Surface {
     this.contentQuad = cloneQuad(data.contentQuad || data.surfaceQuad || data.corners || this.surfaceQuad);
     this.subtractQuads = normalizeSubtractQuads(data.subtractQuads);
     this._activeSubtractQuadIndex = clampSubtractIndex(data.activeSubtractQuadIndex, this.subtractQuads);
-    this.feather = Math.min(Math.max(data.feather ?? this.feather, 0.0), 0.25);
+    this.feather = clampFeather(data.feather ?? this.feather, MAX_SURFACE_FEATHER);
+    this.order = normalizeOrder(data.order ?? this.order, this.order);
     this.color = normalizeColor(data.color) || this.color;
     this.visible = data.visible ?? this.visible;
     this.assignedOutputId = data.assignedOutputId;
@@ -412,6 +540,7 @@ export class Surface {
       this._material.uniforms.u_feather.value = this.feather;
     }
     if (this.mesh) this.mesh.visible = this.visible;
+    this._syncRenderOrder();
 
     this._syncSurfaceGeometry();
     this._syncContentTransform();
@@ -465,9 +594,29 @@ export class Surface {
         subtractIndex ?? this._activeSubtractQuadIndex,
         this.subtractQuads,
       );
-      return resolvedIndex < 0 ? [] : this.subtractQuads[resolvedIndex];
+      return resolvedIndex < 0 ? [] : this.subtractQuads[resolvedIndex].quad;
     }
     return [];
+  }
+
+  _syncRenderOrder() {
+    const baseRenderOrder = this.order * SURFACE_RENDER_ORDER_STEP;
+
+    if (this.mesh) {
+      this.mesh.renderOrder = baseRenderOrder;
+    }
+
+    if (this._surfaceOutline) {
+      this._surfaceOutline.renderOrder = baseRenderOrder + OUTLINE_RENDER_ORDER_OFFSET.surface;
+    }
+
+    if (this._contentOutline) {
+      this._contentOutline.renderOrder = baseRenderOrder + OUTLINE_RENDER_ORDER_OFFSET.content;
+    }
+
+    this._subtractOutlines.forEach((outline) => {
+      outline.renderOrder = baseRenderOrder + OUTLINE_RENDER_ORDER_OFFSET.subtract;
+    });
   }
 
   _syncSurfaceGeometry() {
@@ -496,21 +645,27 @@ export class Surface {
     const subtractTransforms = [];
     let validTransformCount = 0;
 
+    const subtractFeathers = [];
+
     for (const subtractQuad of this.subtractQuads) {
       if (subtractTransforms.length >= MAX_SUBTRACT_QUADS) break;
+      if (subtractQuad.visible === false) continue;
 
-      const transform = solveScreenToUnitMatrix(subtractQuad);
+      const transform = solveScreenToUnitMatrix(subtractQuad.quad);
       if (transform) {
         subtractTransforms.push(transform);
+        subtractFeathers.push(subtractQuad.feather);
         validTransformCount++;
       }
     }
 
     while (subtractTransforms.length < MAX_SUBTRACT_QUADS) {
       subtractTransforms.push(new THREE.Matrix3().identity());
+      subtractFeathers.push(0);
     }
 
     this._material.uniforms.u_subtractTransforms.value = subtractTransforms;
+    this._material.uniforms.u_subtractFeathers.value = subtractFeathers;
     this._material.uniforms.u_subtractCount.value = validTransformCount;
   }
 
@@ -567,6 +722,7 @@ export class Surface {
       this._scene.add(outline);
       return outline;
     });
+    this._syncRenderOrder();
   }
 
   _disposeSubtractDebugElements() {
@@ -587,7 +743,7 @@ export class Surface {
     this._syncFixedHandlePositions(this._surfaceHandles, this.surfaceQuad);
     this._syncFixedHandlePositions(this._contentHandles, this.contentQuad);
     this._subtractHandles.forEach((handleSet, index) => {
-      this._syncFixedHandlePositions(handleSet, this.subtractQuads[index]);
+      this._syncFixedHandlePositions(handleSet, this.subtractQuads[index]?.quad);
     });
     this._syncHandleStyles();
   }
@@ -625,7 +781,8 @@ export class Surface {
     const subtractTargetActive = this._editTarget === EDIT_TARGET_SUBTRACT;
     this._subtractHandles.forEach((handles, index) => {
       const isActiveSubtract = index === this._activeSubtractQuadIndex;
-      const display = debugEnabled && subtractTargetActive && isActiveSubtract ? 'block' : 'none';
+      const isVisibleSubtract = this.subtractQuads[index]?.visible !== false;
+      const display = debugEnabled && subtractTargetActive && isActiveSubtract && isVisibleSubtract ? 'block' : 'none';
 
       handles.forEach((handle) => {
         handle.style.display = display;
@@ -659,7 +816,7 @@ export class Surface {
     this._syncOutlineGeometry(this._surfaceOutline, this.surfaceQuad);
     this._syncOutlineGeometry(this._contentOutline, this.contentQuad);
     this._subtractOutlines.forEach((outline, index) => {
-      this._syncOutlineGeometry(outline, this.subtractQuads[index]);
+      this._syncOutlineGeometry(outline, this.subtractQuads[index]?.quad);
     });
     this._syncDebugState();
   }
@@ -687,7 +844,7 @@ export class Surface {
     }
 
     this._subtractOutlines.forEach((outline, index) => {
-      outline.visible = debugEnabled;
+      outline.visible = debugEnabled && this.subtractQuads[index]?.visible !== false;
       if (this._editTarget === EDIT_TARGET_SUBTRACT) {
         outline.material.opacity = index === this._activeSubtractQuadIndex ? 0.95 : 0.28;
       } else {

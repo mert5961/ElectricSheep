@@ -2,6 +2,8 @@ import {
   EDIT_TARGET_CONTENT,
   EDIT_TARGET_SUBTRACT,
   EDIT_TARGET_SURFACE,
+  MAX_SUBTRACT_FEATHER,
+  MAX_SURFACE_FEATHER,
 } from '../surfaces/SurfaceConstants.js';
 
 export class UIManager {
@@ -13,20 +15,32 @@ export class UIManager {
     this._toolbar = null;
     this._featherSlider = null;
     this._featherLabel = null;
+    this._subtractFeatherSlider = null;
+    this._subtractFeatherLabel = null;
     this._surfaceLabel = null;
+    this._surfaceOrderLabel = null;
     this._subtractLabel = null;
     this._editTargetButtons = new Map();
     this._addSubtractBtn = null;
     this._removeSubtractBtn = null;
     this._prevSubtractBtn = null;
     this._nextSubtractBtn = null;
+    this._bringToFrontBtn = null;
+    this._sendToBackBtn = null;
+    this._moveForwardBtn = null;
+    this._moveBackwardBtn = null;
 
     this.onAddSurface = null;
     this.onFeatherChange = null;
+    this.onSubtractFeatherChange = null;
     this.onEditTargetChange = null;
     this.onAddSubtractQuad = null;
     this.onRemoveSubtractQuad = null;
     this.onCycleSubtractQuad = null;
+    this.onBringToFront = null;
+    this.onSendToBack = null;
+    this.onMoveForward = null;
+    this.onMoveBackward = null;
     this.onFullscreen = null;
 
     this._build();
@@ -59,26 +73,36 @@ export class UIManager {
     return this._showMode;
   }
 
-  updateActiveSurface(surface) {
+  updateActiveSurface(surface, surfaceCount = 0) {
     this._hasActiveSurface = Boolean(surface);
     if (surface) {
       this._surfaceLabel.textContent = surface.name;
+      const resolvedSurfaceCount = Math.max(surfaceCount, surface.order + 1);
+      this._surfaceOrderLabel.textContent = `Layer ${surface.order + 1}/${resolvedSurfaceCount}`;
       this._featherSlider.value = surface.feather;
       this._featherLabel.textContent = surface.feather.toFixed(2);
       this._featherSlider.disabled = false;
       this._subtractLabel.textContent = surface.subtractQuadCount > 0
         ? `Subtract ${surface.activeSubtractQuadIndex + 1}/${surface.subtractQuadCount}`
         : 'No subtract quads';
+      this._subtractFeatherSlider.value = surface.activeSubtractFeather;
+      this._subtractFeatherLabel.textContent = surface.activeSubtractFeather.toFixed(2);
+      this._subtractFeatherSlider.disabled = surface.subtractQuadCount === 0;
     } else {
       this._surfaceLabel.textContent = 'No surface selected';
+      this._surfaceOrderLabel.textContent = 'No layer';
       this._featherSlider.value = 0;
       this._featherLabel.textContent = '0.00';
       this._featherSlider.disabled = true;
       this._subtractLabel.textContent = 'No subtract quads';
+      this._subtractFeatherSlider.value = 0;
+      this._subtractFeatherLabel.textContent = '0.00';
+      this._subtractFeatherSlider.disabled = true;
     }
 
     this._syncEditTargetButtons();
     this._syncSubtractButtons(surface);
+    this._syncSurfaceOrderButtons(surface, surfaceCount);
   }
 
   _build() {
@@ -110,6 +134,42 @@ export class UIManager {
       color: '#aaa',
       minWidth: '120px',
     });
+
+    const orderGroup = document.createElement('div');
+    Object.assign(orderGroup.style, {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+    });
+
+    this._surfaceOrderLabel = document.createElement('span');
+    this._surfaceOrderLabel.textContent = 'No layer';
+    Object.assign(this._surfaceOrderLabel.style, {
+      color: '#888',
+      minWidth: '78px',
+      fontVariantNumeric: 'tabular-nums',
+    });
+
+    this._sendToBackBtn = this._createButton('To Back', () => {
+      if (this.onSendToBack) this.onSendToBack();
+    });
+    this._moveBackwardBtn = this._createButton('Backward', () => {
+      if (this.onMoveBackward) this.onMoveBackward();
+    });
+    this._moveForwardBtn = this._createButton('Forward', () => {
+      if (this.onMoveForward) this.onMoveForward();
+    });
+    this._bringToFrontBtn = this._createButton('To Front', () => {
+      if (this.onBringToFront) this.onBringToFront();
+    });
+
+    orderGroup.append(
+      this._surfaceOrderLabel,
+      this._sendToBackBtn,
+      this._moveBackwardBtn,
+      this._moveForwardBtn,
+      this._bringToFrontBtn,
+    );
 
     const editTargetGroup = document.createElement('div');
     Object.assign(editTargetGroup.style, {
@@ -184,13 +244,13 @@ export class UIManager {
     });
 
     const featherText = document.createElement('span');
-    featherText.textContent = 'Feather';
+    featherText.textContent = 'Surface Feather';
     featherText.style.color = '#888';
 
     this._featherSlider = document.createElement('input');
     this._featherSlider.type = 'range';
     this._featherSlider.min = '0';
-    this._featherSlider.max = '0.25';
+    this._featherSlider.max = String(MAX_SURFACE_FEATHER);
     this._featherSlider.step = '0.005';
     this._featherSlider.value = '0';
     this._featherSlider.disabled = true;
@@ -216,6 +276,50 @@ export class UIManager {
 
     featherGroup.append(featherText, this._featherSlider, this._featherLabel);
 
+    const subtractFeatherGroup = document.createElement('div');
+    Object.assign(subtractFeatherGroup.style, {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+    });
+
+    const subtractFeatherText = document.createElement('span');
+    subtractFeatherText.textContent = 'Subtract Feather';
+    subtractFeatherText.style.color = '#888';
+
+    this._subtractFeatherSlider = document.createElement('input');
+    this._subtractFeatherSlider.type = 'range';
+    this._subtractFeatherSlider.min = '0';
+    this._subtractFeatherSlider.max = String(MAX_SUBTRACT_FEATHER);
+    this._subtractFeatherSlider.step = '0.005';
+    this._subtractFeatherSlider.value = '0';
+    this._subtractFeatherSlider.disabled = true;
+    Object.assign(this._subtractFeatherSlider.style, {
+      width: '100px',
+      accentColor: '#ff6f61',
+    });
+
+    this._subtractFeatherLabel = document.createElement('span');
+    this._subtractFeatherLabel.textContent = '0.00';
+    Object.assign(this._subtractFeatherLabel.style, {
+      color: '#aaa',
+      minWidth: '32px',
+      textAlign: 'right',
+      fontVariantNumeric: 'tabular-nums',
+    });
+
+    this._subtractFeatherSlider.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      this._subtractFeatherLabel.textContent = val.toFixed(2);
+      if (this.onSubtractFeatherChange) this.onSubtractFeatherChange(val);
+    });
+
+    subtractFeatherGroup.append(
+      subtractFeatherText,
+      this._subtractFeatherSlider,
+      this._subtractFeatherLabel,
+    );
+
     // Fullscreen button
     const fsBtn = this._createButton('Fullscreen', () => {
       if (this.onFullscreen) this.onFullscreen();
@@ -233,15 +337,18 @@ export class UIManager {
     this._toolbar.append(
       addBtn,
       this._surfaceLabel,
+      orderGroup,
       editTargetGroup,
       subtractGroup,
       featherGroup,
+      subtractFeatherGroup,
       fsBtn,
       hint,
     );
     this._uiEl.appendChild(this._toolbar);
     this._syncEditTargetButtons();
     this._syncSubtractButtons(null);
+    this._syncSurfaceOrderButtons(null, 0);
   }
 
   _createButton(label, onClick) {
@@ -321,11 +428,27 @@ export class UIManager {
       [this._prevSubtractBtn, canManageSubtract],
       [this._nextSubtractBtn, canManageSubtract],
     ].forEach(([button, enabled]) => {
-      if (!button) return;
-      button.disabled = !enabled;
-      button.style.cursor = enabled ? 'pointer' : 'not-allowed';
-      button.style.opacity = enabled ? '1' : '0.45';
+      this._syncButtonState(button, enabled);
     });
+  }
+
+  _syncSurfaceOrderButtons(surface, surfaceCount) {
+    const hasSurface = Boolean(surface);
+    const canReorder = hasSurface && surfaceCount > 1;
+    const canMoveBackward = canReorder && surface.order > 0;
+    const canMoveForward = canReorder && surface.order < surfaceCount - 1;
+
+    this._syncButtonState(this._sendToBackBtn, canMoveBackward);
+    this._syncButtonState(this._moveBackwardBtn, canMoveBackward);
+    this._syncButtonState(this._moveForwardBtn, canMoveForward);
+    this._syncButtonState(this._bringToFrontBtn, canMoveForward);
+  }
+
+  _syncButtonState(button, enabled) {
+    if (!button) return;
+    button.disabled = !enabled;
+    button.style.cursor = enabled ? 'pointer' : 'not-allowed';
+    button.style.opacity = enabled ? '1' : '0.45';
   }
 
   dispose() {
