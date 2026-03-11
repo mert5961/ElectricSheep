@@ -53,6 +53,7 @@ export interface ShaderMasterStoreState extends InternalShaderMasterState {
   setRuntimeUniforms: (uniforms: Partial<UniformValueMap>) => void;
   setAudioUniforms: (uniforms: Partial<UniformValueMap>) => void;
   setFeelingUniforms: (uniforms: Partial<UniformValueMap>) => void;
+  hydrateSnapshot: (snapshot: ShaderMasterSnapshot) => void;
   applyVisualIntent: (intent: VisualIntent) => VisualIntentResult;
 }
 
@@ -646,6 +647,36 @@ export function createShaderMasterStore(): ShaderMasterStore {
       set({
         feelingUniforms: mergeUniformBucket(state.feelingUniforms, uniforms, 'feeling'),
         uiRevision: incrementUiRevision(state),
+      });
+    },
+
+    hydrateSnapshot: (snapshot) => {
+      const nextOutputs = snapshot.outputs.reduce<Record<string, ShaderOutput>>((accumulator, output) => {
+        accumulator[output.id] = {
+          id: output.id,
+          name: output.name,
+          presetId: output.presetId,
+          uniforms: cloneUniformMap(output.uniforms),
+          enabled: output.enabled,
+        };
+        return accumulator;
+      }, {});
+
+      set({
+        outputs: nextOutputs,
+        outputOrder: snapshot.outputs.map((output) => output.id),
+        surfaces: snapshot.surfaces.map((surface) => ({ ...surface })),
+        surfaceAssignments: { ...snapshot.surfaceAssignments },
+        selectedOutputId: snapshot.selectedOutputId,
+        selectedSurfaceId: snapshot.selectedSurfaceId,
+        runtimeUniforms: cloneUniformMap(snapshot.runtimeUniforms),
+        audioUniforms: cloneUniformMap(snapshot.audioUniforms),
+        feelingUniforms: cloneUniformMap(snapshot.feelingUniforms),
+        uiRevision: snapshot.revision,
+        outputCounter: Math.max(
+          1,
+          ...snapshot.outputs.map((output) => Number.parseInt(output.id.replace('output-', ''), 10) || 1),
+        ),
       });
     },
 

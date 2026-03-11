@@ -8,79 +8,137 @@ import {
   EDIT_TARGET_SURFACE,
 } from './surfaces/SurfaceConstants.js';
 import {
+  APP_ROLE_EDITOR,
+  APP_ROLE_OUTPUT,
+  EDITOR_MODULE_GEO,
+  EDITOR_MODULE_SHADER,
+  OUTPUT_DISPLAY_MODE_SHOW,
+  PREVIEW_MODE_EDIT,
+  PREVIEW_MODE_OUTPUT,
+} from './core/AppModes.js';
+import {
   createShaderMasterSnapshot,
   createShaderMasterStore,
 } from './systems/shader-master/store/shaderMasterStore.ts';
 import { ShaderMasterRuntime } from './systems/shader-master/runtime/ShaderMasterRuntime.ts';
-
-const MODE_EDITOR = 'editor';
-const MODE_SHOW = 'show';
+import { MappingAssistOverlay } from './overlays/MappingAssistOverlay.js';
+import { OutputStageUI } from './ui/OutputStageUI.js';
 
 export class App {
-  constructor({ bridge = null } = {}) {
+  constructor({
+    bridge = null,
+    role = APP_ROLE_EDITOR,
+  } = {}) {
     const canvas = document.getElementById('webgl-canvas');
     const overlayEl = document.getElementById('overlay');
     const uiEl = document.getElementById('ui');
 
-    this._mode = MODE_EDITOR;
-    this._editTarget = EDIT_TARGET_SURFACE;
     this._bridge = bridge;
+    this._role = role;
+    this._activeModule = EDITOR_MODULE_GEO;
+    this._editTarget = EDIT_TARGET_SURFACE;
+    this._previewMode = role === APP_ROLE_EDITOR ? PREVIEW_MODE_EDIT : PREVIEW_MODE_OUTPUT;
+    this._outputDisplayMode = OUTPUT_DISPLAY_MODE_SHOW;
+    this._pendingBroadcastFrame = null;
+    this._shaderUiRevision = 0;
+    this._outputWindowRef = null;
+    this._outputWindowConnected = false;
+    this._pendingOutputFullscreen = false;
 
     this.renderer = new RendererManager(canvas);
     this.surfaces = new SurfaceManager(this.renderer.scene, overlayEl);
-    this.input = new InputController(overlayEl, canvas);
-    this.ui = new UIManager(uiEl);
     this.shaderMasterStore = createShaderMasterStore();
     this.shaderRuntime = new ShaderMasterRuntime({
       renderer: this.renderer.renderer,
       store: this.shaderMasterStore,
     });
-    this._shaderUiRevision = this.shaderMasterStore.getState().uiRevision;
-    this._unsubscribeShaderMaster = this.shaderMasterStore.subscribe((state) => {
-      if (state.uiRevision === this._shaderUiRevision) {
-        return;
-      }
+    this.assistOverlay = role === APP_ROLE_OUTPUT
+      ? new MappingAssistOverlay(overlayEl)
+      : null;
+    this.outputUi = role === APP_ROLE_OUTPUT
+      ? new OutputStageUI(uiEl)
+      : null;
+    this.input = role === APP_ROLE_EDITOR
+      ? new InputController(overlayEl, canvas)
+      : null;
+    this.ui = role === APP_ROLE_EDITOR
+      ? new UIManager(uiEl)
+      : null;
 
-      this._shaderUiRevision = state.uiRevision;
-      this._applyShaderMasterStateToSurfaces();
-      if (this._bridge) {
-        this._broadcastState();
-      }
-    });
+    if (this.outputUi) {
+      this.outputUi.onEnterFullscreen = () => {
+        this._requestStageFullscreen();
+      };
+      this.outputUi.onPromptVisibilityChange = () => {
+        this._applyPreviewMode();
+      };
+    }
 
-    this._wireInput();
-    this._wireUI();
+    this._wireShaderMasterStore();
     this._wireFrameLoop();
-    this._syncShaderMasterSurfaces();
-    this._applyShaderMasterStateToSurfaces();
-    this.surfaces.setEditTarget(this._editTarget);
-    this.ui.setEditTarget(this._editTarget);
-    this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
+
+    if (this.input) {
+      this._wireInput();
+    }
+
+    if (this.ui) {
+      this._wireUI();
+      this.ui.setActiveModule(this._activeModule);
+      this.ui.setEditTarget(this._editTarget);
+      this.ui.setPreviewMode(this._previewMode);
+      this.ui.setOutputDisplayMode(this._outputDisplayMode);
+      this.ui.setOutputWindowState({
+        available: false,
+        connected: false,
+      });
+      this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
+      this.ui.updateShaderMaster(createShaderMasterSnapshot(this.shaderMasterStore.getState()));
+    }
 
     if (this._bridge) {
       this._wireBridge();
     }
+
+    this._syncShaderMasterSurfaces();
+    this._applyShaderMasterStateToSurfaces();
+    this._applyPreviewMode();
+    this._applyOutputDisplayMode();
   }
 
-  get mode() {
-    return this._mode;
+  get role() {
+    return this._role;
   }
 
   get editTarget() {
     return this._editTarget;
   }
 
-  setMode(mode) {
-    this._mode = mode;
+  get activeModule() {
+    return this._activeModule;
+  }
 
-    const isShow = mode === MODE_SHOW;
-    this.ui.setShowMode(isShow);
-    this.surfaces.setDebugVisible(!isShow);
+  get previewMode() {
+    return this._previewMode;
+  }
 
-    if (this._bridge) {
-      this._broadcastState();
+  get outputDisplayMode() {
+    return this._outputDisplayMode;
+  }
+
+  setActiveModule(module) {
+    if (module !== EDITOR_MODULE_GEO && module !== EDITOR_MODULE_SHADER) {
+      return;
     }
-    console.log(`[ElectricSheep] Mode: ${mode}`);
+
+    if (this._activeModule === module) {
+      return;
+    }
+
+    this._activeModule = module;
+    this._applyPreviewMode();
+    if (this.ui) {
+      this.ui.setActiveModule(module);
+    }
   }
 
   setEditTarget(target) {
@@ -94,35 +152,149 @@ export class App {
 
     this._editTarget = target;
     this.surfaces.setEditTarget(target);
-    this.ui.setEditTarget(target);
-    this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
-
-    if (this._bridge) {
-      this._broadcastState();
+    if (this.ui) {
+      this.ui.setEditTarget(target);
+      this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
     }
-    console.log(`[ElectricSheep] Edit target: ${target}`);
+
+    this._scheduleSceneBroadcast();
   }
 
-  toggleMode() {
-    this.setMode(this._mode === MODE_EDITOR ? MODE_SHOW : MODE_EDITOR);
+  setPreviewMode(mode) {
+    if (mode !== PREVIEW_MODE_EDIT && mode !== PREVIEW_MODE_OUTPUT) {
+      return;
+    }
+
+    this._previewMode = mode;
+    this._applyPreviewMode();
+    if (this.ui) {
+      this.ui.setPreviewMode(mode);
+    }
+    this._scheduleSceneBroadcast();
+  }
+
+  togglePreviewMode() {
+    this.setPreviewMode(
+      this._previewMode === PREVIEW_MODE_EDIT ? PREVIEW_MODE_OUTPUT : PREVIEW_MODE_EDIT,
+    );
+  }
+
+  setOutputDisplayMode(mode) {
+    this._outputDisplayMode = mode;
+    this._applyOutputDisplayMode();
+    if (this.ui) {
+      this.ui.setOutputDisplayMode(mode);
+    }
+    this._scheduleSceneBroadcast();
+  }
+
+  openOutputWindow() {
+    if (this._role !== APP_ROLE_EDITOR) {
+      return null;
+    }
+
+    const existingOutputWindow = this._resolveOutputWindowRef();
+    if (existingOutputWindow) {
+      existingOutputWindow.focus();
+      this._broadcastSceneState();
+      this._syncOutputWindowState();
+      return existingOutputWindow;
+    }
+
+    this._outputWindowRef = window.open(
+      '/output.html',
+      'electric-sheep-output',
+      'popup,width=1440,height=900',
+    );
+
+    if (this._outputWindowRef) {
+      this._outputWindowRef.focus();
+    }
+
+    this._syncOutputWindowState();
+    return this._outputWindowRef;
+  }
+
+  focusOutputWindow() {
+    if (this._role !== APP_ROLE_EDITOR) {
+      return null;
+    }
+
+    const outputWindow = this._resolveOutputWindowRef();
+    if (outputWindow) {
+      outputWindow.focus();
+      this._syncOutputWindowState();
+      return outputWindow;
+    }
+
+    return this.openOutputWindow();
+  }
+
+  requestOutputFullscreen() {
+    if (this._role !== APP_ROLE_EDITOR || !this._bridge) {
+      return;
+    }
+
+    if (this._outputWindowConnected) {
+      this._pendingOutputFullscreen = false;
+      this._sendOutputCommand('enterFullscreen');
+      return;
+    }
+
+    const outputWindow = this.openOutputWindow();
+    if (!outputWindow) {
+      return;
+    }
+
+    this._pendingOutputFullscreen = true;
+    this._syncOutputWindowState();
   }
 
   start() {
     this.renderer.start();
-    this.setEditTarget(this._editTarget);
-    this.setMode(MODE_EDITOR);
-    console.log('[ElectricSheep] Output started');
+    if (this._role === APP_ROLE_EDITOR) {
+      this._broadcastSceneState();
+    } else if (this._bridge) {
+      this._bridge.send('requestAppState');
+      this._bridge.send('outputReady');
+    }
   }
 
-  // --- Wiring ---
+  _wireShaderMasterStore() {
+    this._shaderUiRevision = this.shaderMasterStore.getState().uiRevision;
+    this._unsubscribeShaderMaster = this.shaderMasterStore.subscribe((state) => {
+      this._applyShaderMasterStateToSurfaces();
+
+      if (this.assistOverlay) {
+        this.assistOverlay.update({
+          surfaces: this.surfaces.serializeAll(),
+          selectedSurfaceId: state.selectedSurfaceId,
+        });
+      }
+
+      if (state.uiRevision === this._shaderUiRevision) {
+        return;
+      }
+
+      this._shaderUiRevision = state.uiRevision;
+
+      if (this.ui) {
+        this.ui.updateShaderMaster(createShaderMasterSnapshot(state));
+      }
+
+      if (this._role === APP_ROLE_EDITOR) {
+        this._scheduleSceneBroadcast();
+      }
+    });
+  }
 
   _wireInput() {
     this.input.onQuadDrag = (surfaceId, quadType, subtractIndex, cornerIndex, x, y) => {
       const surface = this.surfaces.getSurface(surfaceId);
-      if (surface) surface.updateQuadCorner(quadType, cornerIndex, x, y, subtractIndex);
+      if (!surface) return;
+      surface.updateQuadCorner(quadType, cornerIndex, x, y, subtractIndex);
+      this._scheduleSceneBroadcast();
     };
-
-    this.input.onQuadDragEnd = () => {};
 
     this.input.onSurfaceSelect = (surfaceId, quadType, subtractIndex) => {
       this.surfaces.selectByHandle(surfaceId);
@@ -131,22 +303,33 @@ export class App {
       if (surface && quadType === EDIT_TARGET_SUBTRACT && Number.isInteger(subtractIndex)) {
         surface.selectSubtractQuad(subtractIndex);
       }
-      this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
+      if (this.ui) {
+        this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
+      }
+      this._scheduleSceneBroadcast();
     };
 
     this.input.onDeletePressed = () => {
-      if (this._mode !== MODE_EDITOR) return;
       this.surfaces.removeActiveSurface();
       this._syncShaderMasterSurfaces();
-      this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
+      if (this.ui) {
+        this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
+      }
+      this._scheduleSceneBroadcast();
     };
 
     this.input.onToggleShowMode = () => {
-      this.toggleMode();
+      if (this._activeModule === EDITOR_MODULE_GEO) {
+        this.togglePreviewMode();
+      }
     };
   }
 
   _wireUI() {
+    this.ui.onModuleChange = (module) => {
+      this.setActiveModule(module);
+    };
+
     this.ui.onAddSurface = () => {
       const surface = this.surfaces.addSurface();
       this._syncShaderMasterSurfaces();
@@ -155,11 +338,14 @@ export class App {
         this.shaderMasterStore.getState().assignOutputToSurface(surface.id, selectedOutputId);
       }
       this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
+      this._scheduleSceneBroadcast();
     };
 
     this.ui.onFeatherChange = (value) => {
       const surface = this.surfaces.activeSurface;
-      if (surface) surface.updateFeather(value);
+      if (!surface) return;
+      surface.updateFeather(value);
+      this._scheduleSceneBroadcast();
     };
 
     this.ui.onSubtractFeatherChange = (value) => {
@@ -167,6 +353,7 @@ export class App {
       if (!surface) return;
       if (!surface.setSubtractQuadFeather(value)) return;
       this.ui.updateActiveSurface(surface, this.surfaces.count);
+      this._scheduleSceneBroadcast();
     };
 
     this.ui.onEditTargetChange = (target) => {
@@ -178,6 +365,7 @@ export class App {
       if (!surface) return;
       surface.addSubtractQuad();
       this.ui.updateActiveSurface(surface, this.surfaces.count);
+      this._scheduleSceneBroadcast();
     };
 
     this.ui.onRemoveSubtractQuad = () => {
@@ -185,6 +373,7 @@ export class App {
       if (!surface) return;
       if (!surface.removeActiveSubtractQuad()) return;
       this.ui.updateActiveSurface(surface, this.surfaces.count);
+      this._scheduleSceneBroadcast();
     };
 
     this.ui.onCycleSubtractQuad = (direction) => {
@@ -192,6 +381,7 @@ export class App {
       if (!surface) return;
       if (!surface.cycleSubtractQuad(direction)) return;
       this.ui.updateActiveSurface(surface, this.surfaces.count);
+      this._scheduleSceneBroadcast();
     };
 
     this.ui.onBringToFront = () => {
@@ -200,6 +390,7 @@ export class App {
       if (!this.surfaces.bringToFront(surface.id)) return;
       this._syncShaderMasterSurfaces();
       this.ui.updateActiveSurface(surface, this.surfaces.count);
+      this._scheduleSceneBroadcast();
     };
 
     this.ui.onSendToBack = () => {
@@ -208,6 +399,7 @@ export class App {
       if (!this.surfaces.sendToBack(surface.id)) return;
       this._syncShaderMasterSurfaces();
       this.ui.updateActiveSurface(surface, this.surfaces.count);
+      this._scheduleSceneBroadcast();
     };
 
     this.ui.onMoveForward = () => {
@@ -216,6 +408,7 @@ export class App {
       if (!this.surfaces.moveForward(surface.id)) return;
       this._syncShaderMasterSurfaces();
       this.ui.updateActiveSurface(surface, this.surfaces.count);
+      this._scheduleSceneBroadcast();
     };
 
     this.ui.onMoveBackward = () => {
@@ -224,14 +417,70 @@ export class App {
       if (!this.surfaces.moveBackward(surface.id)) return;
       this._syncShaderMasterSurfaces();
       this.ui.updateActiveSurface(surface, this.surfaces.count);
+      this._scheduleSceneBroadcast();
     };
 
-    this.ui.onFullscreen = () => {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {});
-      } else {
-        document.exitFullscreen().catch(() => {});
-      }
+    this.ui.onOpenOutputWindow = () => {
+      this.openOutputWindow();
+    };
+
+    this.ui.onFocusOutputWindow = () => {
+      this.focusOutputWindow();
+    };
+
+    this.ui.onFullscreenOutputWindow = () => {
+      this.requestOutputFullscreen();
+    };
+
+    this.ui.onPreviewModeChange = (mode) => {
+      this.setPreviewMode(mode);
+    };
+
+    this.ui.onOutputDisplayModeChange = (mode) => {
+      this.setOutputDisplayMode(mode);
+    };
+
+    this.ui.onSelectSurface = (surfaceId) => {
+      this.surfaces.selectSurface(surfaceId);
+      this.shaderMasterStore.getState().setSelectedSurface(surfaceId);
+      this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
+      this._scheduleSceneBroadcast();
+    };
+
+    this.ui.onAssignOutput = (surfaceId, outputId) => {
+      this.shaderMasterStore.getState().assignOutputToSurface(surfaceId, outputId);
+    };
+
+    this.ui.onCreateOutput = (presetId) => {
+      this.shaderMasterStore.getState().createOutput(presetId);
+    };
+
+    this.ui.onSelectOutput = (outputId) => {
+      this.shaderMasterStore.getState().setSelectedOutput(outputId);
+    };
+
+    this.ui.onDuplicateOutput = (outputId) => {
+      this.shaderMasterStore.getState().duplicateOutput(outputId);
+    };
+
+    this.ui.onDeleteOutput = (outputId) => {
+      this.shaderMasterStore.getState().deleteOutput(outputId);
+    };
+
+    this.ui.onRenameOutput = (outputId, name) => {
+      this.shaderMasterStore.getState().renameOutput(outputId, name);
+    };
+
+    this.ui.onSetOutputEnabled = (outputId, enabled) => {
+      this.shaderMasterStore.getState().setOutputEnabled(outputId, enabled);
+    };
+
+    this.ui.onChangeOutputPreset = (outputId, presetId) => {
+      this.shaderMasterStore.getState().changeOutputPreset(outputId, presetId);
+    };
+
+    this.ui.onUpdateOutputUniform = (outputId, key, value) => {
+      this.shaderMasterStore.getState().updateOutputUniform(outputId, key, value);
     };
   }
 
@@ -239,106 +488,78 @@ export class App {
     this.renderer.onFrame((time) => {
       this.shaderRuntime.render(time);
       this._applyShaderMasterStateToSurfaces();
+      if (this.assistOverlay) {
+        this.assistOverlay.resize(window.innerWidth, window.innerHeight);
+        this.assistOverlay.render();
+      }
     });
   }
 
   _wireBridge() {
-    this._bridge.on('setMode', ({ mode }) => {
-      if (mode === MODE_EDITOR || mode === MODE_SHOW) {
-        this.setMode(mode);
-      }
-    });
+    if (this._role === APP_ROLE_EDITOR) {
+      this._bridge.on('requestAppState', () => {
+        this._broadcastSceneState();
+      });
+      this._bridge.on('outputReady', () => {
+        this._outputWindowConnected = true;
+        this._syncOutputWindowState();
+        this._broadcastSceneState();
+        if (this._pendingOutputFullscreen) {
+          this._pendingOutputFullscreen = false;
+          this._sendOutputCommand('enterFullscreen');
+        }
+      });
+      this._bridge.on('outputClosed', () => {
+        this._outputWindowConnected = false;
+        this._resolveOutputWindowRef();
+        this._syncOutputWindowState();
+      });
+      return;
+    }
 
-    this._bridge.on('addSurface', () => {
-      const surface = this.surfaces.addSurface();
-      this._syncShaderMasterSurfaces();
-      const selectedOutputId = this.shaderMasterStore.getState().selectedOutputId;
-      if (surface && selectedOutputId) {
-        this.shaderMasterStore.getState().assignOutputToSurface(surface.id, selectedOutputId);
-      }
-      this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
+    this._bridge.on('appState', (snapshot) => {
+      this._applySceneSnapshot(snapshot);
     });
-
-    this._bridge.on('setEditTarget', ({ target }) => {
-      this.setEditTarget(target);
-    });
-
-    this._bridge.on('shaderCommand', ({ type, payload = {} }) => {
-      this._handleShaderCommand(type, payload);
-    });
-
-    this._bridge.on('ping', () => {
-      this._broadcastState();
+    this._bridge.on('outputCommand', (command) => {
+      this._handleOutputCommand(command);
     });
   }
 
-  _handleShaderCommand(type, payload) {
-    const shaderState = this.shaderMasterStore.getState();
+  _applyPreviewMode() {
+    const showDebug = (
+      this._role === APP_ROLE_EDITOR
+      && this._activeModule === EDITOR_MODULE_GEO
+      && this._previewMode === PREVIEW_MODE_EDIT
+    );
+    this.surfaces.setDebugVisible(showDebug);
+    document.body.style.cursor = this._role === APP_ROLE_OUTPUT
+      ? ((this.outputUi?.isFullscreenPromptVisible() ?? false) ? '' : 'none')
+      : (showDebug ? '' : 'default');
+  }
 
-    switch (type) {
-      case 'selectSurface':
-        if (payload.surfaceId) {
-          this.surfaces.selectSurface(payload.surfaceId);
-          this.shaderMasterStore.getState().setSelectedSurface(payload.surfaceId);
-          this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
-        }
-        return;
-      case 'assignOutputToSurface':
-        this.shaderMasterStore.getState().assignOutputToSurface(
-          payload.surfaceId,
-          payload.outputId ?? null,
-        );
-        return;
-      case 'selectOutput':
-        shaderState.setSelectedOutput(payload.outputId ?? null);
-        return;
-      case 'createOutput':
-        shaderState.createOutput(payload.presetId, payload.name);
-        return;
-      case 'duplicateOutput':
-        if (payload.outputId) {
-          shaderState.duplicateOutput(payload.outputId);
-        }
-        return;
-      case 'deleteOutput':
-        if (payload.outputId) {
-          shaderState.deleteOutput(payload.outputId);
-        }
-        return;
-      case 'renameOutput':
-        if (payload.outputId) {
-          shaderState.renameOutput(payload.outputId, payload.name);
-        }
-        return;
-      case 'setOutputEnabled':
-        if (payload.outputId) {
-          shaderState.setOutputEnabled(payload.outputId, Boolean(payload.enabled));
-        }
-        return;
-      case 'changeOutputPreset':
-        if (payload.outputId && payload.presetId) {
-          shaderState.changeOutputPreset(payload.outputId, payload.presetId);
-        }
-        return;
-      case 'updateOutputUniform':
-        if (payload.outputId && payload.key) {
-          shaderState.updateOutputUniform(payload.outputId, payload.key, payload.value);
-        }
-        return;
-      case 'applyVisualIntent':
-        if (payload.intent) {
-          shaderState.applyVisualIntent(payload.intent);
-        }
-        return;
-      case 'setAudioUniforms':
-        shaderState.setAudioUniforms(payload.uniforms || {});
-        return;
-      case 'setFeelingUniforms':
-        shaderState.setFeelingUniforms(payload.uniforms || {});
-        return;
-      default:
-        return;
+  _applyOutputDisplayMode() {
+    if (this.assistOverlay) {
+      this.assistOverlay.setMode(this._outputDisplayMode);
+      this.assistOverlay.render();
     }
+  }
+
+  _syncShaderMasterSurfaces() {
+    const shaderState = this.shaderMasterStore.getState();
+    shaderState.syncSurfaces(this._getSurfaceReferences());
+    shaderState.setSelectedSurface(this.surfaces.activeSurface?.id || null);
+    if (this.ui) {
+      this.ui.updateShaderMaster(createShaderMasterSnapshot(shaderState));
+    }
+  }
+
+  _applyShaderMasterStateToSurfaces() {
+    const shaderState = this.shaderMasterStore.getState();
+    this.surfaces.all.forEach((surface) => {
+      const assignedOutputId = shaderState.surfaceAssignments[surface.id] ?? null;
+      surface.assignOutput(assignedOutputId);
+      surface.setOutputTexture(this.shaderRuntime.getOutputTexture(assignedOutputId));
+    });
   }
 
   _getSurfaceReferences() {
@@ -351,37 +572,145 @@ export class App {
     }));
   }
 
-  _syncShaderMasterSurfaces() {
-    const shaderState = this.shaderMasterStore.getState();
-    shaderState.syncSurfaces(this._getSurfaceReferences());
-    shaderState.setSelectedSurface(this.surfaces.activeSurface?.id || null);
-  }
-
-  _applyShaderMasterStateToSurfaces() {
-    const shaderState = this.shaderMasterStore.getState();
-
-    this.surfaces.all.forEach((surface) => {
-      const assignedOutputId = shaderState.surfaceAssignments[surface.id] ?? null;
-      surface.assignOutput(assignedOutputId);
-      surface.setOutputTexture(this.shaderRuntime.getOutputTexture(assignedOutputId));
-    });
-  }
-
-  _broadcastState() {
-    if (!this._bridge) return;
-    this._bridge.send('state', {
-      mode: this._mode,
+  _createSceneSnapshot() {
+    return {
       editTarget: this._editTarget,
-      surfaceCount: this.surfaces.count,
-      surfaces: this._getSurfaceReferences(),
+      previewMode: this._previewMode,
+      outputDisplayMode: this._outputDisplayMode,
+      surfaces: this.surfaces.serializeAll(),
       shaderMaster: createShaderMasterSnapshot(this.shaderMasterStore.getState()),
+    };
+  }
+
+  _applySceneSnapshot(snapshot) {
+    if (!snapshot) return;
+
+    this._editTarget = snapshot.editTarget ?? this._editTarget;
+    this._previewMode = PREVIEW_MODE_OUTPUT;
+    this._outputDisplayMode = snapshot.outputDisplayMode ?? this._outputDisplayMode;
+
+    this.surfaces.syncSerialized(snapshot.surfaces || []);
+    if (snapshot.shaderMaster) {
+      this.shaderMasterStore.getState().hydrateSnapshot(snapshot.shaderMaster);
+    }
+
+    const selectedSurfaceId = snapshot.shaderMaster?.selectedSurfaceId || null;
+    this.surfaces.selectSurface(selectedSurfaceId);
+    this.surfaces.setEditTarget(this._editTarget);
+    this._applyPreviewMode();
+    this._applyOutputDisplayMode();
+    this._applyShaderMasterStateToSurfaces();
+  }
+
+  _scheduleSceneBroadcast() {
+    if (this._role !== APP_ROLE_EDITOR || !this._bridge || this._pendingBroadcastFrame !== null) {
+      return;
+    }
+
+    this._pendingBroadcastFrame = requestAnimationFrame(() => {
+      this._pendingBroadcastFrame = null;
+      this._broadcastSceneState();
     });
+  }
+
+  _broadcastSceneState() {
+    if (this._role !== APP_ROLE_EDITOR || !this._bridge) {
+      return;
+    }
+
+    this._bridge.send('appState', this._createSceneSnapshot());
+  }
+
+  _resolveOutputWindowRef() {
+    if (this._outputWindowRef?.closed) {
+      this._outputWindowRef = null;
+    }
+
+    return this._outputWindowRef;
+  }
+
+  _syncOutputWindowState() {
+    if (!this.ui) {
+      return;
+    }
+
+    this.ui.setOutputWindowState({
+      available: Boolean(this._resolveOutputWindowRef()),
+      connected: this._outputWindowConnected,
+    });
+  }
+
+  _sendOutputCommand(type, payload = {}) {
+    if (this._role !== APP_ROLE_EDITOR || !this._bridge) {
+      return;
+    }
+
+    this._bridge.send('outputCommand', {
+      type,
+      payload,
+    });
+  }
+
+  _handleOutputCommand(command) {
+    if (this._role !== APP_ROLE_OUTPUT || !command?.type) {
+      return;
+    }
+
+    if (command.type === 'enterFullscreen') {
+      this._requestStageFullscreen(
+        'The main window requested fullscreen, but this browser needs a direct click in the output window to continue.',
+      );
+    }
+  }
+
+  _requestStageFullscreen(fallbackMessage) {
+    if (this._role !== APP_ROLE_OUTPUT) {
+      return Promise.resolve(false);
+    }
+
+    if (document.fullscreenElement) {
+      this.outputUi?.hideFullscreenPrompt();
+      this._applyPreviewMode();
+      return Promise.resolve(true);
+    }
+
+    const fullscreenTarget = document.documentElement;
+    if (!fullscreenTarget?.requestFullscreen) {
+      this.outputUi?.showFullscreenPrompt(
+        fallbackMessage || 'This browser does not allow automatic fullscreen here. Click below to try again.',
+      );
+      this._applyPreviewMode();
+      return Promise.resolve(false);
+    }
+
+    return fullscreenTarget.requestFullscreen()
+      .then(() => {
+        this.outputUi?.hideFullscreenPrompt();
+        this._applyPreviewMode();
+        return true;
+      })
+      .catch(() => {
+        this.outputUi?.showFullscreenPrompt(
+          fallbackMessage || 'Fullscreen was blocked until this window receives the click directly.',
+        );
+        this._applyPreviewMode();
+        return false;
+      });
   }
 
   dispose() {
-    this.input.dispose();
-    this.ui.dispose();
+    if (this._pendingBroadcastFrame !== null) {
+      cancelAnimationFrame(this._pendingBroadcastFrame);
+      this._pendingBroadcastFrame = null;
+    }
+    if (this._role === APP_ROLE_OUTPUT && this._bridge) {
+      this._bridge.send('outputClosed');
+    }
     if (this._unsubscribeShaderMaster) this._unsubscribeShaderMaster();
+    if (this.input) this.input.dispose();
+    if (this.ui) this.ui.dispose();
+    if (this.outputUi) this.outputUi.dispose();
+    if (this.assistOverlay) this.assistOverlay.dispose();
     this.shaderRuntime.dispose();
     this.renderer.dispose();
     if (this._bridge) this._bridge.dispose();
