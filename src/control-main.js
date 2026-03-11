@@ -1,8 +1,14 @@
+import { App } from './App.js';
 import { StateBridge } from './comms/StateBridge.js';
-import { ControlUI } from './ui/ControlUI.js';
+import { APP_ROLE_EDITOR } from './core/AppModes.js';
 
 const bridge = new StateBridge();
-const rootEl = document.getElementById('control-root');
-const controlUI = new ControlUI(rootEl, bridge);
+const app = new App({
+  bridge,
+  role: APP_ROLE_EDITOR,
+});
 
-console.log('[ElectricSheep] Control screen started');
+app.start();
+window.addEventListener('beforeunload', () => {
+  app.dispose();
+});

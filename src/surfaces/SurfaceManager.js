@@ -166,6 +166,37 @@ export class SurfaceManager {
     this._normalizeSurfaceOrder();
   }
 
+  syncSerialized(surfaceStates) {
+    if (!Array.isArray(surfaceStates)) {
+      return;
+    }
+
+    const nextSurfaceIds = new Set();
+
+    surfaceStates.forEach((surfaceState) => {
+      if (!surfaceState?.id) {
+        return;
+      }
+
+      nextSurfaceIds.add(surfaceState.id);
+      const existingSurface = this._surfaces.get(surfaceState.id);
+      if (existingSurface) {
+        existingSurface.deserialize(surfaceState);
+        return;
+      }
+
+      this.addSurface(surfaceState);
+    });
+
+    Array.from(this._surfaces.keys()).forEach((surfaceId) => {
+      if (!nextSurfaceIds.has(surfaceId)) {
+        this.removeSurface(surfaceId);
+      }
+    });
+
+    this._normalizeSurfaceOrder();
+  }
+
   _resolveInitialOrder(order) {
     if (Number.isFinite(order)) {
       return Math.max(0, Math.round(order));
