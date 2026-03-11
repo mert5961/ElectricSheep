@@ -2,12 +2,16 @@ import { RendererManager } from './core/RendererManager.js';
 import { InputController } from './core/InputController.js';
 import { SurfaceManager } from './surfaces/SurfaceManager.js';
 import { UIManager } from './ui/UIManager.js';
-import { OutputRouter } from './routing/OutputRouter.js';
 import {
   EDIT_TARGET_CONTENT,
   EDIT_TARGET_SUBTRACT,
   EDIT_TARGET_SURFACE,
 } from './surfaces/SurfaceConstants.js';
+import {
+  createShaderMasterSnapshot,
+  createShaderMasterStore,
+} from './systems/shader-master/store/shaderMasterStore.ts';
+import { ShaderMasterRuntime } from './systems/shader-master/runtime/ShaderMasterRuntime.ts';
 
 const MODE_EDITOR = 'editor';
 const MODE_SHOW = 'show';
@@ -26,11 +30,29 @@ export class App {
     this.surfaces = new SurfaceManager(this.renderer.scene, overlayEl);
     this.input = new InputController(overlayEl, canvas);
     this.ui = new UIManager(uiEl);
-    this.router = new OutputRouter();
+    this.shaderMasterStore = createShaderMasterStore();
+    this.shaderRuntime = new ShaderMasterRuntime({
+      renderer: this.renderer.renderer,
+      store: this.shaderMasterStore,
+    });
+    this._shaderUiRevision = this.shaderMasterStore.getState().uiRevision;
+    this._unsubscribeShaderMaster = this.shaderMasterStore.subscribe((state) => {
+      if (state.uiRevision === this._shaderUiRevision) {
+        return;
+      }
+
+      this._shaderUiRevision = state.uiRevision;
+      this._applyShaderMasterStateToSurfaces();
+      if (this._bridge) {
+        this._broadcastState();
+      }
+    });
 
     this._wireInput();
     this._wireUI();
     this._wireFrameLoop();
+    this._syncShaderMasterSurfaces();
+    this._applyShaderMasterStateToSurfaces();
     this.surfaces.setEditTarget(this._editTarget);
     this.ui.setEditTarget(this._editTarget);
     this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
@@ -104,6 +126,7 @@ export class App {
 
     this.input.onSurfaceSelect = (surfaceId, quadType, subtractIndex) => {
       this.surfaces.selectByHandle(surfaceId);
+      this.shaderMasterStore.getState().setSelectedSurface(surfaceId);
       const surface = this.surfaces.activeSurface;
       if (surface && quadType === EDIT_TARGET_SUBTRACT && Number.isInteger(subtractIndex)) {
         surface.selectSubtractQuad(subtractIndex);
@@ -114,8 +137,8 @@ export class App {
     this.input.onDeletePressed = () => {
       if (this._mode !== MODE_EDITOR) return;
       this.surfaces.removeActiveSurface();
+      this._syncShaderMasterSurfaces();
       this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
-      if (this._bridge) this._broadcastState();
     };
 
     this.input.onToggleShowMode = () => {
@@ -125,9 +148,13 @@ export class App {
 
   _wireUI() {
     this.ui.onAddSurface = () => {
-      this.surfaces.addSurface();
+      const surface = this.surfaces.addSurface();
+      this._syncShaderMasterSurfaces();
+      const selectedOutputId = this.shaderMasterStore.getState().selectedOutputId;
+      if (surface && selectedOutputId) {
+        this.shaderMasterStore.getState().assignOutputToSurface(surface.id, selectedOutputId);
+      }
       this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
-      if (this._bridge) this._broadcastState();
     };
 
     this.ui.onFeatherChange = (value) => {
@@ -151,7 +178,6 @@ export class App {
       if (!surface) return;
       surface.addSubtractQuad();
       this.ui.updateActiveSurface(surface, this.surfaces.count);
-      if (this._bridge) this._broadcastState();
     };
 
     this.ui.onRemoveSubtractQuad = () => {
@@ -159,7 +185,6 @@ export class App {
       if (!surface) return;
       if (!surface.removeActiveSubtractQuad()) return;
       this.ui.updateActiveSurface(surface, this.surfaces.count);
-      if (this._bridge) this._broadcastState();
     };
 
     this.ui.onCycleSubtractQuad = (direction) => {
@@ -173,32 +198,32 @@ export class App {
       const surface = this.surfaces.activeSurface;
       if (!surface) return;
       if (!this.surfaces.bringToFront(surface.id)) return;
+      this._syncShaderMasterSurfaces();
       this.ui.updateActiveSurface(surface, this.surfaces.count);
-      if (this._bridge) this._broadcastState();
     };
 
     this.ui.onSendToBack = () => {
       const surface = this.surfaces.activeSurface;
       if (!surface) return;
       if (!this.surfaces.sendToBack(surface.id)) return;
+      this._syncShaderMasterSurfaces();
       this.ui.updateActiveSurface(surface, this.surfaces.count);
-      if (this._bridge) this._broadcastState();
     };
 
     this.ui.onMoveForward = () => {
       const surface = this.surfaces.activeSurface;
       if (!surface) return;
       if (!this.surfaces.moveForward(surface.id)) return;
+      this._syncShaderMasterSurfaces();
       this.ui.updateActiveSurface(surface, this.surfaces.count);
-      if (this._bridge) this._broadcastState();
     };
 
     this.ui.onMoveBackward = () => {
       const surface = this.surfaces.activeSurface;
       if (!surface) return;
       if (!this.surfaces.moveBackward(surface.id)) return;
+      this._syncShaderMasterSurfaces();
       this.ui.updateActiveSurface(surface, this.surfaces.count);
-      if (this._bridge) this._broadcastState();
     };
 
     this.ui.onFullscreen = () => {
@@ -212,7 +237,8 @@ export class App {
 
   _wireFrameLoop() {
     this.renderer.onFrame((time) => {
-      this.surfaces.updateTime(time);
+      this.shaderRuntime.render(time);
+      this._applyShaderMasterStateToSurfaces();
     });
   }
 
@@ -224,17 +250,120 @@ export class App {
     });
 
     this._bridge.on('addSurface', () => {
-      this.surfaces.addSurface();
+      const surface = this.surfaces.addSurface();
+      this._syncShaderMasterSurfaces();
+      const selectedOutputId = this.shaderMasterStore.getState().selectedOutputId;
+      if (surface && selectedOutputId) {
+        this.shaderMasterStore.getState().assignOutputToSurface(surface.id, selectedOutputId);
+      }
       this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
-      this._broadcastState();
     });
 
     this._bridge.on('setEditTarget', ({ target }) => {
       this.setEditTarget(target);
     });
 
+    this._bridge.on('shaderCommand', ({ type, payload = {} }) => {
+      this._handleShaderCommand(type, payload);
+    });
+
     this._bridge.on('ping', () => {
       this._broadcastState();
+    });
+  }
+
+  _handleShaderCommand(type, payload) {
+    const shaderState = this.shaderMasterStore.getState();
+
+    switch (type) {
+      case 'selectSurface':
+        if (payload.surfaceId) {
+          this.surfaces.selectSurface(payload.surfaceId);
+          this.shaderMasterStore.getState().setSelectedSurface(payload.surfaceId);
+          this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
+        }
+        return;
+      case 'assignOutputToSurface':
+        this.shaderMasterStore.getState().assignOutputToSurface(
+          payload.surfaceId,
+          payload.outputId ?? null,
+        );
+        return;
+      case 'selectOutput':
+        shaderState.setSelectedOutput(payload.outputId ?? null);
+        return;
+      case 'createOutput':
+        shaderState.createOutput(payload.presetId, payload.name);
+        return;
+      case 'duplicateOutput':
+        if (payload.outputId) {
+          shaderState.duplicateOutput(payload.outputId);
+        }
+        return;
+      case 'deleteOutput':
+        if (payload.outputId) {
+          shaderState.deleteOutput(payload.outputId);
+        }
+        return;
+      case 'renameOutput':
+        if (payload.outputId) {
+          shaderState.renameOutput(payload.outputId, payload.name);
+        }
+        return;
+      case 'setOutputEnabled':
+        if (payload.outputId) {
+          shaderState.setOutputEnabled(payload.outputId, Boolean(payload.enabled));
+        }
+        return;
+      case 'changeOutputPreset':
+        if (payload.outputId && payload.presetId) {
+          shaderState.changeOutputPreset(payload.outputId, payload.presetId);
+        }
+        return;
+      case 'updateOutputUniform':
+        if (payload.outputId && payload.key) {
+          shaderState.updateOutputUniform(payload.outputId, payload.key, payload.value);
+        }
+        return;
+      case 'applyVisualIntent':
+        if (payload.intent) {
+          shaderState.applyVisualIntent(payload.intent);
+        }
+        return;
+      case 'setAudioUniforms':
+        shaderState.setAudioUniforms(payload.uniforms || {});
+        return;
+      case 'setFeelingUniforms':
+        shaderState.setFeelingUniforms(payload.uniforms || {});
+        return;
+      default:
+        return;
+    }
+  }
+
+  _getSurfaceReferences() {
+    return this.surfaces.all.map((surface) => ({
+      id: surface.id,
+      name: surface.name,
+      order: surface.order,
+      visible: surface.visible,
+      assignedOutputId: surface.assignedOutputId,
+    }));
+  }
+
+  _syncShaderMasterSurfaces() {
+    const shaderState = this.shaderMasterStore.getState();
+    shaderState.syncSurfaces(this._getSurfaceReferences());
+    shaderState.setSelectedSurface(this.surfaces.activeSurface?.id || null);
+  }
+
+  _applyShaderMasterStateToSurfaces() {
+    const shaderState = this.shaderMasterStore.getState();
+
+    this.surfaces.all.forEach((surface) => {
+      const assignedOutputId = shaderState.surfaceAssignments[surface.id] ?? null;
+      surface.assignOutput(assignedOutputId);
+      surface.setOutputTexture(this.shaderRuntime.getOutputTexture(assignedOutputId));
     });
   }
 
@@ -244,13 +373,16 @@ export class App {
       mode: this._mode,
       editTarget: this._editTarget,
       surfaceCount: this.surfaces.count,
+      surfaces: this._getSurfaceReferences(),
+      shaderMaster: createShaderMasterSnapshot(this.shaderMasterStore.getState()),
     });
   }
 
   dispose() {
     this.input.dispose();
     this.ui.dispose();
-    this.router.dispose();
+    if (this._unsubscribeShaderMaster) this._unsubscribeShaderMaster();
+    this.shaderRuntime.dispose();
     this.renderer.dispose();
     if (this._bridge) this._bridge.dispose();
   }

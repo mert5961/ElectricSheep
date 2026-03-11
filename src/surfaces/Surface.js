@@ -274,9 +274,9 @@ export class Surface {
       this._lastValidContentTransform.copy(initialContentTransform);
     }
 
-    this._material = ShaderMaterialFactory.createDebugMaterial({
-      color: this.color,
+    this._material = ShaderMaterialFactory.createSurfaceMaterial({
       feather: this.feather,
+      outputTexture: ShaderMaterialFactory.getBlankOutputTexture(),
       contentTransform: this._lastValidContentTransform,
       subtractTransforms: createUniformMatrixArray(),
       subtractFeathers: createUniformFloatArray(),
@@ -500,10 +500,13 @@ export class Surface {
     this.assignedOutputId = outputId;
   }
 
-  updateTime(time) {
-    if (this._material) {
-      this._material.uniforms.u_time.value = time;
-    }
+  setOutputTexture(texture) {
+    if (!this._material) return;
+    this._material.uniforms.u_outputTexture.value = texture || ShaderMaterialFactory.getBlankOutputTexture();
+  }
+
+  updateTime() {
+    // Geo Master now composites Shader Master output textures instead of driving per-surface shader time.
   }
 
   serialize() {
@@ -536,7 +539,6 @@ export class Surface {
     this.assignedOutputId = data.assignedOutputId;
 
     if (this._material) {
-      this._material.uniforms.u_color.value.copy(this.color);
       this._material.uniforms.u_feather.value = this.feather;
     }
     if (this.mesh) this.mesh.visible = this.visible;
