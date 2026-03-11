@@ -1,3 +1,5 @@
+import { ShaderMasterPanel } from '../systems/shader-master/ui/ShaderMasterPanel.ts';
+
 export class ControlUI {
   constructor(rootEl, bridge) {
     this._rootEl = rootEl;
@@ -6,23 +8,35 @@ export class ControlUI {
     this._editTarget = 'surface';
     this._surfaceCount = 0;
     this._connected = false;
+    this._shaderMasterState = null;
+    this._shaderMasterRevision = null;
 
     this._statusDot = null;
     this._statusText = null;
     this._modeLabel = null;
     this._editTargetLabel = null;
     this._surfaceCountLabel = null;
+    this._shaderMasterPanel = null;
 
     this._build();
     this._startPing();
   }
 
-  updateState({ mode, editTarget, surfaceCount }) {
+  updateState({ mode, editTarget, surfaceCount, shaderMaster }) {
     this._connected = true;
     this._mode = mode;
     this._editTarget = editTarget || this._editTarget;
     this._surfaceCount = surfaceCount;
+    const nextShaderMasterRevision = shaderMaster?.revision ?? this._shaderMasterRevision;
+    const shouldUpdateShaderMasterPanel = Boolean(
+      shaderMaster && nextShaderMasterRevision !== this._shaderMasterRevision,
+    );
+    this._shaderMasterState = shaderMaster || this._shaderMasterState;
+    this._shaderMasterRevision = nextShaderMasterRevision;
     this._syncDisplay();
+    if (shouldUpdateShaderMasterPanel && this._shaderMasterPanel && this._shaderMasterState) {
+      this._shaderMasterPanel.update(this._shaderMasterState);
+    }
   }
 
   _syncDisplay() {
@@ -142,6 +156,71 @@ export class ControlUI {
     });
     surfaceSection.append(this._surfaceCountLabel, addSurfaceBtn);
 
+    const shaderMasterSection = this._section('Shader Master');
+    this._shaderMasterPanel = new ShaderMasterPanel({
+      onSelectSurface: (surfaceId) => {
+        this._bridge.send('shaderCommand', {
+          type: 'selectSurface',
+          payload: { surfaceId },
+        });
+      },
+      onAssignOutput: (surfaceId, outputId) => {
+        this._bridge.send('shaderCommand', {
+          type: 'assignOutputToSurface',
+          payload: { surfaceId, outputId },
+        });
+      },
+      onCreateOutput: (presetId) => {
+        this._bridge.send('shaderCommand', {
+          type: 'createOutput',
+          payload: { presetId },
+        });
+      },
+      onSelectOutput: (outputId) => {
+        this._bridge.send('shaderCommand', {
+          type: 'selectOutput',
+          payload: { outputId },
+        });
+      },
+      onDuplicateOutput: (outputId) => {
+        this._bridge.send('shaderCommand', {
+          type: 'duplicateOutput',
+          payload: { outputId },
+        });
+      },
+      onDeleteOutput: (outputId) => {
+        this._bridge.send('shaderCommand', {
+          type: 'deleteOutput',
+          payload: { outputId },
+        });
+      },
+      onRenameOutput: (outputId, name) => {
+        this._bridge.send('shaderCommand', {
+          type: 'renameOutput',
+          payload: { outputId, name },
+        });
+      },
+      onSetOutputEnabled: (outputId, enabled) => {
+        this._bridge.send('shaderCommand', {
+          type: 'setOutputEnabled',
+          payload: { outputId, enabled },
+        });
+      },
+      onChangeOutputPreset: (outputId, presetId) => {
+        this._bridge.send('shaderCommand', {
+          type: 'changeOutputPreset',
+          payload: { outputId, presetId },
+        });
+      },
+      onUpdateOutputUniform: (outputId, key, value) => {
+        this._bridge.send('shaderCommand', {
+          type: 'updateOutputUniform',
+          payload: { outputId, key, value },
+        });
+      },
+    });
+    shaderMasterSection.append(this._shaderMasterPanel.element);
+
     // Output window section
     const outputSection = this._section('Output Window');
     const openBtn = this._btn('Open Output Window', () => {
@@ -168,6 +247,7 @@ export class ControlUI {
       modeSection,
       editTargetSection,
       surfaceSection,
+      shaderMasterSection,
       outputSection,
       audioSection,
       llmSection,

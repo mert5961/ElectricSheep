@@ -1,15 +1,30 @@
 import * as THREE from 'three';
-import vertexShader from './debug.vert.glsl';
-import fragmentShader from './debug.frag.glsl';
+import vertexShader from './surfaceComposite.vert.glsl';
+import fragmentShader from './surfaceComposite.frag.glsl';
 import { MAX_SUBTRACT_QUADS } from '../surfaces/SurfaceConstants.js';
 
-const DEFAULT_COLOR = new THREE.Color(0.3, 0.6, 1.0);
 const DEFAULT_FEATHER = 0.05;
+const BLANK_OUTPUT_DATA = new Uint8Array([0, 0, 0, 0]);
+
+let blankOutputTexture = null;
+
+function getBlankOutputTexture() {
+  if (blankOutputTexture) {
+    return blankOutputTexture;
+  }
+
+  blankOutputTexture = new THREE.DataTexture(BLANK_OUTPUT_DATA, 1, 1, THREE.RGBAFormat);
+  blankOutputTexture.minFilter = THREE.LinearFilter;
+  blankOutputTexture.magFilter = THREE.LinearFilter;
+  blankOutputTexture.generateMipmaps = false;
+  blankOutputTexture.needsUpdate = true;
+  return blankOutputTexture;
+}
 
 export class ShaderMaterialFactory {
-  static createDebugMaterial({
-    color = DEFAULT_COLOR,
+  static createSurfaceMaterial({
     feather = DEFAULT_FEATHER,
+    outputTexture = null,
     contentTransform = null,
     subtractTransforms = [],
     subtractFeathers = [],
@@ -20,8 +35,7 @@ export class ShaderMaterialFactory {
         MAX_SUBTRACT_QUADS,
       },
       uniforms: {
-        u_time: { value: 0.0 },
-        u_color: { value: color.clone() },
+        u_outputTexture: { value: outputTexture || getBlankOutputTexture() },
         u_feather: { value: feather },
         u_contentTransform: { value: contentTransform ? contentTransform.clone() : new THREE.Matrix3().identity() },
         u_subtractTransforms: {
@@ -39,6 +53,10 @@ export class ShaderMaterialFactory {
       depthTest: false,
       depthWrite: false,
     });
+  }
+
+  static getBlankOutputTexture() {
+    return getBlankOutputTexture();
   }
 }
 
