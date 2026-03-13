@@ -1,185 +1,454 @@
-Electric Sheep — One-Page Technical Project Description
-Project Name
+      
+⚡ ELECTRIC SHEEP ⚡
+
+
+# Electric Sheep — One-Page Technical Project Description
+
+## Project Name
 
 Electric Sheep
 
-Concept
 
-Electric Sheep is a web-based projection mapping and AI-driven visual orchestration system.
-The project takes inspiration from Do Androids Dream of Electric Sheep? and explores the festival theme “Do AI systems think?” through audiovisual interpretation.
+## Concept
 
-Instead of simply reacting to audio signals, Electric Sheep treats sound as something that can be interpreted, translated into emotion, and projected onto physical space.
+Electric Sheep is a web-based projection mapping and AI-driven audiovisual interpretation system.
 
-The system transforms sound into visual thought.
+The project takes inspiration from **Do Androids Dream of Electric Sheep?** and explores the festival theme:
 
-Core Idea
+**“Do AI systems think?”**
+
+Instead of simply reacting to sound signals, Electric Sheep treats sound as something that can be **heard, interpreted, and emotionally translated**.
+
+The system attempts to answer a speculative question:
+
+**How might an artificial system feel about the sound it hears?**
+
+Those interpreted feelings are then expressed visually through projection mapping.
+
+Electric Sheep does not simply visualize sound.
+
+It **turns sound into visual thought projected onto physical space.**
+
+
+## Core Idea
 
 Electric Sheep allows users to define projection surfaces on real-world objects and map shader-based visuals onto them.
 
-Later, AI systems interpret audio input and modify visual parameters to create a generative audiovisual performance.
+Later, an AI interpretation layer listens to audio input and modifies visual parameters to produce a generative audiovisual response.
 
-Typical example:
+Example scenario:
 
-A user projects visuals onto kitchen cabinets or architectural surfaces.
-Each cabinet door becomes a digital surface in the editor.
+A user projects visuals onto kitchen cabinets or architectural panels.
+
+Each cabinet door becomes a digital projection surface.
+
 Visual shaders can then be mapped individually or shared across multiple surfaces.
 
-System Architecture
+When sound is introduced into the system, Electric Sheep listens, interprets, and transforms the sound into visual expression.
 
-Electric Sheep is designed as a three-layer pipeline.
 
-1. Geo Master
+## System Architecture
+
+Electric Sheep is designed as a layered interpretation pipeline.
+
+The system separates **measurement**, **interpretation**, and **visual expression**.
+
+Audio Input  
+↓  
+Audio Analyzer  
+↓  
+Master of Feelings (AI Interpretation)  
+↓  
+Shader Master  
+↓  
+Geo Master  
+↓  
+Projection Output
+
+
+## 1. Geo Master
 
 The geometry editing layer.
 
-Geo Master defines where visuals appear in physical space.
+Geo Master defines **where visuals appear in physical space.**
 
-Users create and edit digital surfaces that correspond to real projection targets.
+Users create and edit projection surfaces corresponding to real objects.
 
-Features
+Examples:
 
-Web-based canvas editor
+- cabinet doors  
+- walls  
+- panels  
+- architectural surfaces  
 
-Multiple projection surfaces
+Geo Master is responsible only for spatial framing.
 
-4-corner surface manipulation (quad warping)
+It does not define visual content.
 
-Real-world alignment (e.g. cabinets, walls, panels)
 
-Feather edge blending
+### Features
 
-Surface selection and deletion
+- Web-based projection canvas  
+- Multiple projection surfaces  
+- 4-corner quad warping  
+- Real-world alignment  
+- Feather edge blending  
+- Surface selection and deletion  
+- Clean show mode for projection output  
 
-Show mode for clean projection output
 
-Each surface represents geometry only, not content.
+### Surface Structure
+
+Surfaces are intentionally simple.
+
+Each surface supports:
+
+- **Surface Quad** — projection geometry  
+- **Content Quad** — internal placement of shader content  
+- **Subtract Quads** — simple rectangular regions where shader output is hidden  
+
+This allows internal framing and masking without turning Geo Master into a complex mesh editor.
 
 Example surface state:
 
 {
   "id": "surface-1",
-  "name": "Cabinet Left Door",
-  "corners": [
-    {"x": 120, "y": 80},
-    {"x": 280, "y": 75},
-    {"x": 290, "y": 310},
-    {"x": 115, "y": 320}
+  "surfaceQuad": [
+    {"x":120,"y":80},
+    {"x":280,"y":75},
+    {"x":290,"y":310},
+    {"x":115,"y":320}
   ],
-  "feather": 0.15,
-  "visible": true,
-  "assignedOutputId": "output-1"
+  "contentQuad":[
+    {"x":0.1,"y":0.1},
+    {"x":0.9,"y":0.1},
+    {"x":0.9,"y":0.9},
+    {"x":0.1,"y":0.9}
+  ],
+  "subtractQuads":[],
+  "feather":0.15,
+  "visible":true,
+  "assignedOutputId":"output-1"
 }
-2. Shader Master
 
-The visual content layer.
+Geo Master defines **spatial framing**, not visuals.
 
-Shader Master defines what is displayed on the surfaces.
+
+## 2. Shader Master
+
+The visual rendering layer.
+
+Shader Master defines **what appears on the projection surfaces.**
 
 Visuals are shader-based and controlled through parameters.
 
-Key principles
 
-Shader parameters are controlled through JSON
+### Key Principles
 
-One shader can drive multiple surfaces
+- Visual parameters are controlled through JSON  
+- One shader can drive multiple surfaces  
+- Each surface can have different visuals  
+- Geometry and visuals remain independent  
 
-Each surface can have its own shader
-
-Shader logic is independent from geometry
 
 Example visual source:
 
 {
-  "id": "output-1",
-  "type": "shader",
-  "shaderPresetId": "dream-gradient",
-  "params": {
-    "u_color": [0.8, 0.2, 1.0],
-    "u_speed": 0.4,
-    "u_intensity": 0.7
+  "id":"output-1",
+  "type":"shader",
+  "shaderPresetId":"dream-gradient",
+  "params":{
+    "u_color":[0.8,0.2,1.0],
+    "u_speed":0.4,
+    "u_intensity":0.7
   }
 }
 
-This separation allows flexible routing between visual sources and projection surfaces.
+Shader Master renders the visual layer and maps it onto surfaces defined by Geo Master.
 
-3. LLM Master of Feelings
+
+## 3. Audio Analyzer
+
+The measurement layer.
+
+Electric Sheep listens to sound through a microphone.
+
+A real-time audio analysis script extracts measurable characteristics of the sound.
+
+Typical analyzed features include:
+
+- bass energy  
+- mid energy  
+- treble energy  
+- overall loudness  
+- spectral brightness  
+- rhythmic density  
+- dynamic change  
+
+
+Example audio summary:
+
+{
+  "energy":0.72,
+  "bass":0.81,
+  "mid":0.49,
+  "treble":0.27,
+  "brightness":0.33,
+  "rhythmicDensity":0.76
+}
+
+The Audio Analyzer **measures sound but does not interpret it.**
+
+
+## 4. Master of Feelings
 
 The AI interpretation layer.
 
-This system analyzes audio input and asks an LLM to interpret its emotional or conceptual character.
+This system represents the conceptual core of the project.
 
-The LLM then generates shader parameter updates in JSON format.
+Instead of reacting directly to sound measurements, the system asks an AI model to interpret the audio summary.
 
-Example:
+The AI attempts to answer questions such as:
+
+- How does this sound feel?  
+- What emotional character does this sound carry?  
+- What visual state should represent this sound?  
+
+
+The result is a **visual intention JSON**.
+
+Example AI output:
 
 {
-  "surfaceTargets": ["surface-1", "surface-2"],
-  "preset": "dream_pulse",
-  "uniforms": {
-    "u_color": [0.9, 0.3, 1.0],
-    "u_speed": 0.6,
-    "u_noiseAmount": 0.5
+  "feltResponse":"I feel enclosed and rhythmically tense.",
+  "visualIntent":{
+    "preset":"fractured_bloom",
+    "uniforms":{
+      "u_feelTension":0.71,
+      "u_feelFragmentation":0.63,
+      "u_feelGlow":0.18
+    }
   }
 }
 
-Instead of raw signal reaction, the system becomes a conceptual interpreter of sound.
+The AI does not control geometry.
 
-Key Architectural Principle
+It only proposes visual changes.
 
-Geometry and visual content must remain independent.
 
-Surface objects define:
+## Reactive vs Reflective Behavior
 
-position
+Electric Sheep supports two visual layers.
 
-shape
 
-feather
+### Reactive Layer
 
-visibility
+Direct audio-to-visual mapping.
 
-Visual outputs define:
+Audio Analyzer values continuously influence shader parameters.
 
-shaders
+Examples:
 
-parameters
+- bass → pulse intensity  
+- treble → sparkle/noise  
+- energy → brightness  
 
-animation logic
 
-This separation enables:
+### Reflective Layer
 
-one visual across many surfaces
+Triggered interpretation.
 
-different visuals per surface
+When the user asks:
 
-dynamic reassignment during performances
+Do Androids Dream of Electric Sheep?  
+What do you feel?
 
-Target Use Cases
+The system sends an audio summary to the AI model.
 
-media art festivals
+The AI responds with a **visual interpretation**.
 
-generative audiovisual installations
 
-projection mapping performances
+## Interaction Scenario
 
-AI-driven visual experimentation
+Example performance flow:
 
-Technical Principles
+1. A user says **"Wake up"**
 
-Web-based system
+The microphone begins listening.
 
-WebGL / Three.js rendering
+2. Music is played from a phone or speaker.
 
-JSON-based scene state
+The system analyzes sound characteristics.
 
-modular OOP architecture
+3. The user asks:
 
-real-time shader rendering
+Do Androids Dream of Electric Sheep?
 
-future AI integration
+4. The AI interprets the audio state.
 
-Conceptual Statement
+5. Shader parameters update and the projection transforms.
 
-Electric Sheep does not simply analyze sound.
+The projection becomes a visual expression of the AI’s interpretation.
 
-It interprets it, translates it into emotion, and projects it onto space.
+
+## Key Architectural Principle
+
+The system strictly separates layers.
+
+Geo Master → spatial framing  
+Shader Master → visual expression  
+Audio Analyzer → measurement  
+Master of Feelings → interpretation  
+
+This separation ensures flexibility and prevents coupling between systems.
+
+
+## Target Use Cases
+
+- media art festivals  
+- generative audiovisual installations  
+- projection mapping performances  
+- AI-driven visual experiments  
+
+
+## Technical Principles
+
+- Web-based system  
+- WebGL / Three.js rendering  
+- modular OOP architecture  
+- JSON-based scene state  
+- shader-based rendering  
+- microphone audio analysis  
+- AI-assisted interpretation  
+
+
+## Conceptual Statement
+
+Electric Sheep does not simply visualize sound.
+
+It listens.
+
+It interprets.
+
+And it projects its thoughts onto space.
+
+                   
+                   ⚡ ELECTRIC SHEEP SYSTEM ⚡
+
+
+                          MICROPHONE
+                               │
+                               │
+                               ▼
+                    ┌────────────────────┐
+                    │   AUDIO ANALYZER   │
+                    │                    │
+                    │  bass              │
+                    │  mid               │
+                    │  treble            │
+                    │  energy            │
+                    │  brightness        │
+                    │  rhythmic density  │
+                    └────────────────────┘
+                               │
+                               │ audio summary
+                               ▼
+                  ┌──────────────────────────┐
+                  │   MASTER OF FEELINGS     │
+                  │        (AI / LLM)        │
+                  │                          │
+                  │ interprets the sound     │
+                  │ produces visual intent   │
+                  │ returns shader JSON      │
+                  └──────────────────────────┘
+                               │
+                               │ visual intent JSON
+                               ▼
+                    ┌────────────────────┐
+                    │    SHADER MASTER   │
+                    │                    │
+                    │ shader presets     │
+                    │ uniforms           │
+                    │ visual state       │
+                    └────────────────────┘
+                               │
+                               │ visual output
+                               ▼
+                     ┌──────────────────┐
+                     │     GEO MASTER   │
+                     │                  │
+                     │ projection       │
+                     │ surfaces         │
+                     │ quad warping     │
+                     │ feather edges    │
+                     │ content quads    │
+                     │ subtract quads   │
+                     └──────────────────┘
+                               │
+                               │ mapped visuals
+                               ▼
+                        ┌──────────────┐
+                        │  PROJECTOR   │
+                        │              │
+                        │  PHYSICAL    │
+                        │  SPACE       │
+                        └──────────────┘
+                               │
+                               ▼
+                        REAL WORLD OBJECTS
+                     (cabinets / walls / panels)
+
+
+
+               ───────────────────────────────────
+                       TWO VISUAL BEHAVIOR LAYERS
+               ───────────────────────────────────
+
+
+          REACTIVE LAYER
+          ----------------
+          Audio Analyzer directly drives shader uniforms
+
+              bass      → pulse
+              treble    → noise / sparkle
+              energy    → brightness
+              rhythm    → motion speed
+
+
+
+          REFLECTIVE LAYER
+          -----------------
+          Triggered interpretation by AI
+
+              "Wake up"
+
+                     ↓
+
+              audio listening phase
+
+                     ↓
+
+              "Do Androids Dream of Electric Sheep?"
+
+                     ↓
+
+              AI interprets sound
+
+                     ↓
+
+              new visual intention
+
+
+
+                 FINAL RESULT
+
+        The AI does not simply react to sound.
+
+                It listens.
+
+                It interprets.
+
+                It projects its thoughts onto space.
+
+
+           
