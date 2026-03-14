@@ -19,8 +19,21 @@ import type {
   UniformValueMap,
 } from '../contracts/types.ts';
 import type { VisualIntent, VisualIntentResult } from '../contracts/visualIntent.ts';
+import type {
+  ResolvedVisualState,
+  VisualStateRecipe,
+  VisualStateRecipeResult,
+  VisualStateRuntimeSnapshot,
+  VisualStateTransitionEasing,
+  VisualStateTransitionState,
+} from '../contracts/visualStateRecipe.ts';
+import {
+  cloneResolvedVisualState,
+  cloneVisualStateRuntimeSnapshot,
+} from '../contracts/visualStateRecipe.ts';
 import { listPresetCatalog, presetRegistry } from '../registry/presetRegistry.ts';
 import { resolveFinalUniforms } from '../runtime/resolveFinalUniforms.ts';
+import { resolveVisualStateRecipe } from '../validation/resolveVisualStateRecipe.ts';
 import { validateUniformValue } from '../validation/validateUniformValue.ts';
 
 interface InternalShaderMasterState {
@@ -39,6 +52,9 @@ export interface ShaderMasterStoreState extends InternalShaderMasterState {
   runtimeUniforms: UniformValueMap;
   audioUniforms: UniformValueMap;
   feelingUniforms: UniformValueMap;
+  currentVisualState: ResolvedVisualState | null;
+  targetVisualState: ResolvedVisualState | null;
+  activeVisualStateTransition: VisualStateTransitionState | null;
   createOutput: (presetId?: string, name?: string) => ShaderOutput | null;
   duplicateOutput: (outputId: string) => ShaderOutput | null;
   deleteOutput: (outputId: string) => boolean;
@@ -53,6 +69,20 @@ export interface ShaderMasterStoreState extends InternalShaderMasterState {
   setRuntimeUniforms: (uniforms: Partial<UniformValueMap>) => void;
   setAudioUniforms: (uniforms: Partial<UniformValueMap>) => void;
   setFeelingUniforms: (uniforms: Partial<UniformValueMap>) => void;
+  resetAudioUniforms: () => void;
+  resetFeelingUniforms: () => void;
+  resetAllDebugSignals: () => void;
+  applyVisualStateRecipe: (recipe: VisualStateRecipe) => VisualStateRecipeResult;
+  setTargetVisualState: (
+    targetState: ResolvedVisualState,
+    transition: {
+      mode: 'immediate' | 'lerp';
+      durationMs: number;
+      easing: VisualStateTransitionEasing;
+    },
+  ) => VisualStateRecipeResult;
+  advanceVisualStateTransition: (deltaTimeMs: number) => void;
+  resetVisualStateRecipeState: () => void;
   hydrateSnapshot: (snapshot: ShaderMasterSnapshot) => void;
   applyVisualIntent: (intent: VisualIntent) => VisualIntentResult;
 }
@@ -61,6 +91,7 @@ export type ShaderMasterStore = StoreApi<ShaderMasterStoreState>;
 
 const DEFAULT_OUTPUT_ID = 'output-main';
 const DEFAULT_OUTPUT_NAME = 'Main Output';
+const VISUAL_INTENT_KEYS = new Set(['targetOutputId', 'preset', 'uniforms']);
 
 function normalizeName(name: string | undefined, fallback: string): string {
   const trimmedName = name?.trim();
@@ -225,10 +256,271 @@ function buildOutputSnapshot(
   };
 }
 
+function areUniformValuesEqual(
+  left: UniformValueMap[string] | undefined,
+  right: UniformValueMap[string] | undefined,
+): boolean {
+  if (Array.isArray(left) && Array.isArray(right)) {
+    return left.length === right.length && left.every((value, index) => value === right[index]);
+  }
+
+  return left === right;
+}
+
+function clearVisualStateStoreFields(): Pick<
+  ShaderMasterStoreState,
+  'currentVisualState' | 'targetVisualState' | 'activeVisualStateTransition'
+> {
+  return {
+    currentVisualState: null,
+    targetVisualState: null,
+    activeVisualStateTransition: null,
+  };
+}
+
+function buildVisualStateSnapshot(
+  state: ShaderMasterStoreState,
+): VisualStateRuntimeSnapshot {
+  return cloneVisualStateRuntimeSnapshot({
+    current: state.currentVisualState,
+    target: state.targetVisualState,
+    transition: state.activeVisualStateTransition,
+  });
+}
+
+function isVisualStateTargetingOutput(
+  state: ShaderMasterStoreState,
+  outputId: string,
+): boolean {
+  return state.currentVisualState?.outputId === outputId
+    || state.targetVisualState?.outputId === outputId
+    || state.activeVisualStateTransition?.outputId === outputId;
+}
+
+function isVisualStateManagedUniformKey(
+  state: ShaderMasterStoreState,
+  outputId: string,
+  key: string,
+): boolean {
+  if (!isVisualStateTargetingOutput(state, outputId)) {
+    return false;
+  }
+
+  return state.currentVisualState?.expressiveUniforms[key] !== undefined
+    || state.targetVisualState?.expressiveUniforms[key] !== undefined
+    || state.activeVisualStateTransition?.fromState.expressiveUniforms[key] !== undefined;
+}
+
+function applyResolvedVisualStateMutation(
+  state: ShaderMasterStoreState,
+  visualState: ResolvedVisualState,
+): {
+  nextOutputs: Record<string, ShaderOutput>;
+  nextFeelingUniforms: UniformValueMap;
+  changed: boolean;
+} {
+  const targetOutput = state.outputs[visualState.outputId];
+  const preset = state.presetRegistry[visualState.presetId];
+  if (!targetOutput || !preset) {
+    return {
+      nextOutputs: state.outputs,
+      nextFeelingUniforms: state.feelingUniforms,
+      changed: false,
+    };
+  }
+
+  let nextOutput = targetOutput;
+  let nextUniforms = cloneUniformMap(targetOutput.uniforms);
+  let outputChanged = false;
+
+  if (targetOutput.presetId !== preset.id) {
+    nextUniforms = remapUniformsForPreset(preset, targetOutput.uniforms);
+    nextOutput = {
+      ...targetOutput,
+      presetId: preset.id,
+      uniforms: nextUniforms,
+    };
+    outputChanged = true;
+  }
+
+  Object.entries(visualState.expressiveUniforms).forEach(([key, value]) => {
+    if (value === undefined || areUniformValuesEqual(nextUniforms[key], value)) {
+      return;
+    }
+
+    nextUniforms[key] = cloneUniformValue(value);
+    outputChanged = true;
+  });
+
+  if (outputChanged) {
+    nextOutput = {
+      ...nextOutput,
+      uniforms: nextUniforms,
+    };
+  }
+
+  const nextFeelingUniforms = cloneUniformMap(state.feelingUniforms);
+  let feelingChanged = false;
+
+  Object.entries(visualState.feelingUniforms).forEach(([key, value]) => {
+    if (value === undefined || areUniformValuesEqual(nextFeelingUniforms[key], value)) {
+      return;
+    }
+
+    nextFeelingUniforms[key] = cloneUniformValue(value);
+    feelingChanged = true;
+  });
+
+  return {
+    nextOutputs: outputChanged
+      ? {
+          ...state.outputs,
+          [visualState.outputId]: nextOutput,
+        }
+      : state.outputs,
+    nextFeelingUniforms: feelingChanged ? nextFeelingUniforms : state.feelingUniforms,
+    changed: outputChanged || feelingChanged,
+  };
+}
+
+function captureCurrentVisualState(
+  state: ShaderMasterStoreState,
+  targetState: ResolvedVisualState,
+): ResolvedVisualState | null {
+  const targetOutput = state.outputs[targetState.outputId];
+  const preset = state.presetRegistry[targetState.presetId] || state.presetRegistry[targetOutput?.presetId || ''];
+  if (!targetOutput || !preset) {
+    return null;
+  }
+
+  const currentFeelingUniforms: UniformValueMap = {};
+  const currentExpressiveUniforms: UniformValueMap = {};
+
+  Object.keys(targetState.feelingUniforms).forEach((key) => {
+    const currentValue = state.feelingUniforms[key];
+    if (currentValue !== undefined) {
+      currentFeelingUniforms[key] = cloneUniformValue(currentValue);
+    }
+  });
+
+  Object.keys(targetState.expressiveUniforms).forEach((key) => {
+    const currentValue = targetOutput.uniforms[key] ?? preset.defaultUniforms[key];
+    if (currentValue !== undefined) {
+      currentExpressiveUniforms[key] = cloneUniformValue(currentValue);
+    }
+  });
+
+  return {
+    recipeId: targetState.recipeId,
+    recipeLabel: targetState.recipeLabel,
+    outputId: targetState.outputId,
+    presetId: preset.id,
+    feelingUniforms: currentFeelingUniforms,
+    expressiveUniforms: currentExpressiveUniforms,
+  };
+}
+
+function evaluateVisualStateEasing(
+  progress: number,
+  easing: VisualStateTransitionEasing,
+): number {
+  const clampedProgress = Math.max(0, Math.min(1, progress));
+
+  if (easing === 'easeOut') {
+    return 1 - ((1 - clampedProgress) * (1 - clampedProgress));
+  }
+
+  if (easing === 'easeInOut') {
+    return 0.5 - (Math.cos(clampedProgress * Math.PI) * 0.5);
+  }
+
+  return clampedProgress;
+}
+
+function interpolateUniformBucket(
+  fromBucket: UniformValueMap,
+  toBucket: UniformValueMap,
+  t: number,
+  schemaMap?: Record<string, UniformSchemaField>,
+): UniformValueMap {
+  const nextBucket: UniformValueMap = {};
+  const keys = new Set([
+    ...Object.keys(fromBucket),
+    ...Object.keys(toBucket),
+  ]);
+
+  keys.forEach((key) => {
+    const fromValue = fromBucket[key];
+    const toValue = toBucket[key];
+    if (typeof fromValue !== 'number' || typeof toValue !== 'number') {
+      const fallbackValue = toValue ?? fromValue;
+      if (fallbackValue !== undefined) {
+        nextBucket[key] = cloneUniformValue(fallbackValue);
+      }
+      return;
+    }
+
+    const interpolatedValue = fromValue + ((toValue - fromValue) * t);
+    const field = schemaMap?.[key];
+    if (!field) {
+      nextBucket[key] = interpolatedValue;
+      return;
+    }
+
+    const validationResult = validateUniformValue(field, interpolatedValue);
+    nextBucket[key] = validationResult.ok && validationResult.value !== undefined
+      ? validationResult.value
+      : interpolatedValue;
+  });
+
+  return nextBucket;
+}
+
+function validateVisualIntentShape(intent: VisualIntent): string[] {
+  const errors: string[] = [];
+  const unknownKeys = Object.keys(intent as Record<string, unknown>).filter((key) => !VISUAL_INTENT_KEYS.has(key));
+
+  if (unknownKeys.length > 0) {
+    errors.push(`Unknown visual intent fields: ${unknownKeys.join(', ')}.`);
+  }
+
+  if (typeof intent.targetOutputId !== 'string' || intent.targetOutputId.trim().length === 0) {
+    errors.push('Visual intent requires a targetOutputId string.');
+  }
+
+  if (intent.preset !== undefined && typeof intent.preset !== 'string') {
+    errors.push('Visual intent preset must be a string when provided.');
+  }
+
+  if (
+    intent.uniforms !== undefined
+    && (typeof intent.uniforms !== 'object' || intent.uniforms === null || Array.isArray(intent.uniforms))
+  ) {
+    errors.push('Visual intent uniforms must be an object when provided.');
+  }
+
+  return errors;
+}
+
 function applyVisualIntentMutation(
   state: ShaderMasterStoreState,
   intent: VisualIntent,
-): { nextOutputs?: Record<string, ShaderOutput>; result: VisualIntentResult } {
+): {
+  nextOutputs?: Record<string, ShaderOutput>;
+  nextAudioUniforms?: UniformValueMap;
+  nextFeelingUniforms?: UniformValueMap;
+  result: VisualIntentResult;
+} {
+  const shapeErrors = validateVisualIntentShape(intent);
+  if (shapeErrors.length > 0) {
+    return {
+      result: {
+        ok: false,
+        errors: shapeErrors,
+      },
+    };
+  }
+
   const targetOutput = state.outputs[intent.targetOutputId];
   if (!targetOutput) {
     return {
@@ -259,6 +551,8 @@ function applyVisualIntentMutation(
       ? remapUniformsForPreset(nextPreset, targetOutput.uniforms)
       : cloneUniformMap(targetOutput.uniforms),
   };
+  const nextAudioUniforms = cloneUniformMap(state.audioUniforms);
+  const nextFeelingUniforms = cloneUniformMap(state.feelingUniforms);
 
   const schemaMap = schemaToMap(nextPreset.uniformSchema);
   const errors: string[] = [];
@@ -273,6 +567,21 @@ function applyVisualIntentMutation(
     const validationResult = coerceAndValidateUniform(field, value);
     if (!validationResult.ok || validationResult.normalizedValue === undefined) {
       errors.push(...validationResult.errors);
+      return;
+    }
+
+    if (field.source === 'runtime') {
+      errors.push(`${key} is runtime-managed and cannot be changed through visual intent.`);
+      return;
+    }
+
+    if (field.source === 'audio') {
+      nextAudioUniforms[key] = cloneUniformValue(validationResult.normalizedValue);
+      return;
+    }
+
+    if (field.source === 'feeling') {
+      nextFeelingUniforms[key] = cloneUniformValue(validationResult.normalizedValue);
       return;
     }
 
@@ -293,6 +602,8 @@ function applyVisualIntentMutation(
       ...state.outputs,
       [nextOutput.id]: nextOutput,
     },
+    nextAudioUniforms,
+    nextFeelingUniforms,
     result: {
       ok: true,
       errors: [],
@@ -316,6 +627,9 @@ export function createShaderMasterStore(): ShaderMasterStore {
     runtimeUniforms: buildRuntimeDefaults(),
     audioUniforms: buildAudioDefaults(),
     feelingUniforms: buildFeelingDefaults(),
+    currentVisualState: null,
+    targetVisualState: null,
+    activeVisualStateTransition: null,
     uiRevision: 0,
     outputCounter: 1,
 
@@ -397,6 +711,7 @@ export function createShaderMasterStore(): ShaderMasterStore {
         ...surface,
         assignedOutputId: nextSurfaceAssignments[surface.id] ?? null,
       }));
+      const shouldClearVisualState = isVisualStateTargetingOutput(state, outputId);
 
       set({
         outputs: remainingOutputs,
@@ -407,6 +722,7 @@ export function createShaderMasterStore(): ShaderMasterStore {
             : state.selectedOutputId,
         surfaceAssignments: nextSurfaceAssignments,
         surfaces: nextSurfaces,
+        ...(shouldClearVisualState ? clearVisualStateStoreFields() : {}),
         uiRevision: incrementUiRevision(state),
       });
 
@@ -480,6 +796,7 @@ export function createShaderMasterStore(): ShaderMasterStore {
           [outputId]: nextOutput,
         },
         selectedOutputId: outputId,
+        ...(isVisualStateTargetingOutput(state, outputId) ? clearVisualStateStoreFields() : {}),
         uiRevision: incrementUiRevision(state),
       });
 
@@ -505,10 +822,18 @@ export function createShaderMasterStore(): ShaderMasterStore {
         };
       }
 
+      if (field.source !== 'manual') {
+        return {
+          ok: false,
+          errors: [`${key} is ${field.source}-driven and cannot be edited as an output override.`],
+        };
+      }
+
       const validationResult = coerceAndValidateUniform(field, value);
       if (!validationResult.ok || validationResult.normalizedValue === undefined) {
         return validationResult;
       }
+      const shouldClearVisualState = isVisualStateManagedUniformKey(state, outputId, key);
 
       set({
         outputs: {
@@ -522,6 +847,7 @@ export function createShaderMasterStore(): ShaderMasterStore {
           },
         },
         selectedOutputId: outputId,
+        ...(shouldClearVisualState ? clearVisualStateStoreFields() : {}),
         uiRevision: incrementUiRevision(state),
       });
 
@@ -646,6 +972,231 @@ export function createShaderMasterStore(): ShaderMasterStore {
       const state = get();
       set({
         feelingUniforms: mergeUniformBucket(state.feelingUniforms, uniforms, 'feeling'),
+        ...clearVisualStateStoreFields(),
+        uiRevision: incrementUiRevision(state),
+      });
+    },
+
+    resetAudioUniforms: () => {
+      const state = get();
+      set({
+        audioUniforms: buildAudioDefaults(),
+        uiRevision: incrementUiRevision(state),
+      });
+    },
+
+    resetFeelingUniforms: () => {
+      const state = get();
+      set({
+        feelingUniforms: buildFeelingDefaults(),
+        ...clearVisualStateStoreFields(),
+        uiRevision: incrementUiRevision(state),
+      });
+    },
+
+    resetAllDebugSignals: () => {
+      const state = get();
+      set({
+        audioUniforms: buildAudioDefaults(),
+        feelingUniforms: buildFeelingDefaults(),
+        ...clearVisualStateStoreFields(),
+        uiRevision: incrementUiRevision(state),
+      });
+    },
+
+    applyVisualStateRecipe: (recipe) => {
+      const state = get();
+      const resolution = resolveVisualStateRecipe({
+        recipe,
+        outputs: state.outputs,
+        outputOrder: state.outputOrder,
+        selectedOutputId: state.selectedOutputId,
+        presetRegistry: state.presetRegistry,
+      });
+
+      if (!resolution.ok || !resolution.resolved) {
+        return {
+          ok: false,
+          errors: resolution.errors,
+          warnings: resolution.warnings,
+        };
+      }
+
+      const transitionResult = get().setTargetVisualState(
+        resolution.resolved.state,
+        resolution.resolved.transition,
+      );
+
+      return {
+        ok: transitionResult.ok,
+        errors: transitionResult.errors,
+        warnings: [...resolution.warnings, ...transitionResult.warnings],
+      };
+    },
+
+    setTargetVisualState: (targetState, transition) => {
+      const state = get();
+      const targetOutput = state.outputs[targetState.outputId];
+      const preset = state.presetRegistry[targetState.presetId];
+
+      if (!targetOutput) {
+        return {
+          ok: false,
+          errors: [`Unknown target output: ${targetState.outputId}.`],
+          warnings: [],
+        };
+      }
+
+      if (!preset) {
+        return {
+          ok: false,
+          errors: [`Unknown preset: ${targetState.presetId}.`],
+          warnings: [],
+        };
+      }
+
+      const remappedOutput = targetOutput.presetId === preset.id
+        ? targetOutput
+        : {
+            ...targetOutput,
+            presetId: preset.id,
+            uniforms: remapUniformsForPreset(preset, targetOutput.uniforms),
+          };
+      const workingOutputs = targetOutput.presetId === preset.id
+        ? state.outputs
+        : {
+            ...state.outputs,
+            [targetState.outputId]: remappedOutput,
+          };
+      const workingState = {
+        ...state,
+        outputs: workingOutputs,
+      };
+      const currentVisualState = captureCurrentVisualState(workingState, targetState);
+
+      if (!currentVisualState) {
+        return {
+          ok: false,
+          errors: ['Unable to capture the current visual state for this recipe target.'],
+          warnings: [],
+        };
+      }
+
+      if (transition.mode === 'immediate' || transition.durationMs <= 0) {
+        const appliedMutation = applyResolvedVisualStateMutation(workingState, targetState);
+        set({
+          outputs: appliedMutation.nextOutputs,
+          feelingUniforms: appliedMutation.nextFeelingUniforms,
+          currentVisualState: cloneResolvedVisualState(targetState),
+          targetVisualState: cloneResolvedVisualState(targetState),
+          activeVisualStateTransition: null,
+          selectedOutputId: targetState.outputId,
+          uiRevision: incrementUiRevision(state),
+        });
+
+        return {
+          ok: true,
+          errors: [],
+          warnings: [],
+        };
+      }
+
+      set({
+        outputs: workingOutputs,
+        currentVisualState,
+        targetVisualState: cloneResolvedVisualState(targetState),
+        activeVisualStateTransition: {
+          recipeId: targetState.recipeId,
+          recipeLabel: targetState.recipeLabel,
+          outputId: targetState.outputId,
+          presetId: targetState.presetId,
+          durationMs: transition.durationMs,
+          easing: transition.easing,
+          elapsedMs: 0,
+          fromState: cloneResolvedVisualState(currentVisualState) as ResolvedVisualState,
+        },
+        selectedOutputId: targetState.outputId,
+        uiRevision: incrementUiRevision(state),
+      });
+
+      return {
+        ok: true,
+        errors: [],
+        warnings: [],
+      };
+    },
+
+    advanceVisualStateTransition: (deltaTimeMs) => {
+      const state = get();
+      const transition = state.activeVisualStateTransition;
+      const targetState = state.targetVisualState;
+
+      if (!transition || !targetState || deltaTimeMs <= 0) {
+        return;
+      }
+
+      const targetOutput = state.outputs[targetState.outputId];
+      const preset = state.presetRegistry[targetState.presetId];
+      if (!targetOutput || !preset) {
+        set({
+          ...clearVisualStateStoreFields(),
+          uiRevision: incrementUiRevision(state),
+        });
+        return;
+      }
+
+      const nextElapsedMs = Math.min(
+        transition.durationMs,
+        transition.elapsedMs + Math.max(0, deltaTimeMs),
+      );
+      const progress = transition.durationMs <= 0 ? 1 : nextElapsedMs / transition.durationMs;
+      const easedProgress = evaluateVisualStateEasing(progress, transition.easing);
+      const schemaMap = schemaToMap(preset.uniformSchema);
+      const nextCurrentState: ResolvedVisualState = {
+        recipeId: targetState.recipeId,
+        recipeLabel: targetState.recipeLabel,
+        outputId: targetState.outputId,
+        presetId: targetState.presetId,
+        feelingUniforms: interpolateUniformBucket(
+          transition.fromState.feelingUniforms,
+          targetState.feelingUniforms,
+          easedProgress,
+        ),
+        expressiveUniforms: interpolateUniformBucket(
+          transition.fromState.expressiveUniforms,
+          targetState.expressiveUniforms,
+          easedProgress,
+          schemaMap,
+        ),
+      };
+      const appliedMutation = applyResolvedVisualStateMutation(state, nextCurrentState);
+      const isComplete = nextElapsedMs >= transition.durationMs;
+
+      set({
+        outputs: appliedMutation.nextOutputs,
+        feelingUniforms: appliedMutation.nextFeelingUniforms,
+        currentVisualState: isComplete
+          ? cloneResolvedVisualState(targetState)
+          : nextCurrentState,
+        targetVisualState: cloneResolvedVisualState(targetState),
+        activeVisualStateTransition: isComplete
+          ? null
+          : {
+              ...transition,
+              elapsedMs: nextElapsedMs,
+            },
+        ...(isComplete ? { uiRevision: incrementUiRevision(state) } : {}),
+      });
+    },
+
+    resetVisualStateRecipeState: () => {
+      const state = get();
+      if (!state.currentVisualState && !state.targetVisualState && !state.activeVisualStateTransition) {
+        return;
+      }
+
+      set({
+        ...clearVisualStateStoreFields(),
         uiRevision: incrementUiRevision(state),
       });
     },
@@ -672,6 +1223,15 @@ export function createShaderMasterStore(): ShaderMasterStore {
         runtimeUniforms: cloneUniformMap(snapshot.runtimeUniforms),
         audioUniforms: cloneUniformMap(snapshot.audioUniforms),
         feelingUniforms: cloneUniformMap(snapshot.feelingUniforms),
+        currentVisualState: snapshot.visualState
+          ? cloneResolvedVisualState(snapshot.visualState.current)
+          : null,
+        targetVisualState: snapshot.visualState
+          ? cloneResolvedVisualState(snapshot.visualState.target)
+          : null,
+        activeVisualStateTransition: snapshot.visualState
+          ? cloneVisualStateRuntimeSnapshot(snapshot.visualState).transition
+          : null,
         uiRevision: snapshot.revision,
         outputCounter: Math.max(
           1,
@@ -682,15 +1242,25 @@ export function createShaderMasterStore(): ShaderMasterStore {
 
     applyVisualIntent: (intent) => {
       const state = get();
-      const { nextOutputs, result } = applyVisualIntentMutation(state, intent);
+      const {
+        nextOutputs,
+        nextAudioUniforms,
+        nextFeelingUniforms,
+        result,
+      } = applyVisualIntentMutation(state, intent);
 
       if (!result.ok || !nextOutputs) {
         return result;
       }
+      const shouldClearVisualState = isVisualStateTargetingOutput(state, intent.targetOutputId)
+        || nextFeelingUniforms !== undefined;
 
       set({
         outputs: nextOutputs,
+        audioUniforms: nextAudioUniforms || state.audioUniforms,
+        feelingUniforms: nextFeelingUniforms || state.feelingUniforms,
         selectedOutputId: intent.targetOutputId,
+        ...(shouldClearVisualState ? clearVisualStateStoreFields() : {}),
         uiRevision: incrementUiRevision(state),
       });
 
@@ -713,5 +1283,6 @@ export function createShaderMasterSnapshot(
     runtimeUniforms: cloneUniformMap(state.runtimeUniforms),
     audioUniforms: cloneUniformMap(state.audioUniforms),
     feelingUniforms: cloneUniformMap(state.feelingUniforms),
+    visualState: buildVisualStateSnapshot(state),
   };
 }

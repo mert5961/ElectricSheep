@@ -21,7 +21,7 @@ export class SurfacesPanel {
   }) {
     this.onSelectSurface = onSelectSurface;
     this.onAssignOutput = onAssignOutput;
-    this.element = createCardShell('Surfaces', 'Geo Master surfaces stay spatial; Shader Master only assigns output ids.');
+    this.element = createCardShell('Routing', 'Route shared outputs into Geo Master surfaces without touching geometry.');
     this.listEl = createElement('div', {
       display: 'flex',
       flexDirection: 'column',

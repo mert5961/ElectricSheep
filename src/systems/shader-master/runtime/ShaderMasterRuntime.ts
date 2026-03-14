@@ -20,6 +20,8 @@ export class ShaderMasterRuntime {
 
   private readonly drawingBufferSize = new THREE.Vector2();
 
+  private lastRenderTime: number | null = null;
+
   constructor({
     renderer,
     store,
@@ -41,6 +43,13 @@ export class ShaderMasterRuntime {
   }
 
   render(time: number): void {
+    const deltaTimeMs = this.lastRenderTime === null
+      ? 0
+      : Math.max(0, (time - this.lastRenderTime) * 1000);
+    this.lastRenderTime = time;
+
+    this.store.getState().advanceVisualStateTransition(deltaTimeMs);
+
     const state = this.store.getState();
     this.renderer.getDrawingBufferSize(this.drawingBufferSize);
 

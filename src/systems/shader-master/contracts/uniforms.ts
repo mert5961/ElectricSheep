@@ -200,6 +200,8 @@ export const CORE_UNIFORM_SCHEMA: UniformSchema = [
   }),
 ];
 
+export const AUDIO_UNIFORM_SCHEMA = CORE_UNIFORM_SCHEMA.filter((field) => field.source === 'audio');
+export const FEELING_UNIFORM_SCHEMA = CORE_UNIFORM_SCHEMA.filter((field) => field.source === 'feeling');
 export const CORE_UNIFORM_SCHEMA_MAP = schemaToMap(CORE_UNIFORM_SCHEMA);
 
 export const SHARED_FRAGMENT_UNIFORMS = `

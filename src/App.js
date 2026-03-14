@@ -125,6 +125,14 @@ export class App {
     return this._outputDisplayMode;
   }
 
+  applyVisualIntent(intent) {
+    return this.shaderMasterStore.getState().applyVisualIntent(intent);
+  }
+
+  applyVisualStateRecipe(recipe) {
+    return this.shaderMasterStore.getState().applyVisualStateRecipe(recipe);
+  }
+
   setActiveModule(module) {
     if (module !== EDITOR_MODULE_GEO && module !== EDITOR_MODULE_SHADER) {
       return;
@@ -481,6 +489,34 @@ export class App {
 
     this.ui.onUpdateOutputUniform = (outputId, key, value) => {
       this.shaderMasterStore.getState().updateOutputUniform(outputId, key, value);
+    };
+
+    this.ui.onSetAudioUniforms = (uniforms) => {
+      this.shaderMasterStore.getState().setAudioUniforms(uniforms);
+    };
+
+    this.ui.onSetFeelingUniforms = (uniforms) => {
+      this.shaderMasterStore.getState().setFeelingUniforms(uniforms);
+    };
+
+    this.ui.onResetAudioUniforms = () => {
+      this.shaderMasterStore.getState().resetAudioUniforms();
+    };
+
+    this.ui.onResetFeelingUniforms = () => {
+      this.shaderMasterStore.getState().resetFeelingUniforms();
+    };
+
+    this.ui.onResetAllDebugSignals = () => {
+      this.shaderMasterStore.getState().resetAllDebugSignals();
+    };
+
+    this.ui.onResetVisualStateRecipeState = () => {
+      this.shaderMasterStore.getState().resetVisualStateRecipeState();
+    };
+
+    this.ui.onApplyVisualStateRecipe = (recipe) => {
+      this.shaderMasterStore.getState().applyVisualStateRecipe(recipe);
     };
   }
 
