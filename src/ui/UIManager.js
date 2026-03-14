@@ -14,7 +14,7 @@ import {
   PREVIEW_MODE_EDIT,
   PREVIEW_MODE_OUTPUT,
 } from '../core/AppModes.js';
-import { ShaderMasterPanel } from '../systems/shader-master/ui/ShaderMasterPanel.ts';
+import { ShaderTab } from '../systems/shader-master/ui/ShaderTab.ts';
 
 function createText(tagName, text, style = {}) {
   const element = document.createElement(tagName);
@@ -100,6 +100,13 @@ export class UIManager {
     this.onSetOutputEnabled = null;
     this.onChangeOutputPreset = null;
     this.onUpdateOutputUniform = null;
+    this.onSetAudioUniforms = null;
+    this.onSetFeelingUniforms = null;
+    this.onResetAudioUniforms = null;
+    this.onResetFeelingUniforms = null;
+    this.onResetAllDebugSignals = null;
+    this.onResetVisualStateRecipeState = null;
+    this.onApplyVisualStateRecipe = null;
 
     this._build();
   }
@@ -666,7 +673,7 @@ export class UIManager {
       paddingRight: '4px',
     });
 
-    this._shaderMasterPanel = new ShaderMasterPanel({
+    this._shaderMasterPanel = new ShaderTab({
       onSelectSurface: (surfaceId) => {
         if (this.onSelectSurface) this.onSelectSurface(surfaceId);
       },
@@ -696,6 +703,27 @@ export class UIManager {
       },
       onUpdateOutputUniform: (outputId, key, value) => {
         if (this.onUpdateOutputUniform) this.onUpdateOutputUniform(outputId, key, value);
+      },
+      onSetAudioUniforms: (uniforms) => {
+        if (this.onSetAudioUniforms) this.onSetAudioUniforms(uniforms);
+      },
+      onSetFeelingUniforms: (uniforms) => {
+        if (this.onSetFeelingUniforms) this.onSetFeelingUniforms(uniforms);
+      },
+      onResetAudioUniforms: () => {
+        if (this.onResetAudioUniforms) this.onResetAudioUniforms();
+      },
+      onResetFeelingUniforms: () => {
+        if (this.onResetFeelingUniforms) this.onResetFeelingUniforms();
+      },
+      onResetAllDebugSignals: () => {
+        if (this.onResetAllDebugSignals) this.onResetAllDebugSignals();
+      },
+      onResetVisualStateRecipeState: () => {
+        if (this.onResetVisualStateRecipeState) this.onResetVisualStateRecipeState();
+      },
+      onApplyVisualStateRecipe: (recipe) => {
+        if (this.onApplyVisualStateRecipe) this.onApplyVisualStateRecipe(recipe);
       },
     });
 
