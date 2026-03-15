@@ -36,6 +36,7 @@ export class UIManager {
       connected: false,
     };
     this._shaderMasterSnapshot = null;
+    this._audioAnalyzerState = null;
     this._geoSurfaceListSignature = '';
 
     this._shell = null;
@@ -107,6 +108,14 @@ export class UIManager {
     this.onResetAllDebugSignals = null;
     this.onResetVisualStateRecipeState = null;
     this.onApplyVisualStateRecipe = null;
+    this.onStartMicrophoneAudio = null;
+    this.onStartAudioDebugTest = null;
+    this.onStopAudioAnalyzer = null;
+    this.onSetAudioAnalyzerDebugConfig = null;
+    this.onResetAudioAnalyzerDebugConfig = null;
+    this.onSetAudioVisualSignalTuning = null;
+    this.onSetAudioVisualSoloKey = null;
+    this.onResetAudioVisualMapping = null;
 
     this._build();
   }
@@ -201,11 +210,12 @@ export class UIManager {
     this._syncSurfaceOrderButtons(surface, surfaceCount);
   }
 
-  updateShaderMaster(snapshot) {
+  updateShaderMaster(snapshot, audioAnalyzerState = this._audioAnalyzerState) {
     this._shaderMasterSnapshot = snapshot;
+    this._audioAnalyzerState = audioAnalyzerState;
 
     if (this._shaderMasterPanel && snapshot) {
-      this._shaderMasterPanel.update(snapshot);
+      this._shaderMasterPanel.update(snapshot, this._audioAnalyzerState);
     }
 
     this._syncGeoSurfaceList();
@@ -724,6 +734,30 @@ export class UIManager {
       },
       onApplyVisualStateRecipe: (recipe) => {
         if (this.onApplyVisualStateRecipe) this.onApplyVisualStateRecipe(recipe);
+      },
+      onStartMicrophoneAudio: () => {
+        if (this.onStartMicrophoneAudio) this.onStartMicrophoneAudio();
+      },
+      onStartAudioDebugTest: (mode) => {
+        if (this.onStartAudioDebugTest) this.onStartAudioDebugTest(mode);
+      },
+      onStopAudioAnalyzer: () => {
+        if (this.onStopAudioAnalyzer) this.onStopAudioAnalyzer();
+      },
+      onSetAudioAnalyzerDebugConfig: (patch) => {
+        if (this.onSetAudioAnalyzerDebugConfig) this.onSetAudioAnalyzerDebugConfig(patch);
+      },
+      onResetAudioAnalyzerDebugConfig: () => {
+        if (this.onResetAudioAnalyzerDebugConfig) this.onResetAudioAnalyzerDebugConfig();
+      },
+      onSetAudioVisualSignalTuning: (key, patch) => {
+        if (this.onSetAudioVisualSignalTuning) this.onSetAudioVisualSignalTuning(key, patch);
+      },
+      onSetAudioVisualSoloKey: (key) => {
+        if (this.onSetAudioVisualSoloKey) this.onSetAudioVisualSoloKey(key);
+      },
+      onResetAudioVisualMapping: () => {
+        if (this.onResetAudioVisualMapping) this.onResetAudioVisualMapping();
       },
     });
 

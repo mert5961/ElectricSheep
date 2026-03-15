@@ -9,6 +9,13 @@ import {
   createDefaultUniforms,
   schemaToMap,
 } from '../contracts/uniforms.ts';
+import {
+  cloneAudioVisualMappingState,
+  createDefaultAudioVisualMappingState,
+  sanitizeAudioVisualSignalTuning,
+  type AudioVisualMappingState,
+  type AudioVisualSignalUniformKey,
+} from '../contracts/audioVisualMapping.ts';
 import type {
   ShaderMasterSnapshot,
   ShaderOutput,
@@ -32,6 +39,7 @@ import {
   cloneVisualStateRuntimeSnapshot,
 } from '../contracts/visualStateRecipe.ts';
 import { listPresetCatalog, presetRegistry } from '../registry/presetRegistry.ts';
+import { resolveMappedAudioUniforms } from '../runtime/resolveMappedAudioUniforms.ts';
 import { resolveFinalUniforms } from '../runtime/resolveFinalUniforms.ts';
 import { resolveVisualStateRecipe } from '../validation/resolveVisualStateRecipe.ts';
 import { validateUniformValue } from '../validation/validateUniformValue.ts';
@@ -51,6 +59,7 @@ export interface ShaderMasterStoreState extends InternalShaderMasterState {
   selectedSurfaceId: string | null;
   runtimeUniforms: UniformValueMap;
   audioUniforms: UniformValueMap;
+  audioVisualMapping: AudioVisualMappingState;
   feelingUniforms: UniformValueMap;
   currentVisualState: ResolvedVisualState | null;
   targetVisualState: ResolvedVisualState | null;
@@ -67,7 +76,18 @@ export interface ShaderMasterStoreState extends InternalShaderMasterState {
   setSelectedOutput: (outputId: string | null) => void;
   setSelectedSurface: (surfaceId: string | null) => void;
   setRuntimeUniforms: (uniforms: Partial<UniformValueMap>) => void;
-  setAudioUniforms: (uniforms: Partial<UniformValueMap>) => void;
+  setAudioUniforms: (
+    uniforms: Partial<UniformValueMap>,
+    options?: {
+      updateUiRevision?: boolean;
+    },
+  ) => void;
+  setAudioVisualSignalTuning: (
+    key: AudioVisualSignalUniformKey,
+    patch: Partial<AudioVisualMappingState['signals'][AudioVisualSignalUniformKey]>,
+  ) => void;
+  setAudioVisualSoloKey: (key: AudioVisualSignalUniformKey | null) => void;
+  resetAudioVisualMapping: () => void;
   setFeelingUniforms: (uniforms: Partial<UniformValueMap>) => void;
   resetAudioUniforms: () => void;
   resetFeelingUniforms: () => void;
@@ -235,11 +255,16 @@ function buildOrderedOutputs(state: ShaderMasterStoreState): ShaderOutput[] {
     .filter((output): output is ShaderOutput => Boolean(output));
 }
 
+function buildMappedAudioUniforms(state: ShaderMasterStoreState): UniformValueMap {
+  return resolveMappedAudioUniforms(state.audioUniforms, state.audioVisualMapping);
+}
+
 function buildOutputSnapshot(
   state: ShaderMasterStoreState,
   output: ShaderOutput,
 ): ShaderOutputSnapshot {
   const preset = state.presetRegistry[output.presetId];
+  const mappedAudioUniforms = buildMappedAudioUniforms(state);
   return {
     ...output,
     uniforms: cloneUniformMap(output.uniforms),
@@ -249,7 +274,7 @@ function buildOutputSnapshot(
           preset,
           output,
           runtimeUniforms: state.runtimeUniforms,
-          audioUniforms: state.audioUniforms,
+          audioUniforms: mappedAudioUniforms,
           feelingUniforms: state.feelingUniforms,
         })
       : cloneUniformMap(output.uniforms),
@@ -626,6 +651,7 @@ export function createShaderMasterStore(): ShaderMasterStore {
     selectedSurfaceId: null,
     runtimeUniforms: buildRuntimeDefaults(),
     audioUniforms: buildAudioDefaults(),
+    audioVisualMapping: createDefaultAudioVisualMappingState(),
     feelingUniforms: buildFeelingDefaults(),
     currentVisualState: null,
     targetVisualState: null,
@@ -960,10 +986,54 @@ export function createShaderMasterStore(): ShaderMasterStore {
       });
     },
 
-    setAudioUniforms: (uniforms) => {
+    setAudioUniforms: (uniforms, options = {}) => {
       const state = get();
+      const shouldUpdateUiRevision = options.updateUiRevision !== false;
       set({
         audioUniforms: mergeUniformBucket(state.audioUniforms, uniforms, 'audio'),
+        ...(shouldUpdateUiRevision ? { uiRevision: incrementUiRevision(state) } : {}),
+      });
+    },
+
+    setAudioVisualSignalTuning: (key, patch) => {
+      const state = get();
+      const currentSignal = state.audioVisualMapping.signals[key];
+      if (!currentSignal) {
+        return;
+      }
+
+      const nextSignal = sanitizeAudioVisualSignalTuning(patch, currentSignal);
+      set({
+        audioVisualMapping: {
+          ...state.audioVisualMapping,
+          signals: {
+            ...state.audioVisualMapping.signals,
+            [key]: nextSignal,
+          },
+        },
+        uiRevision: incrementUiRevision(state),
+      });
+    },
+
+    setAudioVisualSoloKey: (key) => {
+      const state = get();
+      if (state.audioVisualMapping.soloKey === key) {
+        return;
+      }
+
+      set({
+        audioVisualMapping: {
+          ...state.audioVisualMapping,
+          soloKey: key,
+        },
+        uiRevision: incrementUiRevision(state),
+      });
+    },
+
+    resetAudioVisualMapping: () => {
+      const state = get();
+      set({
+        audioVisualMapping: createDefaultAudioVisualMappingState(),
         uiRevision: incrementUiRevision(state),
       });
     },
@@ -998,6 +1068,7 @@ export function createShaderMasterStore(): ShaderMasterStore {
       const state = get();
       set({
         audioUniforms: buildAudioDefaults(),
+        audioVisualMapping: createDefaultAudioVisualMappingState(),
         feelingUniforms: buildFeelingDefaults(),
         ...clearVisualStateStoreFields(),
         uiRevision: incrementUiRevision(state),
@@ -1222,6 +1293,7 @@ export function createShaderMasterStore(): ShaderMasterStore {
         selectedSurfaceId: snapshot.selectedSurfaceId,
         runtimeUniforms: cloneUniformMap(snapshot.runtimeUniforms),
         audioUniforms: cloneUniformMap(snapshot.audioUniforms),
+        audioVisualMapping: cloneAudioVisualMappingState(snapshot.audioVisualMapping),
         feelingUniforms: cloneUniformMap(snapshot.feelingUniforms),
         currentVisualState: snapshot.visualState
           ? cloneResolvedVisualState(snapshot.visualState.current)
@@ -1272,6 +1344,7 @@ export function createShaderMasterStore(): ShaderMasterStore {
 export function createShaderMasterSnapshot(
   state: ShaderMasterStoreState,
 ): ShaderMasterSnapshot {
+  const mappedAudioUniforms = buildMappedAudioUniforms(state);
   return {
     revision: state.uiRevision,
     presets: listPresetCatalog(),
@@ -1282,6 +1355,8 @@ export function createShaderMasterSnapshot(
     selectedSurfaceId: state.selectedSurfaceId,
     runtimeUniforms: cloneUniformMap(state.runtimeUniforms),
     audioUniforms: cloneUniformMap(state.audioUniforms),
+    mappedAudioUniforms,
+    audioVisualMapping: cloneAudioVisualMappingState(state.audioVisualMapping),
     feelingUniforms: cloneUniformMap(state.feelingUniforms),
     visualState: buildVisualStateSnapshot(state),
   };

@@ -20,9 +20,22 @@ import {
   createShaderMasterSnapshot,
   createShaderMasterStore,
 } from './systems/shader-master/store/shaderMasterStore.ts';
+import { buildAudioDefaults } from './systems/shader-master/contracts/uniforms.ts';
 import { ShaderMasterRuntime } from './systems/shader-master/runtime/ShaderMasterRuntime.ts';
+import { AudioAnalyzer } from './systems/audio-analyzer/audioAnalyzer.ts';
+import { createAudioAnalyzerStore } from './systems/audio-analyzer/audioAnalyzerStore.ts';
 import { MappingAssistOverlay } from './overlays/MappingAssistOverlay.js';
 import { OutputStageUI } from './ui/OutputStageUI.js';
+
+function audioSignalsToUniformPatch(signals) {
+  return {
+    u_audioBass: signals.bass,
+    u_audioMid: signals.mid,
+    u_audioTreble: signals.treble,
+    u_audioEnergy: signals.energy,
+    u_audioPulse: signals.pulse,
+  };
+}
 
 export class App {
   constructor({
@@ -44,10 +57,21 @@ export class App {
     this._outputWindowRef = null;
     this._outputWindowConnected = false;
     this._pendingOutputFullscreen = false;
+    this._manualAudioUniforms = buildAudioDefaults();
+    this._lastAudioSnapshotRefreshMs = 0;
+    this._lastAudioBroadcastMs = 0;
 
     this.renderer = new RendererManager(canvas);
     this.surfaces = new SurfaceManager(this.renderer.scene, overlayEl);
     this.shaderMasterStore = createShaderMasterStore();
+    this.audioAnalyzerStore = role === APP_ROLE_EDITOR
+      ? createAudioAnalyzerStore()
+      : null;
+    this.audioAnalyzer = role === APP_ROLE_EDITOR && this.audioAnalyzerStore
+      ? new AudioAnalyzer({
+          store: this.audioAnalyzerStore,
+        })
+      : null;
     this.shaderRuntime = new ShaderMasterRuntime({
       renderer: this.renderer.renderer,
       store: this.shaderMasterStore,
@@ -92,7 +116,7 @@ export class App {
         connected: false,
       });
       this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
-      this.ui.updateShaderMaster(createShaderMasterSnapshot(this.shaderMasterStore.getState()));
+      this._updateShaderMasterUi();
     }
 
     if (this._bridge) {
@@ -287,7 +311,7 @@ export class App {
       this._shaderUiRevision = state.uiRevision;
 
       if (this.ui) {
-        this.ui.updateShaderMaster(createShaderMasterSnapshot(state));
+        this._updateShaderMasterUi(state);
       }
 
       if (this._role === APP_ROLE_EDITOR) {
@@ -492,6 +516,16 @@ export class App {
     };
 
     this.ui.onSetAudioUniforms = (uniforms) => {
+      this._manualAudioUniforms = {
+        ...this._manualAudioUniforms,
+        ...uniforms,
+      };
+
+      if (this.audioAnalyzer?.isRunning()) {
+        this._updateShaderMasterUi();
+        return;
+      }
+
       this.shaderMasterStore.getState().setAudioUniforms(uniforms);
     };
 
@@ -500,7 +534,14 @@ export class App {
     };
 
     this.ui.onResetAudioUniforms = () => {
-      this.shaderMasterStore.getState().resetAudioUniforms();
+      this._manualAudioUniforms = buildAudioDefaults();
+
+      if (this.audioAnalyzer?.isRunning()) {
+        this._updateShaderMasterUi();
+        return;
+      }
+
+      this.shaderMasterStore.getState().setAudioUniforms(this._manualAudioUniforms);
     };
 
     this.ui.onResetFeelingUniforms = () => {
@@ -508,7 +549,18 @@ export class App {
     };
 
     this.ui.onResetAllDebugSignals = () => {
-      this.shaderMasterStore.getState().resetAllDebugSignals();
+      const shaderState = this.shaderMasterStore.getState();
+      this._manualAudioUniforms = buildAudioDefaults();
+
+      if (this.audioAnalyzer?.isRunning()) {
+        shaderState.resetAudioVisualMapping();
+        shaderState.resetFeelingUniforms();
+        shaderState.resetVisualStateRecipeState();
+        this._updateShaderMasterUi();
+        return;
+      }
+
+      shaderState.resetAllDebugSignals();
     };
 
     this.ui.onResetVisualStateRecipeState = () => {
@@ -518,10 +570,65 @@ export class App {
     this.ui.onApplyVisualStateRecipe = (recipe) => {
       this.shaderMasterStore.getState().applyVisualStateRecipe(recipe);
     };
+
+    this.ui.onStartMicrophoneAudio = async () => {
+      await this._startMicrophoneAudioAnalyzer();
+    };
+
+    this.ui.onStartAudioDebugTest = async (mode) => {
+      await this._startAudioAnalyzerDebugTest(mode);
+    };
+
+    this.ui.onStopAudioAnalyzer = async () => {
+      await this._stopAudioAnalyzer();
+    };
+
+    this.ui.onSetAudioAnalyzerDebugConfig = (patch) => {
+      if (!this.audioAnalyzerStore) {
+        return;
+      }
+
+      this.audioAnalyzerStore.setDebugConfig(patch);
+      this._updateShaderMasterUi();
+    };
+
+    this.ui.onResetAudioAnalyzerDebugConfig = () => {
+      if (!this.audioAnalyzerStore) {
+        return;
+      }
+
+      this.audioAnalyzerStore.resetDebugConfig();
+      this._updateShaderMasterUi();
+    };
+
+    this.ui.onSetAudioVisualSignalTuning = (key, patch) => {
+      this.shaderMasterStore.getState().setAudioVisualSignalTuning(key, patch);
+    };
+
+    this.ui.onSetAudioVisualSoloKey = (key) => {
+      this.shaderMasterStore.getState().setAudioVisualSoloKey(key);
+    };
+
+    this.ui.onResetAudioVisualMapping = () => {
+      this.shaderMasterStore.getState().resetAudioVisualMapping();
+    };
   }
 
   _wireFrameLoop() {
     this.renderer.onFrame((time) => {
+      const frameTimeMs = time * 1000;
+      if (this.audioAnalyzer?.isRunning()) {
+        const liveSignals = this.audioAnalyzer.update(frameTimeMs);
+        if (liveSignals) {
+          this.shaderMasterStore.getState().setAudioUniforms(
+            audioSignalsToUniformPatch(liveSignals),
+            { updateUiRevision: false },
+          );
+          this._refreshAudioDrivenUi(frameTimeMs);
+          this._scheduleAudioDrivenBroadcast(frameTimeMs);
+        }
+      }
+
       this.shaderRuntime.render(time);
       this._applyShaderMasterStateToSurfaces();
       if (this.assistOverlay) {
@@ -584,9 +691,7 @@ export class App {
     const shaderState = this.shaderMasterStore.getState();
     shaderState.syncSurfaces(this._getSurfaceReferences());
     shaderState.setSelectedSurface(this.surfaces.activeSurface?.id || null);
-    if (this.ui) {
-      this.ui.updateShaderMaster(createShaderMasterSnapshot(shaderState));
-    }
+    this._updateShaderMasterUi(shaderState);
   }
 
   _applyShaderMasterStateToSurfaces() {
@@ -606,6 +711,94 @@ export class App {
       visible: surface.visible,
       assignedOutputId: surface.assignedOutputId,
     }));
+  }
+
+  _getAudioAnalyzerUiState() {
+    return this.audioAnalyzerStore ? this.audioAnalyzerStore.getState() : null;
+  }
+
+  _updateShaderMasterUi(shaderState = this.shaderMasterStore.getState()) {
+    if (!this.ui) {
+      return;
+    }
+
+    this.ui.updateShaderMaster(
+      createShaderMasterSnapshot(shaderState),
+      this._getAudioAnalyzerUiState(),
+    );
+  }
+
+  _refreshAudioDrivenUi(frameTimeMs) {
+    if (!this.ui) {
+      return;
+    }
+
+    if ((frameTimeMs - this._lastAudioSnapshotRefreshMs) < 90) {
+      return;
+    }
+
+    this._lastAudioSnapshotRefreshMs = frameTimeMs;
+    this._updateShaderMasterUi();
+  }
+
+  _scheduleAudioDrivenBroadcast(frameTimeMs) {
+    if ((frameTimeMs - this._lastAudioBroadcastMs) < 33) {
+      return;
+    }
+
+    this._lastAudioBroadcastMs = frameTimeMs;
+    this._scheduleSceneBroadcast();
+  }
+
+  async _startMicrophoneAudioAnalyzer() {
+    if (!this.audioAnalyzer) {
+      return;
+    }
+
+    try {
+      const startPromise = this.audioAnalyzer.startMicrophone();
+      this._updateShaderMasterUi();
+      await startPromise;
+      this.shaderMasterStore.getState().setAudioUniforms(
+        audioSignalsToUniformPatch(this.audioAnalyzer.getAudioSignals()),
+      );
+      this._updateShaderMasterUi();
+      this._scheduleSceneBroadcast();
+    } catch (error) {
+      console.error('Audio Analyzer v1 failed to start microphone capture.', error);
+      this._updateShaderMasterUi();
+    }
+  }
+
+  async _startAudioAnalyzerDebugTest(mode) {
+    if (!this.audioAnalyzer) {
+      return;
+    }
+
+    try {
+      const startPromise = this.audioAnalyzer.startDebugTest(mode);
+      this._updateShaderMasterUi();
+      await startPromise;
+      this.shaderMasterStore.getState().setAudioUniforms(
+        audioSignalsToUniformPatch(this.audioAnalyzer.getAudioSignals()),
+      );
+      this._updateShaderMasterUi();
+      this._scheduleSceneBroadcast();
+    } catch (error) {
+      console.error(`Audio Analyzer debug test failed to start for ${mode}.`, error);
+      this._updateShaderMasterUi();
+    }
+  }
+
+  async _stopAudioAnalyzer() {
+    if (!this.audioAnalyzer) {
+      return;
+    }
+
+    await this.audioAnalyzer.stop();
+    this.shaderMasterStore.getState().setAudioUniforms(this._manualAudioUniforms);
+    this._updateShaderMasterUi();
+    this._scheduleSceneBroadcast();
   }
 
   _createSceneSnapshot() {

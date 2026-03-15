@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { ShaderMasterStore } from '../store/shaderMasterStore.ts';
+import { resolveMappedAudioUniforms } from './resolveMappedAudioUniforms.ts';
 import { renderSurfaceOutput } from './renderSurfaceOutput.ts';
 import { ShaderCache } from './shaderCache.ts';
 
@@ -59,6 +60,10 @@ export class ShaderMasterRuntime {
     });
 
     const latestState = this.store.getState();
+    const mappedAudioUniforms = resolveMappedAudioUniforms(
+      latestState.audioUniforms,
+      latestState.audioVisualMapping,
+    );
     const assignedOutputIds = new Set(
       Object.values(latestState.surfaceAssignments)
         .filter((outputId): outputId is string => Boolean(outputId)),
@@ -84,7 +89,7 @@ export class ShaderMasterRuntime {
         output,
         target,
         runtimeUniforms: latestState.runtimeUniforms,
-        audioUniforms: latestState.audioUniforms,
+        audioUniforms: mappedAudioUniforms,
         feelingUniforms: latestState.feelingUniforms,
       });
     });

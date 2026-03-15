@@ -3,6 +3,12 @@ import type {
   UniformValueMap,
 } from '../contracts/types.ts';
 import type { VisualStateRecipe } from '../contracts/visualStateRecipe.ts';
+import type { AudioVisualSignalUniformKey } from '../contracts/audioVisualMapping.ts';
+import type {
+  AudioAnalyzerDebugConfig,
+  AudioAnalyzerState,
+  AudioAnalyzerTestMode,
+} from '../../audio-analyzer/audioAnalyzerStore.ts';
 import { createElement } from './dom.ts';
 import { DebugSignalsPanel } from './DebugSignalsPanel.ts';
 import { OutputsPanel } from './OutputsPanel.ts';
@@ -38,6 +44,14 @@ export class ShaderTab {
     onResetAllDebugSignals,
     onResetVisualStateRecipeState,
     onApplyVisualStateRecipe,
+    onStartMicrophoneAudio,
+    onStartAudioDebugTest,
+    onStopAudioAnalyzer,
+    onSetAudioAnalyzerDebugConfig,
+    onResetAudioAnalyzerDebugConfig,
+    onSetAudioVisualSignalTuning,
+    onSetAudioVisualSoloKey,
+    onResetAudioVisualMapping,
   }: {
     onSelectSurface: (surfaceId: string) => void;
     onAssignOutput: (surfaceId: string, outputId: string | null) => void;
@@ -49,13 +63,29 @@ export class ShaderTab {
     onSetOutputEnabled: (outputId: string, enabled: boolean) => void;
     onChangeOutputPreset: (outputId: string, presetId: string) => void;
     onUpdateOutputUniform: (outputId: string, key: string, value: unknown) => void;
-    onSetAudioUniforms: (uniforms: Partial<UniformValueMap>) => void;
-    onSetFeelingUniforms: (uniforms: Partial<UniformValueMap>) => void;
-    onResetAudioUniforms: () => void;
-    onResetFeelingUniforms: () => void;
-    onResetAllDebugSignals: () => void;
-    onResetVisualStateRecipeState: () => void;
-    onApplyVisualStateRecipe: (recipe: VisualStateRecipe) => void;
+    onSetAudioUniforms?: (uniforms: Partial<UniformValueMap>) => void;
+    onSetFeelingUniforms?: (uniforms: Partial<UniformValueMap>) => void;
+    onResetAudioUniforms?: () => void;
+    onResetFeelingUniforms?: () => void;
+    onResetAllDebugSignals?: () => void;
+    onResetVisualStateRecipeState?: () => void;
+    onApplyVisualStateRecipe?: (recipe: VisualStateRecipe) => void;
+    onStartMicrophoneAudio?: () => void;
+    onStartAudioDebugTest?: (mode: AudioAnalyzerTestMode) => void;
+    onStopAudioAnalyzer?: () => void;
+    onSetAudioAnalyzerDebugConfig?: (patch: Partial<AudioAnalyzerDebugConfig>) => void;
+    onResetAudioAnalyzerDebugConfig?: () => void;
+    onSetAudioVisualSignalTuning?: (
+      key: AudioVisualSignalUniformKey,
+      patch: {
+        enabled?: boolean;
+        gain?: number;
+        threshold?: number;
+        curve?: number;
+      },
+    ) => void;
+    onSetAudioVisualSoloKey?: (key: AudioVisualSignalUniformKey | null) => void;
+    onResetAudioVisualMapping?: () => void;
   }) {
     this.element = createElement('div', {
       display: 'grid',
@@ -93,6 +123,15 @@ export class ShaderTab {
       onResetAllDebugSignals,
       onResetVisualStateRecipeState,
       onApplyVisualStateRecipe,
+      onStartMicrophoneAudio,
+      onStartAudioDebugTest,
+      onStopAudioAnalyzer,
+      onSetAudioAnalyzerDebugConfig,
+      onResetAudioAnalyzerDebugConfig,
+      onSetAudioVisualSignalTuning,
+      onSetAudioVisualSoloKey,
+      onResetAudioVisualMapping,
+      onChangeOutputPreset,
     });
 
     workspaceGrid.append(
@@ -103,14 +142,14 @@ export class ShaderTab {
     this.element.append(workspaceGrid, this.debugSignalsPanel.element);
   }
 
-  update(state: ShaderMasterSnapshot | null): void {
+  update(state: ShaderMasterSnapshot | null, audioInputState: AudioAnalyzerState | null = null): void {
     if (!state) {
       return;
     }
 
     this.outputsPanel.update(state);
     this.surfacesPanel.update(state);
-    this.debugSignalsPanel.update(state);
+    this.debugSignalsPanel.update(state, audioInputState);
 
     const selectedOutput = state.outputs.find((output) => output.id === state.selectedOutputId) || null;
     const selectedPreset = selectedOutput
