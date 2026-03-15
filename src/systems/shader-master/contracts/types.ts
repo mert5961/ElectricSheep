@@ -1,4 +1,5 @@
 import type { VisualStateRuntimeSnapshot } from './visualStateRecipe.ts';
+import type { AudioVisualMappingState } from './audioVisualMapping.ts';
 
 export type UniformSource = 'manual' | 'runtime' | 'audio' | 'feeling';
 export type UniformType = 'float' | 'int' | 'bool' | 'vec2' | 'vec3' | 'vec4';
@@ -96,6 +97,8 @@ export interface ShaderMasterSnapshot {
   selectedSurfaceId: string | null;
   runtimeUniforms: UniformValueMap;
   audioUniforms: UniformValueMap;
+  mappedAudioUniforms: UniformValueMap;
+  audioVisualMapping: AudioVisualMappingState;
   feelingUniforms: UniformValueMap;
   visualState: VisualStateRuntimeSnapshot;
 }

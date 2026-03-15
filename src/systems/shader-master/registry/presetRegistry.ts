@@ -3,6 +3,7 @@ import type {
   ShaderPresetDefinition,
 } from '../contracts/types.ts';
 import { cloneUniformMap } from '../contracts/uniforms.ts';
+import { audioReferencePreset } from './presets/audioReference.ts';
 import { cabinetLinesPreset } from './presets/cabinetLines.ts';
 import { debugGridPreset } from './presets/debugGrid.ts';
 import { dreamGradientPreset } from './presets/dreamGradient.ts';
@@ -10,6 +11,7 @@ import { fracturedBloomPreset } from './presets/fracturedBloom.ts';
 import { pulsePreset } from './presets/pulse.ts';
 
 const presets = [
+  audioReferencePreset,
   debugGridPreset,
   dreamGradientPreset,
   pulsePreset,
