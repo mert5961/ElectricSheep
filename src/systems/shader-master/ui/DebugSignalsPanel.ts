@@ -15,6 +15,7 @@ import type { VisualStateRecipe } from '../contracts/visualStateRecipe.ts';
 import { listVisualStateRecipes } from '../registry/visualStateRecipes.ts';
 import type {
   AudioAnalyzerDebugConfig,
+  AudioLatencyProbeState,
   AudioAnalyzerState,
   AudioAnalyzerTestMode,
 } from '../../audio-analyzer/audioAnalyzerStore.ts';
@@ -162,6 +163,34 @@ function describeInputQuality(audioInputState: AudioAnalyzerState | null): strin
   return 'Headroom looks reasonable for visual analysis.';
 }
 
+function formatLatencyMetric(value: number | null): string {
+  return value === null ? '--' : `${value.toFixed(1)} ms`;
+}
+
+function formatLatencyProbeStatus(probe: AudioLatencyProbeState | null): string {
+  if (!probe) {
+    return 'Latency Probe Idle';
+  }
+
+  if (probe.status === 'armed') {
+    return 'Latency Probe Armed';
+  }
+
+  if (probe.status === 'partial') {
+    return 'Latency Probe Measuring';
+  }
+
+  if (probe.status === 'completed') {
+    return 'Latency Probe Complete';
+  }
+
+  if (probe.status === 'unavailable') {
+    return 'Latency Probe Unavailable';
+  }
+
+  return 'Latency Probe Idle';
+}
+
 function createMeter(accent: string): { element: HTMLDivElement; controller: MeterController } {
   const container = createElement('div', {
     display: 'grid',
@@ -259,6 +288,28 @@ export class DebugSignalsPanel {
 
   private readonly diagnosticsRateEl: HTMLSpanElement;
 
+  private readonly latencyProbeStatusEl: HTMLDivElement;
+
+  private readonly latencyProbeMetaEl: HTMLDivElement;
+
+  private readonly latencyProbeSampleCountEl: HTMLSpanElement;
+
+  private readonly latencyProbeLastRawEl: HTMLSpanElement;
+
+  private readonly latencyProbeLastSmoothedEl: HTMLSpanElement;
+
+  private readonly latencyProbeLastSharedEl: HTMLSpanElement;
+
+  private readonly latencyProbeLastRenderEl: HTMLSpanElement;
+
+  private readonly latencyProbeAverageRawEl: HTMLSpanElement;
+
+  private readonly latencyProbeAverageSmoothedEl: HTMLSpanElement;
+
+  private readonly latencyProbeAverageSharedEl: HTMLSpanElement;
+
+  private readonly latencyProbeAverageRenderEl: HTMLSpanElement;
+
   private readonly inputNoiseFloorEl: HTMLSpanElement;
 
   private readonly inputPeakEl: HTMLSpanElement;
@@ -280,6 +331,10 @@ export class DebugSignalsPanel {
   private readonly stopTestsButton: HTMLButtonElement;
 
   private readonly resetAnalyzerDebugButton: HTMLButtonElement;
+
+  private readonly runLatencyProbeButton: HTMLButtonElement;
+
+  private readonly resetLatencyProbeButton: HTMLButtonElement;
 
   private readonly resetAudioVisualMappingButton: HTMLButtonElement;
 
@@ -306,6 +361,8 @@ export class DebugSignalsPanel {
     onStopAudioAnalyzer,
     onSetAudioAnalyzerDebugConfig,
     onResetAudioAnalyzerDebugConfig,
+    onRunAudioLatencyProbe,
+    onResetAudioLatencyProbe,
     onSetAudioVisualSignalTuning,
     onSetAudioVisualSoloKey,
     onResetAudioVisualMapping,
@@ -323,6 +380,8 @@ export class DebugSignalsPanel {
     onStopAudioAnalyzer?: () => void;
     onSetAudioAnalyzerDebugConfig?: (patch: Partial<AudioAnalyzerDebugConfig>) => void;
     onResetAudioAnalyzerDebugConfig?: () => void;
+    onRunAudioLatencyProbe?: () => void;
+    onResetAudioLatencyProbe?: () => void;
     onSetAudioVisualSignalTuning?: (
       key: AudioVisualSignalUniformKey,
       patch: {
@@ -862,7 +921,123 @@ export class DebugSignalsPanel {
     this.diagnosticsRateEl = this._createDiagnosticValueChip(timingGrid, 'Update Rate', '0.0 Hz');
     timingCard.append(timingGrid);
 
-    diagnosticsColumn.append(smoothingCard, inputQualityCard, timingCard);
+    const latencyProbeCard = createElement('div', {
+      display: 'grid',
+      gap: '12px',
+      padding: '14px',
+      borderRadius: '14px',
+      border: '1px solid rgba(255,255,255,0.08)',
+      background: 'rgba(255,255,255,0.025)',
+    });
+    const latencyProbeHeader = createElement('div', {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      gap: '12px',
+      flexWrap: 'wrap',
+    });
+    const latencyProbeCopy = createElement('div', {
+      display: 'grid',
+      gap: '4px',
+      maxWidth: '420px',
+    });
+    latencyProbeCopy.append(
+      createElement('div', {
+        fontSize: '12px',
+        fontWeight: '600',
+        color: '#d7deea',
+      }, 'Latency Probe'),
+      createElement('div', {
+        fontSize: '12px',
+        color: '#7f8a9a',
+        lineHeight: '1.55',
+      }, 'Injects a one-shot internal pulse into the live analyzer path and measures when it appears in raw analysis, smoothed output, the shared bucket, and the render submission stage.'),
+    );
+    const latencyProbeStatus = createElement('div', {
+      display: 'grid',
+      gap: '4px',
+      minWidth: '190px',
+    });
+    this.latencyProbeStatusEl = createElement('div', {
+      fontSize: '12px',
+      fontWeight: '600',
+      color: '#edf1f7',
+    }, 'Latency Probe Idle');
+    this.latencyProbeMetaEl = createElement('div', {
+      fontSize: '11px',
+      color: '#8a95a6',
+      lineHeight: '1.5',
+    }, 'Run the probe while the analyzer is active to estimate internal audio-to-shader timing.');
+    latencyProbeStatus.append(this.latencyProbeStatusEl, this.latencyProbeMetaEl);
+    latencyProbeHeader.append(latencyProbeCopy, latencyProbeStatus);
+
+    const latencyProbeActions = createElement('div', {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: '10px',
+    });
+    this.runLatencyProbeButton = createButton('Run Latency Probe', () => {
+      onRunAudioLatencyProbe?.();
+    });
+    this.resetLatencyProbeButton = createButton('Clear Probe', () => {
+      onResetAudioLatencyProbe?.();
+    });
+    latencyProbeActions.append(this.runLatencyProbeButton, this.resetLatencyProbeButton);
+
+    const latencyProbeGrid = createElement('div', {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+      gap: '10px',
+    });
+    this.latencyProbeLastRawEl = this._createDiagnosticValueChip(latencyProbeGrid, 'Last Raw', '--');
+    this.latencyProbeLastSmoothedEl = this._createDiagnosticValueChip(latencyProbeGrid, 'Last Smoothed', '--');
+    this.latencyProbeLastSharedEl = this._createDiagnosticValueChip(latencyProbeGrid, 'Last Shared', '--');
+    this.latencyProbeLastRenderEl = this._createDiagnosticValueChip(latencyProbeGrid, 'Last Render', '--');
+
+    const latencyProbeAverageGrid = createElement('div', {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+      gap: '10px',
+    });
+    this.latencyProbeAverageRawEl = this._createDiagnosticValueChip(latencyProbeAverageGrid, 'Avg Raw', '--');
+    this.latencyProbeAverageSmoothedEl = this._createDiagnosticValueChip(latencyProbeAverageGrid, 'Avg Smoothed', '--');
+    this.latencyProbeAverageSharedEl = this._createDiagnosticValueChip(latencyProbeAverageGrid, 'Avg Shared', '--');
+    this.latencyProbeAverageRenderEl = this._createDiagnosticValueChip(latencyProbeAverageGrid, 'Avg Render', '--');
+
+    const latencyProbeFooter = createElement('div', {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: '12px',
+      flexWrap: 'wrap',
+      padding: '10px 12px',
+      borderRadius: '12px',
+      border: '1px solid rgba(255,255,255,0.06)',
+      background: 'rgba(255,255,255,0.03)',
+    });
+    this.latencyProbeSampleCountEl = createElement('span', {
+      fontSize: '11px',
+      fontWeight: '600',
+      color: '#d7deea',
+    }, 'Samples: 0');
+    latencyProbeFooter.append(
+      this.latencyProbeSampleCountEl,
+      createElement('span', {
+        fontSize: '11px',
+        color: '#7f8a9a',
+        lineHeight: '1.5',
+      }, 'Render timing stops at CPU-side shader submission. It does not include projector or display-panel lag.'),
+    );
+
+    latencyProbeCard.append(
+      latencyProbeHeader,
+      latencyProbeActions,
+      latencyProbeGrid,
+      latencyProbeAverageGrid,
+      latencyProbeFooter,
+    );
+
+    diagnosticsColumn.append(smoothingCard, inputQualityCard, timingCard, latencyProbeCard);
     analyzerMainGrid.append(responseCard, diagnosticsColumn);
 
     const frequencyViews = createElement('div', {
@@ -1591,6 +1766,7 @@ export class DebugSignalsPanel {
     this.inputClippingEl.textContent = audioInputState?.inputDiagnostics.clippingWarning ? 'Warning' : 'Clean';
     this.inputClippingEl.style.color = audioInputState?.inputDiagnostics.clippingWarning ? '#ffb5b5' : '#87f4b5';
     this.inputQualityMetaEl.textContent = describeInputQuality(audioInputState);
+    this._updateLatencyProbe(audioInputState?.latencyProbe || null, audioSectionIsLive);
 
     const spectrumValues = audioInputState?.spectrumBars || [];
     this.spectrumBars.forEach((bar, index) => {
@@ -1623,6 +1799,60 @@ export class DebugSignalsPanel {
 
     this.smoothingBypassInput.checked = config.smoothingBypass;
     this.smoothingBypassValueEl.textContent = config.smoothingBypass ? 'On' : 'Off';
+  }
+
+  private _updateLatencyProbe(
+    latencyProbe: AudioLatencyProbeState | null,
+    analyzerIsLive: boolean,
+  ): void {
+    this.latencyProbeStatusEl.textContent = formatLatencyProbeStatus(latencyProbe);
+    this.latencyProbeMetaEl.textContent = latencyProbe?.note
+      || 'Run the probe while the analyzer is active to estimate internal audio-to-shader timing.';
+    this.latencyProbeSampleCountEl.textContent = `Samples: ${latencyProbe?.sampleCount || 0}`;
+
+    this.latencyProbeLastRawEl.textContent = formatLatencyMetric(latencyProbe?.last.rawMs ?? null);
+    this.latencyProbeLastSmoothedEl.textContent = formatLatencyMetric(latencyProbe?.last.smoothedMs ?? null);
+    this.latencyProbeLastSharedEl.textContent = formatLatencyMetric(latencyProbe?.last.sharedMs ?? null);
+    this.latencyProbeLastRenderEl.textContent = formatLatencyMetric(latencyProbe?.last.renderMs ?? null);
+
+    const current = latencyProbe?.current;
+    if (current && (
+      current.rawMs !== null
+      || current.smoothedMs !== null
+      || current.sharedMs !== null
+      || current.renderMs !== null
+    )) {
+      this.latencyProbeLastRawEl.textContent = formatLatencyMetric(current.rawMs);
+      this.latencyProbeLastSmoothedEl.textContent = formatLatencyMetric(current.smoothedMs);
+      this.latencyProbeLastSharedEl.textContent = formatLatencyMetric(current.sharedMs);
+      this.latencyProbeLastRenderEl.textContent = formatLatencyMetric(current.renderMs);
+    }
+
+    this.latencyProbeAverageRawEl.textContent = formatLatencyMetric(latencyProbe?.average.rawMs ?? null);
+    this.latencyProbeAverageSmoothedEl.textContent = formatLatencyMetric(latencyProbe?.average.smoothedMs ?? null);
+    this.latencyProbeAverageSharedEl.textContent = formatLatencyMetric(latencyProbe?.average.sharedMs ?? null);
+    this.latencyProbeAverageRenderEl.textContent = formatLatencyMetric(latencyProbe?.average.renderMs ?? null);
+
+    setButtonEnabled(this.runLatencyProbeButton, analyzerIsLive);
+    setButtonEnabled(
+      this.resetLatencyProbeButton,
+      Boolean(latencyProbe && (
+        latencyProbe.sampleCount > 0
+        || latencyProbe.status === 'armed'
+        || latencyProbe.status === 'partial'
+        || latencyProbe.status === 'unavailable'
+      )),
+    );
+    setButtonActive(
+      this.runLatencyProbeButton,
+      latencyProbe?.status === 'armed' || latencyProbe?.status === 'partial',
+      '#66d4ff',
+    );
+    setButtonActive(
+      this.resetLatencyProbeButton,
+      Boolean(latencyProbe && latencyProbe.sampleCount > 0),
+      '#f2a756',
+    );
   }
 
   private _updateControllers(
