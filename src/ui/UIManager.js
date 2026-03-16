@@ -113,6 +113,8 @@ export class UIManager {
     this.onStopAudioAnalyzer = null;
     this.onSetAudioAnalyzerDebugConfig = null;
     this.onResetAudioAnalyzerDebugConfig = null;
+    this.onRunAudioLatencyProbe = null;
+    this.onResetAudioLatencyProbe = null;
     this.onSetAudioVisualSignalTuning = null;
     this.onSetAudioVisualSoloKey = null;
     this.onResetAudioVisualMapping = null;
@@ -749,6 +751,12 @@ export class UIManager {
       },
       onResetAudioAnalyzerDebugConfig: () => {
         if (this.onResetAudioAnalyzerDebugConfig) this.onResetAudioAnalyzerDebugConfig();
+      },
+      onRunAudioLatencyProbe: () => {
+        if (this.onRunAudioLatencyProbe) this.onRunAudioLatencyProbe();
+      },
+      onResetAudioLatencyProbe: () => {
+        if (this.onResetAudioLatencyProbe) this.onResetAudioLatencyProbe();
       },
       onSetAudioVisualSignalTuning: (key, patch) => {
         if (this.onSetAudioVisualSignalTuning) this.onSetAudioVisualSignalTuning(key, patch);

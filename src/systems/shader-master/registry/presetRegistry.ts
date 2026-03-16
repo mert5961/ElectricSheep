@@ -8,10 +8,12 @@ import { cabinetLinesPreset } from './presets/cabinetLines.ts';
 import { debugGridPreset } from './presets/debugGrid.ts';
 import { dreamGradientPreset } from './presets/dreamGradient.ts';
 import { fracturedBloomPreset } from './presets/fracturedBloom.ts';
+import { organismCorePreset } from './presets/organismCore.ts';
 import { pulsePreset } from './presets/pulse.ts';
 
 const presets = [
   audioReferencePreset,
+  organismCorePreset,
   debugGridPreset,
   dreamGradientPreset,
   pulsePreset,

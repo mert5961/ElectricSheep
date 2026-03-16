@@ -47,6 +47,11 @@ const PRESET_EXPRESSIVE_MAPPINGS: Record<string, Partial<Record<AbstractExpressi
     motionAmount: [{ fieldKey: 'u_drift' }],
     scale: [{ fieldKey: 'u_swirl' }],
   },
+  'organism-core': {
+    patternDensity: [{ fieldKey: 'u_structureDensity' }],
+    motionAmount: [{ fieldKey: 'u_motionTurbulence' }],
+    scale: [{ fieldKey: 'u_bodyScale' }],
+  },
   'fractured-bloom': {
     patternDensity: [{ fieldKey: 'u_shardScale' }],
     scale: [{ fieldKey: 'u_bloom' }],
