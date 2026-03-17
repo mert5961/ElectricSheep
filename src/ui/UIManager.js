@@ -109,6 +109,7 @@ export class UIManager {
     this.onResetVisualStateRecipeState = null;
     this.onApplyVisualStateRecipe = null;
     this.onStartMicrophoneAudio = null;
+    this.onStartDisplayAudio = null;
     this.onStartAudioDebugTest = null;
     this.onStopAudioAnalyzer = null;
     this.onSetAudioAnalyzerDebugConfig = null;
@@ -737,6 +738,9 @@ export class UIManager {
       },
       onStartMicrophoneAudio: () => {
         if (this.onStartMicrophoneAudio) this.onStartMicrophoneAudio();
+      },
+      onStartDisplayAudio: () => {
+        if (this.onStartDisplayAudio) this.onStartDisplayAudio();
       },
       onStartAudioDebugTest: (mode) => {
         if (this.onStartAudioDebugTest) this.onStartAudioDebugTest(mode);

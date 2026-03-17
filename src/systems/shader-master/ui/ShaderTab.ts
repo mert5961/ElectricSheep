@@ -45,6 +45,7 @@ export class ShaderTab {
     onResetVisualStateRecipeState,
     onApplyVisualStateRecipe,
     onStartMicrophoneAudio,
+    onStartDisplayAudio,
     onStartAudioDebugTest,
     onStopAudioAnalyzer,
     onSetAudioAnalyzerDebugConfig,
@@ -71,6 +72,7 @@ export class ShaderTab {
     onResetVisualStateRecipeState?: () => void;
     onApplyVisualStateRecipe?: (recipe: VisualStateRecipe) => void;
     onStartMicrophoneAudio?: () => void;
+    onStartDisplayAudio?: () => void;
     onStartAudioDebugTest?: (mode: AudioAnalyzerTestMode) => void;
     onStopAudioAnalyzer?: () => void;
     onSetAudioAnalyzerDebugConfig?: (patch: Partial<AudioAnalyzerDebugConfig>) => void;
@@ -124,6 +126,7 @@ export class ShaderTab {
       onResetVisualStateRecipeState,
       onApplyVisualStateRecipe,
       onStartMicrophoneAudio,
+      onStartDisplayAudio,
       onStartAudioDebugTest,
       onStopAudioAnalyzer,
       onSetAudioAnalyzerDebugConfig,

@@ -148,6 +148,41 @@ export const CORE_UNIFORM_SCHEMA: UniformSchema = [
     max: 1,
     step: 0.01,
   }),
+  floatField('u_audioBassSmooth', 'Audio Bass Smooth', 'audio', 0, {
+    min: 0,
+    max: 1,
+    step: 0.01,
+  }),
+  floatField('u_audioHit', 'Audio Hit', 'audio', 0, {
+    min: 0,
+    max: 1,
+    step: 0.01,
+  }),
+  floatField('u_audioFlux', 'Audio Flux', 'audio', 0, {
+    min: 0,
+    max: 1,
+    step: 0.01,
+  }),
+  floatField('u_audioRumble', 'Audio Rumble', 'audio', 0, {
+    min: 0,
+    max: 1,
+    step: 0.01,
+  }),
+  floatField('u_audioKick', 'Audio Kick', 'audio', 0, {
+    min: 0,
+    max: 1,
+    step: 0.01,
+  }),
+  floatField('u_audioSnare', 'Audio Snare', 'audio', 0, {
+    min: 0,
+    max: 1,
+    step: 0.01,
+  }),
+  floatField('u_audioHihat', 'Audio Hihat', 'audio', 0, {
+    min: 0,
+    max: 1,
+    step: 0.01,
+  }),
   floatField('u_feelTension', 'Feel Tension', 'feeling', 0, {
     min: 0,
     max: 1,
@@ -213,6 +248,13 @@ uniform float u_audioMid;
 uniform float u_audioTreble;
 uniform float u_audioEnergy;
 uniform float u_audioPulse;
+uniform float u_audioBassSmooth;
+uniform float u_audioHit;
+uniform float u_audioFlux;
+uniform float u_audioRumble;
+uniform float u_audioKick;
+uniform float u_audioSnare;
+uniform float u_audioHihat;
 
 uniform float u_feelTension;
 uniform float u_feelWarmth;

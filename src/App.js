@@ -34,6 +34,13 @@ function audioSignalsToUniformPatch(signals) {
     u_audioTreble: signals.treble,
     u_audioEnergy: signals.energy,
     u_audioPulse: signals.pulse,
+    u_audioBassSmooth: signals.bassSmooth,
+    u_audioHit: signals.hit,
+    u_audioFlux: signals.flux,
+    u_audioRumble: signals.rumble,
+    u_audioKick: signals.kick,
+    u_audioSnare: signals.snare,
+    u_audioHihat: signals.hihat,
   };
 }
 
@@ -575,6 +582,10 @@ export class App {
       await this._startMicrophoneAudioAnalyzer();
     };
 
+    this.ui.onStartDisplayAudio = async () => {
+      await this._startDisplayAudioAnalyzer();
+    };
+
     this.ui.onStartAudioDebugTest = async (mode) => {
       await this._startAudioAnalyzerDebugTest(mode);
     };
@@ -766,6 +777,26 @@ export class App {
       this._scheduleSceneBroadcast();
     } catch (error) {
       console.error('Audio Analyzer v1 failed to start microphone capture.', error);
+      this._updateShaderMasterUi();
+    }
+  }
+
+  async _startDisplayAudioAnalyzer() {
+    if (!this.audioAnalyzer) {
+      return;
+    }
+
+    try {
+      const startPromise = this.audioAnalyzer.startDisplayAudio();
+      this._updateShaderMasterUi();
+      await startPromise;
+      this.shaderMasterStore.getState().setAudioUniforms(
+        audioSignalsToUniformPatch(this.audioAnalyzer.getAudioSignals()),
+      );
+      this._updateShaderMasterUi();
+      this._scheduleSceneBroadcast();
+    } catch (error) {
+      console.error('Audio Analyzer v1 failed to start display audio capture.', error);
       this._updateShaderMasterUi();
     }
   }
