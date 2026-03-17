@@ -5,11 +5,14 @@ import type {
 import { cloneUniformMap } from '../contracts/uniforms.ts';
 import { audioReferencePreset } from './presets/audioReference.ts';
 import { cabinetLinesPreset } from './presets/cabinetLines.ts';
+import { chromaticBloomPreset } from './presets/chromaticBloom.ts';
 import { debugGridPreset } from './presets/debugGrid.ts';
 import { dreamGradientPreset } from './presets/dreamGradient.ts';
 import { fracturedBloomPreset } from './presets/fracturedBloom.ts';
 import { organismCorePreset } from './presets/organismCore.ts';
 import { pulsePreset } from './presets/pulse.ts';
+import { voidMirrorPreset } from './presets/voidMirror.ts';
+import { waveformGridPreset } from './presets/waveformGrid.ts';
 
 const presets = [
   audioReferencePreset,
@@ -19,6 +22,11 @@ const presets = [
   pulsePreset,
   fracturedBloomPreset,
   cabinetLinesPreset,
+  neonTunnelPreset,
+  plasmaFieldPreset,
+  waveformGridPreset,
+  chromaticBloomPreset,
+  voidMirrorPreset,
 ] as const;
 
 export const presetRegistry: Record<string, ShaderPresetDefinition> = presets.reduce<
