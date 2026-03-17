@@ -9,14 +9,14 @@ import { chromaticBloomPreset } from './presets/chromaticBloom.ts';
 import { debugGridPreset } from './presets/debugGrid.ts';
 import { dreamGradientPreset } from './presets/dreamGradient.ts';
 import { fracturedBloomPreset } from './presets/fracturedBloom.ts';
-import { neonTunnelPreset } from './presets/neonTunnel.ts';
-import { plasmaFieldPreset } from './presets/plasmaField.ts';
+import { organismCorePreset } from './presets/organismCore.ts';
 import { pulsePreset } from './presets/pulse.ts';
 import { voidMirrorPreset } from './presets/voidMirror.ts';
 import { waveformGridPreset } from './presets/waveformGrid.ts';
 
 const presets = [
   audioReferencePreset,
+  organismCorePreset,
   debugGridPreset,
   dreamGradientPreset,
   pulsePreset,

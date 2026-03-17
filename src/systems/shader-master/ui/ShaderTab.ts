@@ -50,6 +50,8 @@ export class ShaderTab {
     onStopAudioAnalyzer,
     onSetAudioAnalyzerDebugConfig,
     onResetAudioAnalyzerDebugConfig,
+    onRunAudioLatencyProbe,
+    onResetAudioLatencyProbe,
     onSetAudioVisualSignalTuning,
     onSetAudioVisualSoloKey,
     onResetAudioVisualMapping,
@@ -77,6 +79,8 @@ export class ShaderTab {
     onStopAudioAnalyzer?: () => void;
     onSetAudioAnalyzerDebugConfig?: (patch: Partial<AudioAnalyzerDebugConfig>) => void;
     onResetAudioAnalyzerDebugConfig?: () => void;
+    onRunAudioLatencyProbe?: () => void;
+    onResetAudioLatencyProbe?: () => void;
     onSetAudioVisualSignalTuning?: (
       key: AudioVisualSignalUniformKey,
       patch: {
@@ -131,6 +135,8 @@ export class ShaderTab {
       onStopAudioAnalyzer,
       onSetAudioAnalyzerDebugConfig,
       onResetAudioAnalyzerDebugConfig,
+      onRunAudioLatencyProbe,
+      onResetAudioLatencyProbe,
       onSetAudioVisualSignalTuning,
       onSetAudioVisualSoloKey,
       onResetAudioVisualMapping,

@@ -2,9 +2,13 @@ import {
   AUDIO_ANALYZER_SPECTROGRAM_BAND_COUNT,
   AUDIO_ANALYZER_SPECTROGRAM_HISTORY_LENGTH,
   AUDIO_ANALYZER_SPECTRUM_BAR_COUNT,
+  createDefaultAudioLatencyProbeState,
   type AudioAnalyzerStore,
+  type AudioLatencyProbeMetrics,
+  type AudioLatencyProbeState,
   type AudioAnalyzerTestMode,
   type AudioSignals,
+  createEmptyAudioLatencyProbeMetrics,
   createDefaultSpectrogramFrames,
   createDefaultAudioSignals,
 } from './audioAnalyzerStore.ts';
@@ -36,6 +40,14 @@ interface AudioInputProvider {
   start: (context: AudioContext, analyserNode: AnalyserNode) => Promise<AudioInputHandle>;
 }
 
+interface PendingLatencyProbe {
+  triggeredAtMs: number;
+  current: AudioLatencyProbeMetrics;
+}
+
+const LATENCY_PROBE_THRESHOLD = 0.16;
+const LATENCY_PROBE_TIMEOUT_MS = 1200;
+
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
@@ -54,6 +66,15 @@ function smoothSignal(
 
   const alpha = 1 - Math.exp(-Math.max(8, deltaTimeMs) / timeConstantMs);
   return current + ((target - current) * alpha);
+}
+
+function computeLatencyProbeActivation(signals: AudioSignals): number {
+  return clamp01(Math.max(
+    signals.pulse,
+    signals.energy * 0.92,
+    signals.bass * 0.88,
+    signals.mid * 0.42,
+  ));
 }
 
 class MicrophoneInputProvider implements AudioInputProvider {
@@ -167,6 +188,19 @@ export class AudioAnalyzer {
 
   private lastUpdateTimeMs: number | null = null;
 
+  private latencyProbeState: AudioLatencyProbeState = createDefaultAudioLatencyProbeState();
+
+  private pendingLatencyProbe: PendingLatencyProbe | null = null;
+
+  private latencyProbeSampleCount = 0;
+
+  private latencyProbeTotals = {
+    rawMs: 0,
+    smoothedMs: 0,
+    sharedMs: 0,
+    renderMs: 0,
+  };
+
   constructor({
     store,
     fftSize = 2048,
@@ -279,6 +313,11 @@ export class AudioAnalyzer {
     this.smoothedSignals = createDefaultAudioSignals();
     this.spectrogramHistory = createDefaultSpectrogramFrames();
     this.lastUpdateTimeMs = null;
+    this.clearPendingLatencyProbe(
+      this.latencyProbeSampleCount > 0
+        ? 'Probe idle. Previous latency sample is preserved below.'
+        : 'Probe idle. Start live analyzer input to measure internal timing.',
+    );
     this.store.setSource('manual');
     this.store.setStatus('idle', {
       activeInputKind: null,
@@ -286,6 +325,87 @@ export class AudioAnalyzer {
       activeTestMode: null,
     });
     this.store.resetSignals();
+  }
+
+  triggerLatencyProbe(): boolean {
+    if (!this.audioContext || !this.analyserNode || !this.isRunning()) {
+      this.latencyProbeState = {
+        ...this.latencyProbeState,
+        status: 'unavailable',
+        note: 'Start microphone or a debug test first, then run the probe.',
+        current: createEmptyAudioLatencyProbeMetrics(),
+      };
+      this.syncLatencyProbeState();
+      return false;
+    }
+
+    if (computeLatencyProbeActivation(this.smoothedSignals) > 0.08) {
+      this.latencyProbeState = {
+        ...this.latencyProbeState,
+        status: 'unavailable',
+        note: 'The analyzer is already hot. Stop tone tests or wait for a quieter moment before measuring latency.',
+        current: createEmptyAudioLatencyProbeMetrics(),
+      };
+      this.syncLatencyProbeState();
+      return false;
+    }
+
+    const oscillator = this.audioContext.createOscillator();
+    oscillator.type = 'sine';
+    oscillator.frequency.value = 96;
+
+    const gainNode = this.audioContext.createGain();
+    gainNode.gain.value = 0.0001;
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.analyserNode);
+
+    const now = this.audioContext.currentTime;
+    const triggerAtMs = performance.now() + 6;
+    gainNode.gain.cancelScheduledValues(now);
+    gainNode.gain.setValueAtTime(0.0001, now);
+    gainNode.gain.linearRampToValueAtTime(0.95, now + 0.006);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+    oscillator.start(now);
+    oscillator.stop(now + 0.18);
+    oscillator.onended = () => {
+      oscillator.disconnect();
+      gainNode.disconnect();
+    };
+
+    this.pendingLatencyProbe = {
+      triggeredAtMs: triggerAtMs,
+      current: createEmptyAudioLatencyProbeMetrics(),
+    };
+    this.latencyProbeState = {
+      ...this.latencyProbeState,
+      status: 'armed',
+      note: 'Probe pulse injected. Waiting for raw, smoothed, shared, and render-stage response.',
+      current: createEmptyAudioLatencyProbeMetrics(),
+    };
+    this.syncLatencyProbeState();
+    return true;
+  }
+
+  resetLatencyProbe(): void {
+    this.pendingLatencyProbe = null;
+    this.latencyProbeSampleCount = 0;
+    this.latencyProbeTotals = {
+      rawMs: 0,
+      smoothedMs: 0,
+      sharedMs: 0,
+      renderMs: 0,
+    };
+    this.latencyProbeState = createDefaultAudioLatencyProbeState();
+    this.store.resetLatencyProbe();
+  }
+
+  recordLatencyProbeSharedFrame(currentTimeMs: number, signals: AudioSignals): void {
+    this.recordLatencyProbeMetric('sharedMs', currentTimeMs, signals);
+  }
+
+  recordLatencyProbeRenderSubmission(currentTimeMs: number, signals: AudioSignals): void {
+    this.recordLatencyProbeMetric('renderMs', currentTimeMs, signals);
   }
 
   update(currentTimeMs: number): AudioSignals | null {
@@ -423,6 +543,7 @@ export class AudioAnalyzer {
       snare: clamp01(nextSignals.snare),
       hihat: clamp01(nextSignals.hihat),
     };
+    this.updateLatencyProbeFromAnalyzer(currentTimeMs, rawSignals, this.smoothedSignals);
 
     const previousAverageDeltaMs = analyzerState.diagnostics.averageDeltaMs;
     const averageDeltaMs = previousAverageDeltaMs > 0
@@ -477,6 +598,11 @@ export class AudioAnalyzer {
       this.smoothedSignals = createDefaultAudioSignals();
       this.spectrogramHistory = createDefaultSpectrogramFrames();
       this.lastUpdateTimeMs = null;
+      this.clearPendingLatencyProbe(
+        this.latencyProbeSampleCount > 0
+          ? 'Input changed. Previous latency sample is preserved below.'
+          : 'Input changed before a latency sample completed.',
+      );
 
       const context = await this.ensureAudioContext();
       const analyserNode = this.createAnalyserNode(context);
@@ -504,6 +630,11 @@ export class AudioAnalyzer {
       this.smoothedSignals = createDefaultAudioSignals();
       this.spectrogramHistory = createDefaultSpectrogramFrames();
       this.lastUpdateTimeMs = null;
+      this.clearPendingLatencyProbe(
+        this.latencyProbeSampleCount > 0
+          ? 'Input failed to start. Previous latency sample is preserved below.'
+          : 'Input failed before the latency probe could run.',
+      );
       this.store.setSource('manual');
       this.store.setStatus('error', {
         activeInputKind: null,
@@ -533,6 +664,126 @@ export class AudioAnalyzer {
     analyserNode.maxDecibels = this.analyserMaxDecibels;
     analyserNode.smoothingTimeConstant = 0.3;
     return analyserNode;
+  }
+
+  private syncLatencyProbeState(): void {
+    this.store.setLatencyProbeState(this.latencyProbeState);
+  }
+
+  private buildLatencyProbeAverages(): AudioLatencyProbeMetrics {
+    if (this.latencyProbeSampleCount <= 0) {
+      return createEmptyAudioLatencyProbeMetrics();
+    }
+
+    return {
+      rawMs: this.latencyProbeTotals.rawMs / this.latencyProbeSampleCount,
+      smoothedMs: this.latencyProbeTotals.smoothedMs / this.latencyProbeSampleCount,
+      sharedMs: this.latencyProbeTotals.sharedMs / this.latencyProbeSampleCount,
+      renderMs: this.latencyProbeTotals.renderMs / this.latencyProbeSampleCount,
+    };
+  }
+
+  private clearPendingLatencyProbe(note: string): void {
+    this.pendingLatencyProbe = null;
+    this.latencyProbeState = {
+      ...this.latencyProbeState,
+      status: this.latencyProbeSampleCount > 0 ? 'completed' : 'idle',
+      note,
+      current: createEmptyAudioLatencyProbeMetrics(),
+    };
+    this.syncLatencyProbeState();
+  }
+
+  private finalizeLatencyProbe(status: 'partial' | 'completed', note: string): void {
+    if (!this.pendingLatencyProbe) {
+      return;
+    }
+
+    const metrics = {
+      ...this.pendingLatencyProbe.current,
+    };
+    this.pendingLatencyProbe = null;
+
+    if (status === 'completed') {
+      this.latencyProbeSampleCount += 1;
+      this.latencyProbeTotals.rawMs += metrics.rawMs || 0;
+      this.latencyProbeTotals.smoothedMs += metrics.smoothedMs || 0;
+      this.latencyProbeTotals.sharedMs += metrics.sharedMs || 0;
+      this.latencyProbeTotals.renderMs += metrics.renderMs || 0;
+    }
+
+    this.latencyProbeState = {
+      ...this.latencyProbeState,
+      status,
+      note,
+      sampleCount: this.latencyProbeSampleCount,
+      current: createEmptyAudioLatencyProbeMetrics(),
+      last: metrics,
+      average: this.buildLatencyProbeAverages(),
+    };
+    this.syncLatencyProbeState();
+  }
+
+  private updateLatencyProbeFromAnalyzer(
+    currentTimeMs: number,
+    rawSignals: AudioSignals,
+    smoothedSignals: AudioSignals,
+  ): void {
+    if (!this.pendingLatencyProbe) {
+      return;
+    }
+
+    if ((currentTimeMs - this.pendingLatencyProbe.triggeredAtMs) > LATENCY_PROBE_TIMEOUT_MS) {
+      this.finalizeLatencyProbe(
+        'partial',
+        'Probe timed out before every stage responded. Try a quieter source or enable smoothing bypass.',
+      );
+      return;
+    }
+
+    this.recordLatencyProbeMetric('rawMs', currentTimeMs, rawSignals);
+    this.recordLatencyProbeMetric('smoothedMs', currentTimeMs, smoothedSignals);
+  }
+
+  private recordLatencyProbeMetric(
+    key: keyof AudioLatencyProbeMetrics,
+    currentTimeMs: number,
+    signals: AudioSignals,
+  ): void {
+    if (!this.pendingLatencyProbe) {
+      return;
+    }
+
+    if (this.pendingLatencyProbe.current[key] !== null || currentTimeMs < this.pendingLatencyProbe.triggeredAtMs) {
+      return;
+    }
+
+    if (computeLatencyProbeActivation(signals) < LATENCY_PROBE_THRESHOLD) {
+      return;
+    }
+
+    this.pendingLatencyProbe.current[key] = Math.max(0, currentTimeMs - this.pendingLatencyProbe.triggeredAtMs);
+    this.latencyProbeState = {
+      ...this.latencyProbeState,
+      status: 'partial',
+      note: 'Probe is collecting stage timings. Render-stage latency includes CPU-side render submission, not display/projector lag.',
+      current: {
+        ...this.pendingLatencyProbe.current,
+      },
+    };
+    this.syncLatencyProbeState();
+
+    const metrics = this.pendingLatencyProbe.current;
+    const isComplete = metrics.rawMs !== null
+      && metrics.smoothedMs !== null
+      && metrics.sharedMs !== null
+      && metrics.renderMs !== null;
+    if (isComplete) {
+      this.finalizeLatencyProbe(
+        'completed',
+        'Probe complete. This is an internal generator-to-shader estimate, not a microphone hardware or projector-light measurement.',
+      );
+    }
   }
 
   private async cleanupNodes(): Promise<void> {

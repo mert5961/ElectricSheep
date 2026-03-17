@@ -612,6 +612,19 @@ export class App {
       this._updateShaderMasterUi();
     };
 
+    this.ui.onRunAudioLatencyProbe = () => {
+      this._runAudioLatencyProbe();
+    };
+
+    this.ui.onResetAudioLatencyProbe = () => {
+      if (!this.audioAnalyzer) {
+        return;
+      }
+
+      this.audioAnalyzer.resetLatencyProbe();
+      this._updateShaderMasterUi();
+    };
+
     this.ui.onSetAudioVisualSignalTuning = (key, patch) => {
       this.shaderMasterStore.getState().setAudioVisualSignalTuning(key, patch);
     };
@@ -628,19 +641,25 @@ export class App {
   _wireFrameLoop() {
     this.renderer.onFrame((time) => {
       const frameTimeMs = time * 1000;
+      let liveSignalsForFrame = null;
       if (this.audioAnalyzer?.isRunning()) {
         const liveSignals = this.audioAnalyzer.update(frameTimeMs);
         if (liveSignals) {
+          liveSignalsForFrame = liveSignals;
           this.shaderMasterStore.getState().setAudioUniforms(
             audioSignalsToUniformPatch(liveSignals),
             { updateUiRevision: false },
           );
+          this.audioAnalyzer.recordLatencyProbeSharedFrame(performance.now(), liveSignals);
           this._refreshAudioDrivenUi(frameTimeMs);
           this._scheduleAudioDrivenBroadcast(frameTimeMs);
         }
       }
 
       this.shaderRuntime.render(time);
+      if (this.audioAnalyzer && liveSignalsForFrame) {
+        this.audioAnalyzer.recordLatencyProbeRenderSubmission(performance.now(), liveSignalsForFrame);
+      }
       this._applyShaderMasterStateToSurfaces();
       if (this.assistOverlay) {
         this.assistOverlay.resize(window.innerWidth, window.innerHeight);
@@ -830,6 +849,15 @@ export class App {
     this.shaderMasterStore.getState().setAudioUniforms(this._manualAudioUniforms);
     this._updateShaderMasterUi();
     this._scheduleSceneBroadcast();
+  }
+
+  _runAudioLatencyProbe() {
+    if (!this.audioAnalyzer) {
+      return;
+    }
+
+    this.audioAnalyzer.triggerLatencyProbe();
+    this._updateShaderMasterUi();
   }
 
   _createSceneSnapshot() {

@@ -42,6 +42,24 @@ export interface AudioAnalyzerDiagnostics {
   updateRateHz: number;
 }
 
+export type AudioLatencyProbeStatus = 'idle' | 'armed' | 'partial' | 'completed' | 'unavailable';
+
+export interface AudioLatencyProbeMetrics {
+  rawMs: number | null;
+  smoothedMs: number | null;
+  sharedMs: number | null;
+  renderMs: number | null;
+}
+
+export interface AudioLatencyProbeState {
+  status: AudioLatencyProbeStatus;
+  note: string;
+  sampleCount: number;
+  current: AudioLatencyProbeMetrics;
+  last: AudioLatencyProbeMetrics;
+  average: AudioLatencyProbeMetrics;
+}
+
 export interface AudioInputDiagnostics {
   noiseFloor: number;
   peakAmplitude: number;
@@ -60,6 +78,7 @@ export interface AudioAnalyzerState {
   spectrumBars: number[];
   spectrogramFrames: number[][];
   diagnostics: AudioAnalyzerDiagnostics;
+  latencyProbe: AudioLatencyProbeState;
   inputDiagnostics: AudioInputDiagnostics;
   debugConfig: AudioAnalyzerDebugConfig;
   activeTestMode: AudioAnalyzerTestMode | null;
@@ -104,6 +123,35 @@ export function createDefaultAudioAnalyzerDiagnostics(): AudioAnalyzerDiagnostic
     lastDeltaMs: 0,
     averageDeltaMs: 0,
     updateRateHz: 0,
+  };
+}
+
+export function createEmptyAudioLatencyProbeMetrics(): AudioLatencyProbeMetrics {
+  return {
+    rawMs: null,
+    smoothedMs: null,
+    sharedMs: null,
+    renderMs: null,
+  };
+}
+
+function cloneLatencyProbeMetrics(metrics: AudioLatencyProbeMetrics): AudioLatencyProbeMetrics {
+  return {
+    rawMs: metrics.rawMs === null ? null : Math.max(0, metrics.rawMs),
+    smoothedMs: metrics.smoothedMs === null ? null : Math.max(0, metrics.smoothedMs),
+    sharedMs: metrics.sharedMs === null ? null : Math.max(0, metrics.sharedMs),
+    renderMs: metrics.renderMs === null ? null : Math.max(0, metrics.renderMs),
+  };
+}
+
+export function createDefaultAudioLatencyProbeState(): AudioLatencyProbeState {
+  return {
+    status: 'idle',
+    note: 'Run the probe while the analyzer is active to estimate internal audio-to-shader timing.',
+    sampleCount: 0,
+    current: createEmptyAudioLatencyProbeMetrics(),
+    last: createEmptyAudioLatencyProbeMetrics(),
+    average: createEmptyAudioLatencyProbeMetrics(),
   };
 }
 
@@ -164,6 +212,12 @@ function cloneState(state: AudioAnalyzerState): AudioAnalyzerState {
     diagnostics: {
       ...state.diagnostics,
     },
+    latencyProbe: {
+      ...state.latencyProbe,
+      current: cloneLatencyProbeMetrics(state.latencyProbe.current),
+      last: cloneLatencyProbeMetrics(state.latencyProbe.last),
+      average: cloneLatencyProbeMetrics(state.latencyProbe.average),
+    },
     inputDiagnostics: cloneInputDiagnostics(state.inputDiagnostics),
     debugConfig: {
       ...state.debugConfig,
@@ -193,8 +247,10 @@ export interface AudioAnalyzerStore {
     spectrogramFrames: number[][];
     diagnostics: AudioAnalyzerDiagnostics;
     inputDiagnostics: AudioInputDiagnostics;
-    updatedAtMs?: number | null;
-  }) => void;
+      updatedAtMs?: number | null;
+    }) => void;
+  setLatencyProbeState: (latencyProbe: AudioLatencyProbeState) => void;
+  resetLatencyProbe: () => void;
   resetSignals: () => void;
 }
 
@@ -209,6 +265,7 @@ export function createAudioAnalyzerStore(): AudioAnalyzerStore {
     spectrumBars: createDefaultSpectrumBars(),
     spectrogramFrames: createDefaultSpectrogramFrames(),
     diagnostics: createDefaultAudioAnalyzerDiagnostics(),
+    latencyProbe: createDefaultAudioLatencyProbeState(),
     inputDiagnostics: createDefaultAudioInputDiagnostics(),
     debugConfig: createDefaultAudioAnalyzerDebugConfig(),
     activeTestMode: null,
@@ -292,6 +349,25 @@ export function createAudioAnalyzerStore(): AudioAnalyzerStore {
       };
       emit();
     },
+    setLatencyProbeState: (latencyProbe) => {
+      state = {
+        ...state,
+        latencyProbe: {
+          ...latencyProbe,
+          current: cloneLatencyProbeMetrics(latencyProbe.current),
+          last: cloneLatencyProbeMetrics(latencyProbe.last),
+          average: cloneLatencyProbeMetrics(latencyProbe.average),
+        },
+      };
+      emit();
+    },
+    resetLatencyProbe: () => {
+      state = {
+        ...state,
+        latencyProbe: createDefaultAudioLatencyProbeState(),
+      };
+      emit();
+    },
     resetSignals: () => {
       state = {
         ...state,
@@ -300,6 +376,10 @@ export function createAudioAnalyzerStore(): AudioAnalyzerStore {
         spectrumBars: createDefaultSpectrumBars(),
         spectrogramFrames: createDefaultSpectrogramFrames(),
         diagnostics: createDefaultAudioAnalyzerDiagnostics(),
+        latencyProbe: {
+          ...state.latencyProbe,
+          current: createEmptyAudioLatencyProbeMetrics(),
+        },
         inputDiagnostics: createDefaultAudioInputDiagnostics(),
         updatedAtMs: null,
       };
