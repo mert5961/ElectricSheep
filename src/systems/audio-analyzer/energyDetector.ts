@@ -2,7 +2,10 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
-export function computeWaveformEnergy(timeDomainData: Uint8Array): number {
+export function computeWaveformEnergy(
+  timeDomainData: Uint8Array,
+  noiseFloor = 0,
+): number {
   if (timeDomainData.length === 0) {
     return 0;
   }
@@ -14,5 +17,16 @@ export function computeWaveformEnergy(timeDomainData: Uint8Array): number {
   }
 
   const rms = Math.sqrt(sumSquares / timeDomainData.length);
-  return clamp01(Math.pow(rms * 2.35, 0.82));
+  const raw = Math.pow(rms * 2.35, 0.82);
+
+  if (noiseFloor > 0 && raw <= noiseFloor) {
+    return 0;
+  }
+
+  if (noiseFloor > 0) {
+    const headroom = Math.max(0.001, 1 - noiseFloor);
+    return clamp01((raw - noiseFloor) / headroom);
+  }
+
+  return clamp01(raw);
 }

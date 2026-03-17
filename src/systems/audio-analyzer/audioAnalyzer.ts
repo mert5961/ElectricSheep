@@ -19,7 +19,10 @@ import {
   computeSpectrumBars,
 } from './frequencyBands.ts';
 import { computeAudioInputDiagnostics } from './inputDiagnostics.ts';
+import { AdaptiveNoiseGate } from './noiseGate.ts';
+import { OnsetDetector } from './onsetDetector.ts';
 import { PulseDetector } from './pulseDetector.ts';
+import { SignalEnricher } from './signalEnricher.ts';
 
 type LiveAudioSource = 'microphone' | 'display' | 'test-generator';
 type ExternalAudioSource = Exclude<LiveAudioSource, 'test-generator'>;
@@ -149,7 +152,13 @@ class DisplayAudioInputProvider implements AudioInputProvider {
 export class AudioAnalyzer {
   private readonly store: AudioAnalyzerStore;
 
+  private readonly noiseGate = new AdaptiveNoiseGate();
+
+  private readonly onsetDetector = new OnsetDetector();
+
   private readonly pulseDetector = new PulseDetector();
+
+  private readonly signalEnricher = new SignalEnricher();
 
   private readonly microphoneInputProvider = new MicrophoneInputProvider();
 
@@ -243,6 +252,9 @@ export class AudioAnalyzer {
     try {
       await this.cleanupNodes();
       this.pulseDetector.reset();
+      this.signalEnricher.reset();
+      this.noiseGate.reset();
+      this.onsetDetector.reset();
       this.smoothedSignals = createDefaultAudioSignals();
       this.spectrogramHistory = createDefaultSpectrogramFrames();
       this.lastUpdateTimeMs = null;
@@ -276,6 +288,9 @@ export class AudioAnalyzer {
     } catch (error) {
       await this.cleanupNodes();
       this.pulseDetector.reset();
+      this.signalEnricher.reset();
+      this.noiseGate.reset();
+      this.onsetDetector.reset();
       this.smoothedSignals = createDefaultAudioSignals();
       this.spectrogramHistory = createDefaultSpectrogramFrames();
       this.lastUpdateTimeMs = null;
@@ -292,6 +307,9 @@ export class AudioAnalyzer {
   async stop(): Promise<void> {
     await this.cleanupNodes();
     this.pulseDetector.reset();
+    this.signalEnricher.reset();
+    this.noiseGate.reset();
+    this.onsetDetector.reset();
     this.smoothedSignals = createDefaultAudioSignals();
     this.spectrogramHistory = createDefaultSpectrogramFrames();
     this.lastUpdateTimeMs = null;
@@ -405,27 +423,58 @@ export class AudioAnalyzer {
     this.analyserNode.getByteFrequencyData(this.frequencyData);
     this.analyserNode.getByteTimeDomainData(this.timeDomainData);
 
-    const bands = computeFrequencyBands({
+    const rawBands = computeFrequencyBands({
       frequencyData: this.frequencyData,
       sampleRate: this.audioContext.sampleRate,
       fftSize: this.analyserNode.fftSize,
     });
-    const energy = computeWaveformEnergy(this.timeDomainData);
+    const rawEnergy = computeWaveformEnergy(this.timeDomainData);
     const inputDiagnostics = computeAudioInputDiagnostics(this.timeDomainData);
+
+    const gated = this.noiseGate.gate(
+      rawBands.bass,
+      rawBands.mid,
+      rawBands.treble,
+      rawEnergy,
+      deltaTimeMs,
+    );
+    const energy = computeWaveformEnergy(this.timeDomainData, gated.energyFloor);
+
+    const onsets = this.onsetDetector.update(
+      this.frequencyData,
+      this.audioContext.sampleRate,
+      this.analyserNode.fftSize,
+      deltaTimeMs,
+    );
+
     const rawPulse = this.pulseDetector.update({
-      bass: bands.bass,
+      bass: gated.bass,
       energy,
       deltaTimeMs,
       decayMs: debugConfig.pulseDecayMs,
       cooldownMs: debugConfig.pulseCooldownMs,
     });
 
+    const enriched = this.signalEnricher.update({
+      bass: gated.bass,
+      energy,
+      frequencyData: this.frequencyData,
+      deltaTimeMs,
+    });
+
     const rawSignals: AudioSignals = {
-      bass: bands.bass,
-      mid: bands.mid,
-      treble: bands.treble,
+      bass: gated.bass,
+      mid: gated.mid,
+      treble: gated.treble,
       energy,
       pulse: rawPulse,
+      bassSmooth: enriched.bassSmooth,
+      hit: enriched.hit,
+      flux: enriched.flux,
+      rumble: enriched.rumble,
+      kick: onsets.kick,
+      snare: onsets.snare,
+      hihat: onsets.hihat,
     };
 
     const nextSignals: AudioSignals = debugConfig.smoothingBypass
@@ -471,6 +520,13 @@ export class AudioAnalyzer {
               debugConfig.releaseMs,
             ),
           ),
+          bassSmooth: enriched.bassSmooth,
+          hit: enriched.hit,
+          flux: enriched.flux,
+          rumble: enriched.rumble,
+          kick: onsets.kick,
+          snare: onsets.snare,
+          hihat: onsets.hihat,
         };
 
     this.smoothedSignals = {
@@ -479,6 +535,13 @@ export class AudioAnalyzer {
       treble: clamp01(nextSignals.treble),
       energy: clamp01(nextSignals.energy),
       pulse: clamp01(nextSignals.pulse),
+      bassSmooth: clamp01(nextSignals.bassSmooth),
+      hit: clamp01(nextSignals.hit),
+      flux: clamp01(nextSignals.flux),
+      rumble: clamp01(nextSignals.rumble),
+      kick: clamp01(nextSignals.kick),
+      snare: clamp01(nextSignals.snare),
+      hihat: clamp01(nextSignals.hihat),
     };
     this.updateLatencyProbeFromAnalyzer(currentTimeMs, rawSignals, this.smoothedSignals);
 
@@ -529,6 +592,9 @@ export class AudioAnalyzer {
     try {
       await this.cleanupNodes();
       this.pulseDetector.reset();
+      this.signalEnricher.reset();
+      this.noiseGate.reset();
+      this.onsetDetector.reset();
       this.smoothedSignals = createDefaultAudioSignals();
       this.spectrogramHistory = createDefaultSpectrogramFrames();
       this.lastUpdateTimeMs = null;
@@ -558,6 +624,9 @@ export class AudioAnalyzer {
     } catch (error) {
       await this.cleanupNodes();
       this.pulseDetector.reset();
+      this.signalEnricher.reset();
+      this.noiseGate.reset();
+      this.onsetDetector.reset();
       this.smoothedSignals = createDefaultAudioSignals();
       this.spectrogramHistory = createDefaultSpectrogramFrames();
       this.lastUpdateTimeMs = null;
@@ -593,7 +662,7 @@ export class AudioAnalyzer {
     analyserNode.fftSize = this.fftSize;
     analyserNode.minDecibels = this.analyserMinDecibels;
     analyserNode.maxDecibels = this.analyserMaxDecibels;
-    analyserNode.smoothingTimeConstant = 0.18;
+    analyserNode.smoothingTimeConstant = 0.3;
     return analyserNode;
   }
 

@@ -4,6 +4,13 @@ export interface AudioSignals {
   treble: number;
   energy: number;
   pulse: number;
+  bassSmooth: number;
+  hit: number;
+  flux: number;
+  rumble: number;
+  kick: number;
+  snare: number;
+  hihat: number;
 }
 
 export type AudioAnalyzerSource = 'manual' | 'microphone' | 'display' | 'test-generator';
@@ -91,6 +98,13 @@ export function createDefaultAudioSignals(): AudioSignals {
     treble: 0,
     energy: 0,
     pulse: 0,
+    bassSmooth: 0,
+    hit: 0,
+    flux: 0,
+    rumble: 0,
+    kick: 0,
+    snare: 0,
+    hihat: 0,
   };
 }
 
@@ -168,6 +182,13 @@ function cloneAudioSignals(signals: AudioSignals): AudioSignals {
     treble: clamp01(signals.treble),
     energy: clamp01(signals.energy),
     pulse: clamp01(signals.pulse),
+    bassSmooth: clamp01(signals.bassSmooth),
+    hit: clamp01(signals.hit),
+    flux: clamp01(signals.flux),
+    rumble: clamp01(signals.rumble),
+    kick: clamp01(signals.kick),
+    snare: clamp01(signals.snare),
+    hihat: clamp01(signals.hihat),
   };
 }
 

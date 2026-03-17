@@ -58,27 +58,34 @@ void main() {
   float mid = saturate(u_audioMid);
   float treble = saturate(u_audioTreble);
   float energy = saturate(u_audioEnergy);
-  float pulse = saturate(u_audioPulse);
+  float bassSmooth = saturate(u_audioBassSmooth);
+  float flux = saturate(u_audioFlux);
+  float rumble = saturate(u_audioRumble);
+  float kick = saturate(u_audioKick);
+  float snare = saturate(u_audioSnare);
+  float hihat = saturate(u_audioHihat);
 
   float motionDrive = 0.25 + ((1.0 - stillness) * 1.15);
   float radius = length(centered);
-  float energyDrive = saturate(energy + (bass * 0.55));
-  float pulseDrive = saturate(pulse + (tension * 0.65));
-  float midMotion = 0.5 + 0.5 * sin(u_time * motionDrive * (1.1 + (mid * 2.4) + (energy * 0.8)));
+
+  float weightDrive = saturate(bassSmooth + (rumble * 0.3));
+
+  float midMotion = 0.5 + 0.5 * sin(u_time * motionDrive * (1.1 + (mid * 2.4) + (flux * 0.8)));
   radius += sin((centered.y * 4.2) + (u_time * motionDrive * (1.6 + (mid * 3.2)))) * mid * 0.08;
-  radius += sin((radius * (12.0 + (densityFeel * 4.0))) - (u_time * motionDrive * (2.2 + (bass * 2.6)))) * bass * 0.03;
-  float ringDensity = float(max(u_ringCount, 1)) + (densityFeel * 3.0) + (mid * 2.2) + (midMotion * 0.8);
+  radius += sin((radius * (12.0 + (densityFeel * 4.0))) - (u_time * motionDrive * (2.2 + (bassSmooth * 2.6)))) * bassSmooth * 0.04;
+  float ringDensity = float(max(u_ringCount, 1)) + (densityFeel * 3.0) + (mid * 2.2) + (midMotion * 0.8) + (flux * 1.5);
   float wave = sin(
     (radius * ringDensity * (16.0 + (tension * 8.0) + (densityFeel * 3.0)))
-    - (u_time * u_speed * motionDrive * (5.6 + (mid * 3.0) + (tension * 2.4) + (pulse * 1.6)))
-    - (pulseDrive * PI * 2.0)
+    - (u_time * u_speed * motionDrive * (5.6 + (mid * 3.0) + (tension * 2.4)))
+    - (kick * PI * 2.5)
   );
   float softness = mix(u_softness, max(0.02, u_softness * 0.42), saturate((tension * 0.72) + (treble * 0.38) + (fragmentation * 0.18)));
   float ring = smoothstep(1.0 - softness, 1.0, wave * 0.5 + 0.5);
-  float core = 1.0 - smoothstep(0.0, 0.26 + (stillness * 0.2) + (mid * 0.08) + (bass * 0.11) + (glowFeel * 0.08), radius);
-  float falloff = exp(-radius * (2.7 - (energyDrive * 1.2) - (mid * 0.45) - (glowFeel * 0.22)));
-  float trebleAccent = noise(
-    (centered * (18.0 + (treble * 40.0) + (fragmentation * 12.0)))
+  float core = 1.0 - smoothstep(0.0, 0.26 + (stillness * 0.2) + (mid * 0.08) + (bassSmooth * 0.14) + (kick * 0.12) + (glowFeel * 0.08), radius);
+  float falloff = exp(-radius * (2.7 - (weightDrive * 1.3) - (mid * 0.45) - (glowFeel * 0.22)));
+
+  float hihatAccent = noise(
+    (centered * (18.0 + (treble * 40.0) + (fragmentation * 12.0) + (flux * 8.0)))
     + vec2(u_time * motionDrive * (7.0 + (treble * 14.0)), -u_time * motionDrive * 5.0)
   );
   float angle = atan(centered.y, centered.x);
@@ -90,18 +97,23 @@ void main() {
   );
   float fragmentMask = mix(1.0, 0.45 + (0.55 * step(0.42, fragmentField)), fragmentation * 0.78);
   ring *= fragmentMask;
-  float halo = exp(-radius * (3.4 - (glowFeel * 1.5) - (bass * 0.6))) * (0.2 + (glowFeel * 0.42) + (pulseDrive * 0.24));
 
-  vec3 warmTint = mix(vec3(0.9, 0.98, 1.05), vec3(1.12, 0.94, 0.78), warmth);
-  vec3 body = mix(u_colorA, u_colorB, saturate(radius + (treble * 0.32) + (fragmentation * 0.08)));
+  float kickBloom = exp(-radius * 5.0) * kick * 0.7;
+  float snareRing = exp(-abs(radius - (0.35 + snare * 0.1)) * 20.0) * snare * 0.8;
+  float halo = exp(-radius * (3.4 - (glowFeel * 1.5) - (bassSmooth * 0.7))) * (0.2 + (glowFeel * 0.42) + (kick * 0.35));
+
+  vec3 warmTint = mix(vec3(0.9, 0.98, 1.05), vec3(1.12, 0.94, 0.78), saturate(warmth + rumble * 0.2));
+  vec3 body = mix(u_colorA, u_colorB, saturate(radius + (treble * 0.32) + (fragmentation * 0.08) + (rumble * 0.12)));
   body = mix(body, body * warmTint, warmth * 0.34);
-  vec3 glow = mix(u_colorB, vec3(1.0), (pulseDrive * 0.4) + (treble * 0.18) + (glowFeel * 0.22));
-  vec3 color = body * (ring * (0.55 + energyDrive + (tension * 0.28)) + core * (0.58 + (mid * 0.28))) * falloff;
-  color += glow * core * (0.2 + (pulseDrive * 0.34) + (glowFeel * 0.16));
-  color += glow * halo;
+  vec3 kickColor = mix(u_colorA, vec3(1.0), 0.3 + kick * 0.4);
+  vec3 snareColor = mix(u_colorB, vec3(1.0, 0.96, 0.9), snare * 0.5);
+  vec3 color = body * (ring * (0.55 + weightDrive + (tension * 0.28)) + core * (0.58 + (mid * 0.28))) * falloff;
+  color += kickColor * kickBloom;
+  color += snareColor * snareRing;
+  color += mix(u_colorB, vec3(1.0), 0.3) * halo;
   color += mix(u_colorA, u_colorB, fragmentField) * fragmentation * (1.0 - fragmentMask) * 0.18;
-  color += vec3(1.0, 0.96, 0.9) * pow(saturate(trebleAccent - 0.52), 4.0) * treble * ring * 0.55;
-  color *= 0.76 + (u_intensity * 0.45) + (tension * 0.14) + (energy * 0.08);
+  color += vec3(1.0, 0.96, 0.9) * pow(saturate(hihatAccent - 0.52), 4.0) * hihat * ring * 0.7;
+  color *= 0.76 + (u_intensity * 0.45) + (tension * 0.14) + (rumble * 0.1);
 
   gl_FragColor = vec4(color, 1.0);
 }

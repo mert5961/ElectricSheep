@@ -328,6 +328,8 @@ export class DebugSignalsPanel {
 
   private readonly microphoneButton: HTMLButtonElement;
 
+  private readonly displayAudioButton: HTMLButtonElement;
+
   private readonly stopTestsButton: HTMLButtonElement;
 
   private readonly resetAnalyzerDebugButton: HTMLButtonElement;
@@ -357,6 +359,7 @@ export class DebugSignalsPanel {
     onResetVisualStateRecipeState,
     onApplyVisualStateRecipe,
     onStartMicrophoneAudio,
+    onStartDisplayAudio,
     onStartAudioDebugTest,
     onStopAudioAnalyzer,
     onSetAudioAnalyzerDebugConfig,
@@ -376,6 +379,7 @@ export class DebugSignalsPanel {
     onResetVisualStateRecipeState?: () => void;
     onApplyVisualStateRecipe?: (recipe: VisualStateRecipe) => void;
     onStartMicrophoneAudio?: () => void;
+    onStartDisplayAudio?: () => void;
     onStartAudioDebugTest?: (mode: AudioAnalyzerTestMode) => void;
     onStopAudioAnalyzer?: () => void;
     onSetAudioAnalyzerDebugConfig?: (patch: Partial<AudioAnalyzerDebugConfig>) => void;
@@ -572,12 +576,16 @@ export class DebugSignalsPanel {
     this.microphoneButton = createButton('Use Microphone', () => {
       onStartMicrophoneAudio?.();
     });
+    this.displayAudioButton = createButton('Display Audio', () => {
+      onStartDisplayAudio?.();
+    });
     this.stopTestsButton = createButton('Stop Tests', () => {
       onStopAudioAnalyzer?.();
     });
     sourceControls.append(
       this.manualModeButton,
       this.microphoneButton,
+      this.displayAudioButton,
       this.stopTestsButton,
     );
 
@@ -1713,9 +1721,11 @@ export class DebugSignalsPanel {
 
     setButtonEnabled(this.manualModeButton, !isManualSource);
     setButtonEnabled(this.microphoneButton, Boolean(audioInputState ? audioInputState.status !== 'requesting' : true));
+    setButtonEnabled(this.displayAudioButton, Boolean(audioInputState ? audioInputState.status !== 'requesting' : true));
     setButtonEnabled(this.stopTestsButton, hasActiveTest);
     setButtonActive(this.manualModeButton, isManualSource, '#87f4b5');
     setButtonActive(this.microphoneButton, audioInputState?.source === 'microphone', '#66d4ff');
+    setButtonActive(this.displayAudioButton, audioInputState?.source === 'display', '#c98aff');
     setButtonActive(this.stopTestsButton, hasActiveTest, '#f2a756');
 
     this.testButtons.forEach((button, mode) => {
