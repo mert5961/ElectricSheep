@@ -57,10 +57,12 @@ void main() {
 
   float tension = saturate(u_feelTension);
   float warmth = saturate(u_feelWarmth);
+  float fragmentation = saturate(u_feelFragmentation);
   float glowFeel = saturate(u_feelGlow);
   float stillness = saturate(u_feelStillness);
+  float densityFeel = saturate(u_feelDensity);
 
-  float motionDrive = 0.3 + (1.0 - stillness) * 0.9;
+  float motionDrive = 0.12 + (1.0 - stillness) * 1.02 + densityFeel * 0.2;
 
   float radius = length(centered);
   float angle = atan(centered.y, centered.x);
@@ -72,19 +74,19 @@ void main() {
   float segCount = float(max(u_segments, 3));
   float segAngle = floor(angle / (2.0 * PI) * segCount + 0.5) / segCount * 2.0 * PI;
   float segEdge = abs(angle - segAngle) * segCount;
-  float segLine = exp(-segEdge * (8.0 + tension * 12.0)) * (0.4 + mid * 0.3);
+  float segLine = exp(-segEdge * (10.0 + tension * 18.0 + densityFeel * 10.0)) * (0.36 + mid * 0.34 + glowFeel * 0.22);
 
   float ringPhase = fract(tunnelZ * (0.3 + flux * 0.2));
-  float ringLine = exp(-abs(ringPhase - 0.5) * (16.0 + snare * 20.0));
+  float ringLine = exp(-abs(ringPhase - 0.5) * (16.0 + snare * 20.0 + fragmentation * 14.0));
 
   float kickPulse = exp(-radius * (4.0 - kick * 2.0)) * kick;
   float snareRipple = sin(depth * (6.0 + snare * 8.0) - u_time * 12.0) * snare * 0.5;
   snareRipple = saturate(snareRipple) * exp(-radius * 3.0);
 
   float hihatSparkle = noise(
-    centered * (20.0 + treble * 30.0) + vec2(u_time * 8.0, -u_time * 6.0)
+    centered * (20.0 + treble * 30.0 + densityFeel * 16.0) + vec2(u_time * (8.0 + fragmentation * 3.5), -u_time * (6.0 + tension * 2.4))
   );
-  hihatSparkle = pow(saturate(hihatSparkle - 0.62), 3.0) * hihat;
+  hihatSparkle = pow(saturate(hihatSparkle - (0.68 - fragmentation * 0.12)), 2.5) * hihat;
 
   float vignette = 1.0 - smoothstep(0.3, 1.8, radius);
   float depthFade = exp(-max(depth - 1.0, 0.0) * 0.06);
@@ -92,7 +94,7 @@ void main() {
 
   vec3 neonA = u_colorA * (1.0 + kick * 0.6);
   vec3 neonB = u_colorB * (1.0 + snare * 0.4);
-  vec3 warmTint = mix(vec3(1.0), vec3(1.1, 0.95, 0.85), warmth * 0.4);
+  vec3 warmTint = mix(vec3(0.9, 0.96, 1.08), vec3(1.18, 0.92, 0.74), warmth * 0.78);
 
   vec3 rings = mix(neonA, neonB, ringPhase) * ringLine;
   vec3 segs = mix(neonB, neonA, 0.5 + 0.5 * sin(segAngle * 3.0)) * segLine;
@@ -100,10 +102,10 @@ void main() {
   color += neonA * kickPulse * 1.2;
   color += neonB * snareRipple;
   color += vec3(1.0, 0.98, 0.95) * hihatSparkle * 0.5;
-  color += mix(neonA, neonB, 0.5) * glowFeel * exp(-radius * 4.0) * 0.15;
+  color += mix(neonA, neonB, 0.5) * glowFeel * exp(-radius * (4.0 - densityFeel * 1.8)) * (0.24 + densityFeel * 0.14);
   color *= warmTint;
   color *= vignette;
-  color *= 0.7 + u_intensity * 0.5 + rumble * 0.1;
+  color *= 0.7 + u_intensity * 0.5 + rumble * 0.1 + fragmentation * 0.12 + tension * 0.08;
 
   gl_FragColor = vec4(color, 1.0);
 }

@@ -63,16 +63,16 @@ void main() {
   float densityFeel = saturate(u_feelDensity);
   float fragmentation = saturate(u_feelFragmentation);
 
-  float motionDrive = 0.3 + (1.0 - stillness) * 0.8;
+  float motionDrive = 0.16 + (1.0 - stillness) * 1.0 + densityFeel * 0.08;
   float t = u_time * u_speed * motionDrive;
 
   vec2 warpOffset = vec2(
     fbm(centered * 1.5 + vec2(t * 0.3, 0.0)),
     fbm(centered * 1.5 + vec2(0.0, t * 0.25))
-  ) * u_warp * (1.0 + kick * 0.8 + tension * 0.3);
+  ) * u_warp * (1.0 + kick * 0.8 + tension * 0.55 + fragmentation * 0.22);
 
   vec2 p = centered + warpOffset;
-  float scale = u_blobScale + densityFeel * 1.5 + bassSmooth * 0.8;
+  float scale = u_blobScale + densityFeel * 2.1 + bassSmooth * 0.8;
 
   float plasma1 = sin(p.x * scale + t * 1.2 + sin(p.y * scale * 0.7 + t * 0.8) * 2.0);
   float plasma2 = sin(p.y * scale * 1.1 - t * 0.9 + cos(p.x * scale * 0.6 - t * 1.1) * 1.8);
@@ -81,22 +81,28 @@ void main() {
 
   float blobField = combined * 0.5 + 0.5;
   float blobEdge = abs(combined);
-  float edgeLine = exp(-blobEdge * (6.0 + tension * 8.0 + snare * 10.0));
+  float edgeLine = exp(-blobEdge * (6.0 + tension * 10.0 + snare * 12.0 + fragmentation * 12.0));
 
   float kickExpand = exp(-length(p) * (3.5 - kick * 2.0)) * kick;
   float snareCrack = pow(saturate(1.0 - blobEdge * (2.0 + snare * 3.0)), 8.0) * snare;
   float hihatCrackle = noise(
-    centered * (14.0 + treble * 25.0) + vec2(t * 6.0, -t * 5.0)
+    centered * (14.0 + treble * 25.0 + fragmentation * 14.0 + densityFeel * 8.0) + vec2(t * 6.0, -t * 5.0)
   );
-  hihatCrackle = pow(saturate(hihatCrackle - 0.6), 3.0) * hihat;
+  hihatCrackle = pow(saturate(hihatCrackle - (0.64 - fragmentation * 0.08)), 3.0) * hihat;
 
-  float depth = fbm(p * (2.0 + flux * 1.5) + vec2(t * 0.2));
+  float depth = fbm(p * (2.0 + flux * 1.5 + fragmentation * 1.6) + vec2(t * 0.2));
   float rumbleGlow = exp(-length(centered) * (2.0 - rumble * 0.8)) * rumble * 0.15;
+  float fractureNoise = noise(
+    p * (5.0 + fragmentation * 9.0 + densityFeel * 2.4)
+    + vec2(t * (0.8 + fragmentation * 0.9), -t * 0.55)
+  );
+  float fractureMask = mix(1.0, 0.38 + (0.62 * step(0.46 - fragmentation * 0.12, fractureNoise)), fragmentation * 0.82);
+  edgeLine *= fractureMask;
 
-  vec3 warmTint = mix(vec3(1.0), vec3(1.1, 0.95, 0.85), warmth * 0.5);
+  vec3 warmTint = mix(vec3(0.9, 0.96, 1.08), vec3(1.18, 0.92, 0.74), warmth * 0.86);
   vec3 plasmaColor = mix(u_colorA, u_colorB, blobField);
-  plasmaColor = mix(plasmaColor, plasmaColor * vec3(1.2, 0.9, 0.7), depth * warmth * 0.3);
-  vec3 edgeColor = mix(u_colorB, vec3(1.0), 0.3 + mid * 0.2);
+  plasmaColor = mix(plasmaColor, plasmaColor * vec3(1.26, 0.88, 0.66), depth * warmth * 0.55);
+  vec3 edgeColor = mix(mix(u_colorB, vec3(1.0), 0.3 + mid * 0.2), vec3(1.0, 0.9, 0.74), warmth * 0.32);
   vec3 crackColor = mix(vec3(1.0), u_colorA, 0.3) * (1.0 + snare * 0.5);
 
   vec3 color = plasmaColor * (0.25 + blobField * 0.35 + mid * 0.15);
@@ -105,9 +111,10 @@ void main() {
   color += crackColor * snareCrack * 0.7;
   color += vec3(1.0, 0.97, 0.92) * hihatCrackle * 0.45;
   color += mix(u_colorA, u_colorB, 0.5) * rumbleGlow;
-  color += mix(u_colorA, u_colorB, depth) * glowFeel * 0.08;
+  color += mix(u_colorA, vec3(1.0, 0.94, 0.82), 0.5 + warmth * 0.25) * glowFeel * 0.14;
+  color += mix(u_colorA, u_colorB, fractureNoise) * fragmentation * (1.0 - fractureMask) * 0.22;
   color *= warmTint;
-  color *= 0.75 + u_intensity * 0.45 + rumble * 0.08;
+  color *= 0.75 + u_intensity * 0.45 + rumble * 0.08 + fragmentation * 0.08;
 
   gl_FragColor = vec4(color, 1.0);
 }

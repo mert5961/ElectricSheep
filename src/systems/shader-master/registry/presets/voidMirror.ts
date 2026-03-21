@@ -78,7 +78,7 @@ void main() {
   float fragmentation = saturate(u_feelFragmentation);
   float densityFeel = saturate(u_feelDensity);
 
-  float motionDrive = 0.25 + (1.0 - stillness) * 0.75;
+  float motionDrive = 0.12 + (1.0 - stillness) * 0.98;
   float t = u_time * u_speed * motionDrive;
   float radius = length(centered);
 
@@ -92,8 +92,8 @@ void main() {
   ripple *= (1.0 - aboveSurface) * u_reflectStrength * 0.03;
   sampleUv += normalize(sampleUv + 0.001) * ripple;
 
-  float vCell = voronoi(sampleUv * (3.5 + densityFeel * 2.0 + tension * 1.5) + vec2(t * 0.3));
-  float vEdge = 1.0 - smoothstep(0.0, 0.12 - fragmentation * 0.05, vCell);
+  float vCell = voronoi(sampleUv * (3.5 + densityFeel * 2.8 + tension * 2.2) + vec2(t * 0.3));
+  float vEdge = 1.0 - smoothstep(0.0, 0.14 - fragmentation * 0.08, vCell);
 
   float depthFog = fbm(sampleUv * (2.0 + flux * 1.0) + vec2(t * 0.2, -t * 0.15));
   float voidDepth = exp(-radius * (1.8 - rumble * 0.5));
@@ -102,14 +102,18 @@ void main() {
   float snareBreak = vEdge * snare * 0.8;
   float surfaceLine = exp(-abs(surface) * (40.0 + mid * 20.0)) * (0.3 + mid * 0.4 + snare * 0.3);
 
-  float hihatFire = noise(centered * (20.0 + treble * 25.0) + vec2(t * 9.0, -t * 7.0));
-  hihatFire = pow(saturate(hihatFire - 0.6), 3.0) * hihat * (0.5 + vEdge * 0.5);
+  float hihatFire = noise(centered * (20.0 + treble * 25.0 + fragmentation * 14.0 + densityFeel * 8.0) + vec2(t * 9.0, -t * 7.0));
+  hihatFire = pow(saturate(hihatFire - (0.64 - fragmentation * 0.1)), 3.0) * hihat * (0.5 + vEdge * 0.5);
 
   float reflectDim = mix(1.0, 0.55 + rumble * 0.15, (1.0 - aboveSurface) * u_reflectStrength);
 
-  vec3 warmTint = mix(vec3(1.0), vec3(1.08, 0.94, 0.88), warmth * 0.4);
-  vec3 voidColor = mix(u_colorB * 0.15, u_colorA * 0.3, depthFog);
-  vec3 edgeColor = mix(u_colorA, u_colorB, vCell);
+  vec3 warmTint = mix(vec3(0.9, 0.96, 1.08), vec3(1.16, 0.92, 0.74), warmth * 0.82);
+  vec3 voidColor = mix(
+    mix(u_colorB * vec3(0.12, 0.18, 0.28), u_colorA * 0.26, depthFog),
+    mix(u_colorB * vec3(0.24, 0.12, 0.08), u_colorA * vec3(1.12, 0.9, 0.72) * 0.22, depthFog),
+    warmth * 0.78
+  );
+  vec3 edgeColor = mix(mix(u_colorA, u_colorB, vCell), mix(u_colorA * vec3(1.12, 0.88, 0.72), u_colorB * vec3(1.08, 0.92, 0.8), vCell), warmth * 0.52);
   vec3 surfaceColor = mix(u_colorA, vec3(1.0), 0.5);
 
   vec3 color = voidColor * voidDepth * (0.6 + mid * 0.2);
@@ -118,10 +122,10 @@ void main() {
   color += mix(u_colorB, vec3(1.0), 0.3) * snareBreak;
   color += surfaceColor * surfaceLine;
   color += vec3(1.0, 0.85, 0.6) * hihatFire * 0.5;
-  color += mix(u_colorA, u_colorB, 0.5) * glowFeel * exp(-radius * 3.0) * 0.08;
+  color += mix(u_colorA, u_colorB, 0.5) * glowFeel * exp(-radius * 3.0) * 0.16;
   color *= reflectDim;
   color *= warmTint;
-  color *= 0.7 + u_intensity * 0.5 + rumble * 0.08;
+  color *= 0.7 + u_intensity * 0.5 + rumble * 0.08 + tension * 0.1 + fragmentation * 0.05;
 
   gl_FragColor = vec4(color, 1.0);
 }

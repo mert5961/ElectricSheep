@@ -1432,7 +1432,7 @@ export class DebugSignalsPanel {
       fontSize: '12px',
       color: '#7f8a9a',
       lineHeight: '1.6',
-    }, 'The local Ollama layer updates slowly and only steers macro visual mood controls.');
+    }, 'The local Ollama layer now listens for phrase and section changes, then updates the slower feeling layer only when the music materially shifts.');
     this.aiStateGridEl = createElement('div', {
       display: 'grid',
       gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
@@ -1966,6 +1966,11 @@ export class DebugSignalsPanel {
     this.aiStateGridEl.replaceChildren();
 
     [
+      ['Phrase State', aiState.musicalState.phraseState],
+      ['Section State', aiState.musicalState.sectionState],
+      ['Commit Reason', aiState.musicalState.lastCommitReason || 'holding'],
+      ['Activity Confidence', aiState.musicalState.activityConfidence],
+      ['Change Strength', aiState.musicalState.changeStrength],
       ['Tension', currentAIState.tension],
       ['Glow', currentAIState.glow],
       ['Fragmentation', currentAIState.fragmentation],
@@ -1992,7 +1997,7 @@ export class DebugSignalsPanel {
           color: '#edf1f7',
           fontWeight: '600',
           fontVariantNumeric: 'tabular-nums',
-        }, Number(value).toFixed(2)),
+        }, typeof value === 'number' ? Number(value).toFixed(2) : String(value)),
       );
       this.aiStateGridEl.append(chip);
     });

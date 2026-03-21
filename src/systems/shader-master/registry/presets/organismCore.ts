@@ -68,9 +68,9 @@ void main() {
   float energy = saturate(u_audioEnergy);
   float pulse = saturate(u_audioPulse);
 
-  float motionDrive = 0.24 + ((1.0 - stillness) * 1.05);
-  float turbulence = u_motionTurbulence + ((1.0 - stillness) * 0.42) + (energy * 0.16);
-  float densityDrive = u_structureDensity + (densityFeel * 1.35) + (bass * 0.28);
+  float motionDrive = 0.1 + ((1.0 - stillness) * 1.2);
+  float turbulence = u_motionTurbulence + ((1.0 - stillness) * 0.42) + (energy * 0.16) + (tension * 0.12);
+  float densityDrive = u_structureDensity + (densityFeel * 1.8) + (bass * 0.28);
 
   vec2 drift = vec2(
     sin((u_time * u_speed * motionDrive * (0.55 + (mid * 1.8))) + (centered.y * (2.4 + (densityFeel * 2.0)))),
@@ -78,7 +78,7 @@ void main() {
   ) * ((0.04 + (mid * 0.12) + (energy * 0.05)) * (0.55 + (turbulence * 0.55)));
 
   vec2 bodyUv = centered + drift;
-  bodyUv = rotate2d((tension * 0.42) + (mid * 0.22) + (pulse * 0.14)) * bodyUv;
+  bodyUv = rotate2d((tension * 0.64) + (mid * 0.22) + (pulse * 0.14)) * bodyUv;
 
   float flow = fbm(
     (bodyUv * (1.4 + densityDrive))
@@ -95,7 +95,7 @@ void main() {
     )
   );
   float tearNoise = noise(
-    (bodyUv * (5.0 + (fragmentation * 8.0) + (densityFeel * 3.0)))
+    (bodyUv * (5.0 + (fragmentation * 11.0) + (densityFeel * 4.0)))
     + vec2(u_time * motionDrive * (0.5 + (fragmentation * 0.6)), 0.0)
   );
 
@@ -105,12 +105,12 @@ void main() {
     - (scaledRadius * (7.0 + (densityFeel * 3.0)))
   );
   float membraneRadius = 0.36
-    + (glowFeel * 0.06)
+    + (glowFeel * 0.1)
     + (bass * 0.08)
     + ((flow - 0.5) * 0.08)
     + (breathing * 0.03)
     - (tension * 0.03);
-  float membraneWidth = max(0.04, 0.16 - (tension * 0.06) - (fragmentation * 0.03));
+  float membraneWidth = max(0.035, 0.18 - (tension * 0.09) - (fragmentation * 0.06));
   float membrane = 1.0 - smoothstep(
     membraneRadius,
     membraneRadius + (membraneWidth / (0.9 + (densityDrive * 0.25))),
@@ -119,7 +119,7 @@ void main() {
   float core = exp(-scaledRadius * (3.2 - (glowFeel * 1.1) - (bass * 0.65)));
   float cavity = exp(-scaledRadius * (7.5 + (tension * 1.6)));
   float vein = pow(saturate(0.58 - abs(veinNoise - 0.5)), 2.0) * (0.5 + (mid * 0.8) + (densityFeel * 0.35));
-  float tearMask = mix(1.0, 0.55 + (0.45 * step(0.46 - (treble * 0.08), tearNoise)), fragmentation * 0.72);
+  float tearMask = mix(1.0, 0.35 + (0.65 * step(0.46 - (treble * 0.08), tearNoise)), fragmentation * 0.88);
   float pulseRing = exp(-abs(scaledRadius - (membraneRadius + 0.09 + (pulse * 0.04))) * (22.0 + (tension * 12.0))) * pulse;
   float trebleSpark = pow(saturate(
     noise(
@@ -133,28 +133,28 @@ void main() {
 
   membrane *= tearMask;
 
-  vec3 coolBase = mix(u_colorB, u_colorA * vec3(0.62, 0.76, 0.92), saturate(flow + (densityFeel * 0.12)));
+  vec3 coolBase = mix(u_colorB * vec3(0.86, 0.94, 1.08), u_colorA * vec3(0.58, 0.76, 0.98), saturate(flow + (densityFeel * 0.12)));
   vec3 warmBase = mix(
-    u_colorB * vec3(1.05, 0.92, 0.82),
-    u_colorA * vec3(1.1, 0.92, 0.8),
+    u_colorB * vec3(1.18, 0.88, 0.68),
+    u_colorA * vec3(1.18, 0.88, 0.68),
     saturate(flow + (glowFeel * 0.2))
   );
-  vec3 bodyColor = mix(coolBase, warmBase, warmth);
+  vec3 bodyColor = mix(coolBase, warmBase, warmth * 0.95);
   vec3 innerLight = mix(
     u_colorA,
     vec3(1.0, 0.95, 0.88),
-    saturate((glowFeel * 0.72) + (bass * 0.18) + (pulse * 0.16) + (warmth * 0.18))
+    saturate((glowFeel * 0.82) + (bass * 0.18) + (pulse * 0.16) + (warmth * 0.32))
   );
-  vec3 fractureTint = mix(vec3(0.32, 0.42, 0.54), vec3(0.96, 0.78, 0.58), warmth);
+  vec3 fractureTint = mix(vec3(0.28, 0.42, 0.62), vec3(1.0, 0.76, 0.5), warmth);
 
   vec3 color = bodyColor * (0.12 + (membrane * (0.82 + (tension * 0.24))) + (core * (0.22 + (glowFeel * 0.2))));
   color += innerLight * core * (0.14 + (glowFeel * 0.42) + (energy * 0.14) + (pulse * 0.08));
   color += innerLight * pulseRing * (0.18 + (glowFeel * 0.18));
   color += mix(bodyColor, innerLight, 0.38) * vein * (0.12 + (mid * 0.18) + (densityFeel * 0.08));
-  color += fractureTint * fragmentation * (1.0 - tearMask) * (0.08 + (tension * 0.08));
+  color += fractureTint * fragmentation * (1.0 - tearMask) * (0.16 + (tension * 0.14));
   color += vec3(1.0, 0.98, 0.94) * trebleSpark * (0.18 + (glowFeel * 0.1));
-  color = mix(color, color * vec3(1.06, 0.96, 0.9), tension * 0.14);
-  color *= 0.72 + (u_intensity * 0.34) + (energy * 0.12) + (cavity * 0.08);
+  color = mix(color, color * vec3(1.1, 0.92, 0.82), tension * 0.22);
+  color *= 0.72 + (u_intensity * 0.34) + (energy * 0.12) + (cavity * 0.08) + (glowFeel * 0.08);
 
   gl_FragColor = vec4(color, 1.0);
 }

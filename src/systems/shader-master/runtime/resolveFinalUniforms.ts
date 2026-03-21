@@ -19,6 +19,14 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
+function clampHeadroom(value: number): number {
+  return Math.max(0.04, Math.min(0.96, value));
+}
+
+function applyCenteredContrast(value: number, amount: number): number {
+  return clampHeadroom(0.5 + ((value - 0.5) * amount));
+}
+
 export function buildEffectiveFeelingUniforms(
   feelingUniforms: UniformValueMap,
   aiState: ShaderMasterAIState | null | undefined,
@@ -29,12 +37,24 @@ export function buildEffectiveFeelingUniforms(
     return nextFeelingUniforms;
   }
 
-  // The current shader system does not yet expose a dedicated flow uniform,
-  // so flow bias is translated into the inverse stillness control for now.
-  nextFeelingUniforms.u_feelGlow = aiState.currentAIState.glow;
-  nextFeelingUniforms.u_feelWarmth = aiState.currentAIState.warmth;
-  nextFeelingUniforms.u_feelFragmentation = aiState.currentAIState.fragmentation;
-  nextFeelingUniforms.u_feelStillness = clamp01(1 - aiState.currentAIState.flowBias);
+  const aiTension = applyCenteredContrast(aiState.currentAIState.tension, 1.28);
+  const aiGlow = applyCenteredContrast(aiState.currentAIState.glow, 1.22);
+  const aiWarmth = applyCenteredContrast(aiState.currentAIState.warmth, 1.3);
+  const aiFragmentation = applyCenteredContrast(aiState.currentAIState.fragmentation, 1.42);
+  const aiStillness = applyCenteredContrast(aiState.currentAIState.stillness, 1.34);
+  const flowBiasStillness = clampHeadroom(1 - applyCenteredContrast(aiState.currentAIState.flowBias, 1.18));
+
+  nextFeelingUniforms.u_feelTension = aiTension;
+  nextFeelingUniforms.u_feelGlow = aiGlow;
+  nextFeelingUniforms.u_feelWarmth = aiWarmth;
+  nextFeelingUniforms.u_feelFragmentation = aiFragmentation;
+  nextFeelingUniforms.u_feelStillness = clampHeadroom((aiStillness * 0.78) + (flowBiasStillness * 0.22));
+  nextFeelingUniforms.u_feelDensity = clamp01(
+    (aiFragmentation * 0.38)
+    + (aiTension * 0.28)
+    + ((1 - flowBiasStillness) * 0.2)
+    + (aiGlow * 0.14)
+  );
 
   return nextFeelingUniforms;
 }

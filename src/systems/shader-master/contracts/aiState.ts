@@ -1,3 +1,17 @@
+export type AIPhraseState =
+  | 'holding'
+  | 'lifting'
+  | 'settling'
+  | 'thinning'
+  | 'suspended';
+
+export type AISectionState =
+  | 'groove'
+  | 'build'
+  | 'drop'
+  | 'breakdown'
+  | 'transition';
+
 export interface AudioFeatureSummary {
   energyLevel: number;
   energyTrend: number;
@@ -9,6 +23,26 @@ export interface AudioFeatureSummary {
   snareRate: number;
   hatRate: number;
   dominantEvent: string;
+  phraseEnergyLevel: number;
+  phraseBrightness: number;
+  phraseRhythmActivity: number;
+  phraseCalmIndex: number;
+  sectionEnergyLevel: number;
+  sectionBrightness: number;
+  sectionRhythmActivity: number;
+  sectionCalmIndex: number;
+  phraseState: AIPhraseState;
+  sectionState: AISectionState;
+  activityConfidence: number;
+  changeStrength: number;
+}
+
+export interface AIMusicalState {
+  phraseState: AIPhraseState;
+  sectionState: AISectionState;
+  activityConfidence: number;
+  changeStrength: number;
+  lastCommitReason: string | null;
 }
 
 export interface AIState {
@@ -26,6 +60,7 @@ export interface ShaderMasterAIState {
   aiEnabled: boolean;
   aiFallbackActive: boolean;
   aiStale: boolean;
+  musicalState: AIMusicalState;
 }
 
 function clamp01(value: number): number {
@@ -47,6 +82,28 @@ export function createDefaultAIState(): AIState {
   };
 }
 
+export function createDefaultAIMusicalState(): AIMusicalState {
+  return {
+    phraseState: 'holding',
+    sectionState: 'groove',
+    activityConfidence: 0,
+    changeStrength: 0,
+    lastCommitReason: null,
+  };
+}
+
+export function cloneAIMusicalState(state: AIMusicalState): AIMusicalState {
+  return {
+    phraseState: state?.phraseState || 'holding',
+    sectionState: state?.sectionState || 'groove',
+    activityConfidence: clamp01(state?.activityConfidence ?? 0),
+    changeStrength: clamp01(state?.changeStrength ?? 0),
+    lastCommitReason: typeof state?.lastCommitReason === 'string'
+      ? state.lastCommitReason
+      : null,
+  };
+}
+
 export function cloneAIState(state: AIState): AIState {
   return {
     tension: clamp01(state.tension),
@@ -65,6 +122,7 @@ export function createDefaultShaderMasterAIState(): ShaderMasterAIState {
     aiEnabled: true,
     aiFallbackActive: false,
     aiStale: false,
+    musicalState: createDefaultAIMusicalState(),
   };
 }
 
@@ -75,5 +133,6 @@ export function cloneShaderMasterAIState(state: ShaderMasterAIState): ShaderMast
     aiEnabled: Boolean(state.aiEnabled),
     aiFallbackActive: Boolean(state.aiFallbackActive),
     aiStale: Boolean(state.aiStale),
+    musicalState: cloneAIMusicalState(state.musicalState),
   };
 }
