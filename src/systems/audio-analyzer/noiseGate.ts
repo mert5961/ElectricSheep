@@ -15,6 +15,8 @@ const HEADROOM = 1.6;
 const RISE_TIME_CONSTANT_MS = 30000;
 const FALL_TIME_CONSTANT_MS = 8000;
 const CALIBRATION_TIME_CONSTANT_MS = 80;
+const FLOOR_RISE_RATIO_GUARD = 1.18;
+const FLOOR_RISE_ABSOLUTE_GUARD = 0.015;
 
 export class AdaptiveNoiseGate {
   private bassFloor = 0;
@@ -86,11 +88,22 @@ export class AdaptiveNoiseGate {
       return currentFloor + (rawValue - currentFloor) * alpha;
     }
 
-    const timeConstant = rawValue < currentFloor
-      ? FALL_TIME_CONSTANT_MS
-      : RISE_TIME_CONSTANT_MS;
+    if (rawValue < currentFloor) {
+      const alpha = 1 - Math.exp(-frameMs / FALL_TIME_CONSTANT_MS);
+      return currentFloor + (rawValue - currentFloor) * alpha;
+    }
+
+    // Only let the floor rise toward a bounded ceiling near the existing
+    // floor. This keeps the gate responsive to changing background conditions
+    // without letting sustained musical content become the new floor.
+    const allowedRiseCeiling = Math.max(
+      currentFloor * FLOOR_RISE_RATIO_GUARD,
+      currentFloor + FLOOR_RISE_ABSOLUTE_GUARD,
+    );
+    const timeConstant = RISE_TIME_CONSTANT_MS;
     const alpha = 1 - Math.exp(-frameMs / timeConstant);
-    return currentFloor + (rawValue - currentFloor) * alpha;
+    const boundedTarget = Math.min(rawValue, allowedRiseCeiling);
+    return currentFloor + (boundedTarget - currentFloor) * alpha;
   }
 
   private applyGate(rawValue: number, floor: number): number {

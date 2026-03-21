@@ -32,8 +32,51 @@ import { createAudioAnalyzerStore } from './systems/audio-analyzer/audioAnalyzer
 import { MappingAssistOverlay } from './overlays/MappingAssistOverlay.js';
 import { OutputStageUI } from './ui/OutputStageUI.js';
 
-const AI_UPDATE_INTERVAL_MS = 1000;
-const AI_STALE_THRESHOLD_MS = 4000;
+const AI_BOOT_WARMUP_MS = 3000;
+const AI_REQUEST_COOLDOWN_MS = 3000;
+const AI_MIN_SECTION_UPDATE_INTERVAL_MS = 4000;
+const AI_MIN_PHRASE_UPDATE_INTERVAL_MS = 7000;
+const AI_MAX_UPDATE_INTERVAL_MS = 14000;
+const AI_STALE_THRESHOLD_MS = 22000;
+
+function clamp01(value) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function blendScalar(currentValue, nextValue, amount) {
+  return clamp01(currentValue + ((nextValue - currentValue) * amount));
+}
+
+function getAIBlendAmount(updateReason) {
+  if (updateReason === 'section-change') {
+    return 0.74;
+  }
+
+  if (updateReason === 'phrase-change') {
+    return 0.56;
+  }
+
+  if (updateReason === 'boot') {
+    return 0.68;
+  }
+
+  if (updateReason === 'phrase-refresh') {
+    return 0.36;
+  }
+
+  return 0.24;
+}
+
+function blendAIState(currentAIState, nextAIState, amount) {
+  return {
+    tension: blendScalar(currentAIState.tension, nextAIState.tension, amount),
+    glow: blendScalar(currentAIState.glow, nextAIState.glow, amount),
+    fragmentation: blendScalar(currentAIState.fragmentation, nextAIState.fragmentation, amount),
+    stillness: blendScalar(currentAIState.stillness, nextAIState.stillness, amount),
+    flowBias: blendScalar(currentAIState.flowBias, nextAIState.flowBias, amount),
+    warmth: blendScalar(currentAIState.warmth, nextAIState.warmth, amount),
+  };
+}
 
 function audioSignalsToUniformPatch(signals) {
   return {
@@ -76,6 +119,9 @@ export class App {
     this._lastAudioSnapshotRefreshMs = 0;
     this._lastAudioBroadcastMs = 0;
     this._lastAIRequestStartedAtMs = null;
+    this._lastAICommittedAtFrameMs = null;
+    this._lastCommittedAIPhraseState = null;
+    this._lastCommittedAISectionState = null;
     this._aiRequestInFlight = false;
     this._aiFeatureTracker = role === APP_ROLE_EDITOR
       ? new AIFeatureTracker()
@@ -809,35 +855,120 @@ export class App {
 
     if (
       this._lastAIRequestStartedAtMs !== null
-      && (frameTimeMs - this._lastAIRequestStartedAtMs) < AI_UPDATE_INTERVAL_MS
+      && (frameTimeMs - this._lastAIRequestStartedAtMs) < AI_REQUEST_COOLDOWN_MS
     ) {
+      return;
+    }
+
+    const updateReason = this._resolveAIUpdateReason(featureSummary, frameTimeMs);
+    if (!updateReason) {
       return;
     }
 
     this._lastAIRequestStartedAtMs = frameTimeMs;
     this._aiRequestInFlight = true;
-    console.debug('[AI Runtime] Requesting AI state.', featureSummary);
-    void this._requestAIState(featureSummary);
+    console.debug('[AI Runtime] Requesting AI state.', {
+      updateReason,
+      featureSummary,
+    });
+    void this._requestAIState(featureSummary, updateReason, frameTimeMs);
   }
 
-  async _requestAIState(featureSummary) {
+  _resolveAIUpdateReason(featureSummary, frameTimeMs) {
+    if (this._lastAICommittedAtFrameMs === null) {
+      if (frameTimeMs < AI_BOOT_WARMUP_MS) {
+        return null;
+      }
+
+      if (
+        featureSummary.activityConfidence >= 0.12
+        || featureSummary.sectionState === 'breakdown'
+        || frameTimeMs >= (AI_BOOT_WARMUP_MS * 2)
+      ) {
+        return 'boot';
+      }
+
+      return null;
+    }
+
+    const elapsedSinceCommit = frameTimeMs - this._lastAICommittedAtFrameMs;
+    const sectionChanged = this._lastCommittedAISectionState !== null
+      && featureSummary.sectionState !== this._lastCommittedAISectionState;
+    const phraseChanged = this._lastCommittedAIPhraseState !== null
+      && featureSummary.phraseState !== this._lastCommittedAIPhraseState;
+
+    if (
+      sectionChanged
+      && elapsedSinceCommit >= AI_MIN_SECTION_UPDATE_INTERVAL_MS
+      && featureSummary.changeStrength >= 0.16
+    ) {
+      return 'section-change';
+    }
+
+    if (
+      phraseChanged
+      && elapsedSinceCommit >= AI_MIN_PHRASE_UPDATE_INTERVAL_MS
+      && featureSummary.changeStrength >= 0.1
+      && featureSummary.activityConfidence >= 0.18
+    ) {
+      return 'phrase-change';
+    }
+
+    if (elapsedSinceCommit >= AI_MAX_UPDATE_INTERVAL_MS) {
+      return featureSummary.activityConfidence >= 0.16
+        ? 'phrase-refresh'
+        : 'idle-refresh';
+    }
+
+    return null;
+  }
+
+  async _requestAIState(featureSummary, updateReason, frameTimeMs) {
     try {
-      const nextAIState = await getAIState(featureSummary);
-      const requestMeta = getLastAIRequestMeta();
       const shaderState = this.shaderMasterStore.getState();
+      const previousAIState = shaderState.aiState.currentAIState;
+      const nextAIState = await getAIState(featureSummary, {
+        previousAIState,
+        updateReason,
+      });
+      const requestMeta = getLastAIRequestMeta();
       const nextLastAIUpdateTime = requestMeta.fallbackActive
         ? shaderState.aiState.lastAIUpdateTime
         : (requestMeta.receivedAtMs || Date.now());
+      const storedAIState = requestMeta.fallbackActive
+        ? previousAIState
+        : blendAIState(previousAIState, nextAIState, getAIBlendAmount(updateReason));
 
       this.shaderMasterStore.getState().setAIState({
-        currentAIState: nextAIState,
+        currentAIState: storedAIState,
         lastAIUpdateTime: nextLastAIUpdateTime,
         aiFallbackActive: requestMeta.fallbackActive,
         aiStale: this._computeAIStale(nextLastAIUpdateTime),
+        musicalState: {
+          phraseState: featureSummary.phraseState,
+          sectionState: featureSummary.sectionState,
+          activityConfidence: featureSummary.activityConfidence,
+          changeStrength: featureSummary.changeStrength,
+          lastCommitReason: requestMeta.fallbackActive
+            ? shaderState.aiState.musicalState.lastCommitReason
+            : updateReason,
+        },
       });
 
+      if (!requestMeta.fallbackActive) {
+        this._lastAICommittedAtFrameMs = frameTimeMs;
+        this._lastCommittedAIPhraseState = featureSummary.phraseState;
+        this._lastCommittedAISectionState = featureSummary.sectionState;
+      }
+
       console.debug('[AI Runtime] Current AI state updated.', {
-        currentAIState: nextAIState,
+        updateReason,
+        currentAIState: storedAIState,
+        rawAIState: nextAIState,
+        phraseState: featureSummary.phraseState,
+        sectionState: featureSummary.sectionState,
+        activityConfidence: featureSummary.activityConfidence,
+        changeStrength: featureSummary.changeStrength,
         lastAIUpdateTime: nextLastAIUpdateTime,
         aiFallbackActive: requestMeta.fallbackActive,
         aiStale: this._computeAIStale(nextLastAIUpdateTime),

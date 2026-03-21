@@ -18,6 +18,7 @@ import {
 } from '../contracts/audioVisualMapping.ts';
 import {
   cloneAIState,
+  cloneAIMusicalState,
   cloneShaderMasterAIState,
   createDefaultShaderMasterAIState,
   type ShaderMasterAIState,
@@ -1076,6 +1077,9 @@ export function createShaderMasterStore(): ShaderMasterStore {
         aiStale: patch.aiStale !== undefined
           ? Boolean(patch.aiStale)
           : state.aiState.aiStale,
+        musicalState: patch.musicalState
+          ? cloneAIMusicalState(patch.musicalState)
+          : cloneAIMusicalState(state.aiState.musicalState),
       };
 
       set({

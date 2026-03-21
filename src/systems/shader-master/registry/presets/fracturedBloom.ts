@@ -66,7 +66,7 @@ void main() {
   float stillness = saturate(u_feelStillness);
   float densityFeel = saturate(u_feelDensity);
 
-  float motionDrive = 0.35 + ((1.0 - stillness) * 1.0);
+  float motionDrive = 0.14 + ((1.0 - stillness) * 1.22);
   float radius = length(centered);
   float midPressure = 0.5 + 0.5 * sin((u_time * motionDrive * (0.8 + (mid * 2.0) + (rumble * 0.5))) + (centered.y * 4.0));
   vec2 pressureOffset = vec2(
@@ -75,17 +75,17 @@ void main() {
   ) * mid * motionDrive * 0.18;
   vec2 warped = rotate2d(
     (u_time * u_speed * motionDrive * (0.18 + (tension * 0.16)))
-    + (fragmentation * 0.72)
+    + (fragmentation * 1.04)
     + ((midPressure - 0.5) * mid * 1.0)
   )
     * (centered + pressureOffset);
   vec2 cellUv = warped * (
     u_shardScale
-    + (fragmentation * 4.8)
-    + (densityFeel * 2.3)
+    + (fragmentation * 6.2)
+    + (densityFeel * 2.8)
     + (mid * 1.8)
     + (bassSmooth * 1.1)
-    + (tension * 1.6)
+    + (tension * 2.2)
     + (flux * 1.2)
   );
   vec2 cell = floor(cellUv);
@@ -111,7 +111,7 @@ void main() {
     }
   }
 
-  float shards = 1.0 - smoothstep(0.08, 0.32 - (fragmentation * 0.12), nearest);
+  float shards = 1.0 - smoothstep(0.08, 0.36 - (fragmentation * 0.18), nearest);
   float edgeSparkle = pow(saturate(1.0 - (nearest * (2.35 - (treble * 1.05) - (flux * 0.3)))), 6.0) * hihat;
   float kickBloom = exp(-radius * (3.3 - (glowFeel * 1.4) - (bassSmooth * 0.8) - (mid * 0.5))) * (
     u_bloom
@@ -128,25 +128,25 @@ void main() {
       -u_time * motionDrive * (0.18 + (treble * 0.26))
     )
   );
-  float fractureBand = pow(saturate(noiseBand - (0.56 - (fragmentation * 0.18))), 2.2);
+  float fractureBand = pow(saturate(noiseBand - (0.64 - (fragmentation * 0.26))), 2.2);
 
-  vec3 tidalTint = mix(vec3(0.86, 0.92, 1.02), vec3(1.12, 0.94, 0.78), saturate(warmth + rumble * 0.18));
+  vec3 tidalTint = mix(vec3(0.88, 0.94, 1.06), vec3(1.18, 0.92, 0.72), saturate((warmth * 0.88) + (rumble * 0.18)));
   vec3 shardColor = mix(u_colorB, u_colorA, saturate(shards + (edgeSparkle * 0.5)));
-  shardColor = mix(shardColor, shardColor * tidalTint, warmth * 0.32);
+  shardColor = mix(shardColor, shardColor * tidalTint, warmth * 0.48);
   vec3 kickColor = mix(
     u_colorA,
     vec3(1.0, 0.95, 0.82),
     saturate(glowFeel + (bassSmooth * 0.5) + (kick * 0.4) + (warmth * 0.2))
   );
   vec3 snareColor = mix(u_colorB, vec3(1.0, 0.96, 0.9), snare * 0.5);
-  vec3 color = shardColor * (0.18 + (shards * (0.84 + (tension * 0.32))));
+  vec3 color = shardColor * (0.18 + (shards * (0.78 + (tension * 0.42))));
   color += kickColor * kickBloom * (0.58 + (noiseBand * 0.42) + (mid * 0.22));
   color += vec3(1.0, 0.98, 0.92) * kickFlash;
   color += snareColor * snareShock;
   color += vec3(1.0, 0.96, 0.9) * edgeSparkle * (0.18 + (hihat * 0.5));
-  color += mix(u_colorA, u_colorB, noiseBand) * tension * 0.18;
-  color += mix(u_colorB, tidalTint, warmth * 0.6) * fractureBand * fragmentation * 0.14;
-  color *= 0.68 + (u_intensity * 0.42) + (tension * 0.16) + (rumble * 0.1);
+  color += mix(u_colorA, u_colorB, noiseBand) * tension * 0.3;
+  color += mix(u_colorB, tidalTint, warmth * 0.6) * fractureBand * fragmentation * 0.24;
+  color *= 0.68 + (u_intensity * 0.42) + (tension * 0.22) + (rumble * 0.1);
 
   gl_FragColor = vec4(color, 1.0);
 }
