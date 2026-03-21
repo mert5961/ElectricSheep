@@ -191,6 +191,15 @@ function formatLatencyProbeStatus(probe: AudioLatencyProbeState | null): string 
   return 'Latency Probe Idle';
 }
 
+function formatAIUpdateTimestamp(timestampMs: number | null): string {
+  if (timestampMs === null) {
+    return 'Awaiting first update';
+  }
+
+  const secondsAgo = Math.max(0, Math.round((Date.now() - timestampMs) / 1000));
+  return `${new Date(timestampMs).toLocaleTimeString()} • ${secondsAgo}s ago`;
+}
+
 function createMeter(accent: string): { element: HTMLDivElement; controller: MeterController } {
   const container = createElement('div', {
     display: 'grid',
@@ -268,6 +277,12 @@ export class DebugSignalsPanel {
 
   private readonly summaryGridEl: HTMLDivElement;
 
+  private readonly aiStatusEl: HTMLDivElement;
+
+  private readonly aiMetaEl: HTMLDivElement;
+
+  private readonly aiStateGridEl: HTMLDivElement;
+
   private readonly audioVisualSoloStatusEl: HTMLDivElement;
 
   private readonly analyzerSourceTagEl: HTMLSpanElement;
@@ -281,6 +296,8 @@ export class DebugSignalsPanel {
   private readonly analyzerErrorEl: HTMLDivElement;
 
   private readonly manualAudioMetaEl: HTMLDivElement;
+
+  private readonly feelingMetaEl: HTMLDivElement;
 
   private readonly diagnosticsDeltaEl: HTMLSpanElement;
 
@@ -1376,18 +1393,52 @@ export class DebugSignalsPanel {
     }, 'Manual mode is active.');
     audioSection.append(this.manualAudioMetaEl);
 
+    const feelingSection = this._createSignalSection(
+      'Feeling',
+      'Global feeling values feeding feeling-sourced uniforms. When AI is active, these controls become read-only mirrors of the effective feeling layer.',
+      FEELING_UNIFORM_SCHEMA,
+      this.feelingControllers,
+      (uniforms) => {
+        onSetFeelingUniforms?.(uniforms);
+      },
+    );
+    this.feelingMetaEl = createElement('div', {
+      fontSize: '11px',
+      color: '#7f8a9a',
+      lineHeight: '1.5',
+    }, 'Manual feeling mode is active.');
+    feelingSection.append(this.feelingMetaEl);
+
     sections.append(
       audioSection,
-      this._createSignalSection(
-        'Feeling',
-        'Global debug feeling values feeding feeling-sourced uniforms. Manual edits here intentionally break out of the active recipe state.',
-        FEELING_UNIFORM_SCHEMA,
-        this.feelingControllers,
-        (uniforms) => {
-          onSetFeelingUniforms?.(uniforms);
-        },
-      ),
+      feelingSection,
     );
+
+    const aiCard = createElement('div', {
+      display: 'grid',
+      gap: '12px',
+      padding: '14px',
+      borderRadius: '16px',
+      border: '1px solid rgba(255,255,255,0.08)',
+      background: 'rgba(255,255,255,0.03)',
+      minHeight: '100%',
+    });
+    this.aiStatusEl = createElement('div', {
+      fontSize: '12px',
+      fontWeight: '600',
+      color: '#d7deea',
+    }, 'AI Layer');
+    this.aiMetaEl = createElement('div', {
+      fontSize: '12px',
+      color: '#7f8a9a',
+      lineHeight: '1.6',
+    }, 'The local Ollama layer updates slowly and only steers macro visual mood controls.');
+    this.aiStateGridEl = createElement('div', {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+      gap: '8px',
+    });
+    aiCard.append(this.aiStatusEl, this.aiMetaEl, this.aiStateGridEl);
 
     const summaryCard = createElement('div', {
       display: 'grid',
@@ -1408,7 +1459,7 @@ export class DebugSignalsPanel {
         fontSize: '12px',
         color: '#7f8a9a',
         lineHeight: '1.6',
-      }, 'These are the effective buckets feeding Shader Master right now. Audio reflects the post-mapping values after solo/gain/threshold/curve tuning.'),
+      }, 'These are the effective buckets feeding Shader Master right now. Audio reflects the post-mapping values after solo/gain/threshold/curve tuning, and feeling reflects the AI-adjusted layer when AI is enabled.'),
     );
     this.summaryGridEl = createElement('div', {
       display: 'grid',
@@ -1416,7 +1467,7 @@ export class DebugSignalsPanel {
       gap: '8px',
     });
     summaryCard.append(this.summaryGridEl);
-    sections.append(summaryCard);
+    sections.append(aiCard, summaryCard);
 
     this.element.append(actionRow, quickRow, analyzerCard, audioVisualCard, sections);
   }
@@ -1426,8 +1477,10 @@ export class DebugSignalsPanel {
     this._updateRecipeStatus(state);
     this._updateAudioAnalyzerState(state, audioInputState);
     this._updateAudioVisualMapping(state);
+    this._updateAIState(state);
     this._updateControllers(this.audioControllers, AUDIO_UNIFORM_SCHEMA, state.audioUniforms);
-    this._updateControllers(this.feelingControllers, FEELING_UNIFORM_SCHEMA, state.feelingUniforms);
+    this._updateControllers(this.feelingControllers, FEELING_UNIFORM_SCHEMA, state.effectiveFeelingUniforms);
+    this._syncFeelingControls(state);
     this._updateSummary(state);
   }
 
@@ -1885,11 +1938,73 @@ export class DebugSignalsPanel {
     });
   }
 
+  private _syncFeelingControls(state: ShaderMasterSnapshot): void {
+    const aiControlsFeeling = state.aiState.aiEnabled;
+
+    this.feelingControllers.forEach((controller) => {
+      controller.input.disabled = aiControlsFeeling;
+      controller.input.style.opacity = aiControlsFeeling ? '0.6' : '1';
+      controller.input.style.cursor = aiControlsFeeling ? 'not-allowed' : 'pointer';
+    });
+
+    this.feelingMetaEl.textContent = aiControlsFeeling
+      ? 'AI is currently driving the effective feeling layer, so these sliders are read-only mirrors of the values reaching the shader.'
+      : 'Manual feeling mode is active.';
+  }
+
+  private _updateAIState(state: ShaderMasterSnapshot): void {
+    const aiState = state.aiState;
+    const currentAIState = aiState.currentAIState;
+
+    this.aiStatusEl.textContent = [
+      aiState.aiEnabled ? 'AI Enabled' : 'AI Disabled',
+      aiState.aiFallbackActive ? 'Fallback Active' : 'Live Response',
+      aiState.aiStale ? 'Stale' : 'Fresh',
+    ].join(' • ');
+    this.aiMetaEl.textContent = `Last update: ${formatAIUpdateTimestamp(aiState.lastAIUpdateTime)}`;
+
+    this.aiStateGridEl.replaceChildren();
+
+    [
+      ['Tension', currentAIState.tension],
+      ['Glow', currentAIState.glow],
+      ['Fragmentation', currentAIState.fragmentation],
+      ['Stillness', currentAIState.stillness],
+      ['Flow Bias', currentAIState.flowBias],
+      ['Warmth', currentAIState.warmth],
+    ].forEach(([label, value]) => {
+      const chip = createElement('div', {
+        display: 'grid',
+        gap: '4px',
+        padding: '9px 10px',
+        borderRadius: '12px',
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.06)',
+      });
+      chip.append(
+        createElement('span', {
+          fontSize: '11px',
+          color: '#7f8a9a',
+          lineHeight: '1.4',
+        }, String(label)),
+        createElement('span', {
+          fontSize: '12px',
+          color: '#edf1f7',
+          fontWeight: '600',
+          fontVariantNumeric: 'tabular-nums',
+        }, Number(value).toFixed(2)),
+      );
+      this.aiStateGridEl.append(chip);
+    });
+  }
+
   private _updateSummary(state: ShaderMasterSnapshot): void {
     this.summaryGridEl.replaceChildren();
 
     [...AUDIO_UNIFORM_SCHEMA, ...FEELING_UNIFORM_SCHEMA].forEach((field) => {
-      const sourceValues = field.source === 'audio' ? state.mappedAudioUniforms : state.feelingUniforms;
+      const sourceValues = field.source === 'audio'
+        ? state.mappedAudioUniforms
+        : state.effectiveFeelingUniforms;
       const numericValue = typeof sourceValues[field.key] === 'number'
         ? sourceValues[field.key] as number
         : Number(field.defaultValue);

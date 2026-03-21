@@ -4,6 +4,7 @@ import type {
   ShaderPresetDefinition,
   UniformValueMap,
 } from '../contracts/types.ts';
+import type { ShaderMasterAIState } from '../contracts/aiState.ts';
 import { resolveFinalUniforms } from './resolveFinalUniforms.ts';
 import { applyShaderUniformValue } from './compileShader.ts';
 import { ShaderCache } from './shaderCache.ts';
@@ -20,6 +21,7 @@ export interface RenderSurfaceOutputOptions {
   runtimeUniforms: UniformValueMap;
   audioUniforms: UniformValueMap;
   feelingUniforms: UniformValueMap;
+  aiState?: ShaderMasterAIState | null;
 }
 
 export function renderSurfaceOutput({
@@ -34,6 +36,7 @@ export function renderSurfaceOutput({
   runtimeUniforms,
   audioUniforms,
   feelingUniforms,
+  aiState = null,
 }: RenderSurfaceOutputOptions): UniformValueMap {
   const resolvedUniforms = resolveFinalUniforms({
     preset,
@@ -41,6 +44,7 @@ export function renderSurfaceOutput({
     runtimeUniforms,
     audioUniforms,
     feelingUniforms,
+    aiState,
   });
 
   const material = shaderCache.getMaterial(preset);
