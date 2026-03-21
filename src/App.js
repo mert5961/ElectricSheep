@@ -21,11 +21,19 @@ import {
   createShaderMasterStore,
 } from './systems/shader-master/store/shaderMasterStore.ts';
 import { buildAudioDefaults } from './systems/shader-master/contracts/uniforms.ts';
+import { AIFeatureTracker } from './systems/shader-master/runtime/aiFeatureTracker.ts';
+import {
+  getAIState,
+  getLastAIRequestMeta,
+} from './systems/shader-master/runtime/getAIState.ts';
 import { ShaderMasterRuntime } from './systems/shader-master/runtime/ShaderMasterRuntime.ts';
 import { AudioAnalyzer } from './systems/audio-analyzer/audioAnalyzer.ts';
 import { createAudioAnalyzerStore } from './systems/audio-analyzer/audioAnalyzerStore.ts';
 import { MappingAssistOverlay } from './overlays/MappingAssistOverlay.js';
 import { OutputStageUI } from './ui/OutputStageUI.js';
+
+const AI_UPDATE_INTERVAL_MS = 1000;
+const AI_STALE_THRESHOLD_MS = 4000;
 
 function audioSignalsToUniformPatch(signals) {
   return {
@@ -67,6 +75,11 @@ export class App {
     this._manualAudioUniforms = buildAudioDefaults();
     this._lastAudioSnapshotRefreshMs = 0;
     this._lastAudioBroadcastMs = 0;
+    this._lastAIRequestStartedAtMs = null;
+    this._aiRequestInFlight = false;
+    this._aiFeatureTracker = role === APP_ROLE_EDITOR
+      ? new AIFeatureTracker()
+      : null;
 
     this.renderer = new RendererManager(canvas);
     this.surfaces = new SurfaceManager(this.renderer.scene, overlayEl);
@@ -651,10 +664,18 @@ export class App {
             { updateUiRevision: false },
           );
           this.audioAnalyzer.recordLatencyProbeSharedFrame(performance.now(), liveSignals);
+          const aiFeatureSummary = this._aiFeatureTracker
+            ? this._aiFeatureTracker.update(liveSignals, frameTimeMs)
+            : null;
+          if (aiFeatureSummary) {
+            this._maybeRequestAIState(aiFeatureSummary, frameTimeMs);
+          }
           this._refreshAudioDrivenUi(frameTimeMs);
           this._scheduleAudioDrivenBroadcast(frameTimeMs);
         }
       }
+
+      this._syncAIStaleState(frameTimeMs);
 
       this.shaderRuntime.render(time);
       if (this.audioAnalyzer && liveSignalsForFrame) {
@@ -777,6 +798,90 @@ export class App {
     }
 
     this._lastAudioBroadcastMs = frameTimeMs;
+    this._scheduleSceneBroadcast();
+  }
+
+  _maybeRequestAIState(featureSummary, frameTimeMs) {
+    const shaderState = this.shaderMasterStore.getState();
+    if (!shaderState.aiState.aiEnabled || this._aiRequestInFlight) {
+      return;
+    }
+
+    if (
+      this._lastAIRequestStartedAtMs !== null
+      && (frameTimeMs - this._lastAIRequestStartedAtMs) < AI_UPDATE_INTERVAL_MS
+    ) {
+      return;
+    }
+
+    this._lastAIRequestStartedAtMs = frameTimeMs;
+    this._aiRequestInFlight = true;
+    console.debug('[AI Runtime] Requesting AI state.', featureSummary);
+    void this._requestAIState(featureSummary);
+  }
+
+  async _requestAIState(featureSummary) {
+    try {
+      const nextAIState = await getAIState(featureSummary);
+      const requestMeta = getLastAIRequestMeta();
+      const shaderState = this.shaderMasterStore.getState();
+      const nextLastAIUpdateTime = requestMeta.fallbackActive
+        ? shaderState.aiState.lastAIUpdateTime
+        : (requestMeta.receivedAtMs || Date.now());
+
+      this.shaderMasterStore.getState().setAIState({
+        currentAIState: nextAIState,
+        lastAIUpdateTime: nextLastAIUpdateTime,
+        aiFallbackActive: requestMeta.fallbackActive,
+        aiStale: this._computeAIStale(nextLastAIUpdateTime),
+      });
+
+      console.debug('[AI Runtime] Current AI state updated.', {
+        currentAIState: nextAIState,
+        lastAIUpdateTime: nextLastAIUpdateTime,
+        aiFallbackActive: requestMeta.fallbackActive,
+        aiStale: this._computeAIStale(nextLastAIUpdateTime),
+      });
+
+      this._updateShaderMasterUi();
+      this._scheduleSceneBroadcast();
+    } finally {
+      this._aiRequestInFlight = false;
+    }
+  }
+
+  _computeAIStale(lastAIUpdateTime, frameTimeMs = null) {
+    if (lastAIUpdateTime !== null) {
+      return (Date.now() - lastAIUpdateTime) > AI_STALE_THRESHOLD_MS;
+    }
+
+    if (frameTimeMs === null || this._lastAIRequestStartedAtMs === null) {
+      return false;
+    }
+
+    return (frameTimeMs - this._lastAIRequestStartedAtMs) > AI_STALE_THRESHOLD_MS;
+  }
+
+  _syncAIStaleState(frameTimeMs) {
+    const shaderState = this.shaderMasterStore.getState();
+    if (!shaderState.aiState.aiEnabled) {
+      return;
+    }
+
+    const nextStale = this._computeAIStale(shaderState.aiState.lastAIUpdateTime, frameTimeMs);
+    if (nextStale === shaderState.aiState.aiStale) {
+      return;
+    }
+
+    console.debug('[AI Runtime] AI stale status changed.', {
+      aiStale: nextStale,
+      lastAIUpdateTime: shaderState.aiState.lastAIUpdateTime,
+      aiFallbackActive: shaderState.aiState.aiFallbackActive,
+    });
+    this.shaderMasterStore.getState().setAIState({
+      aiStale: nextStale,
+    });
+    this._updateShaderMasterUi();
     this._scheduleSceneBroadcast();
   }
 

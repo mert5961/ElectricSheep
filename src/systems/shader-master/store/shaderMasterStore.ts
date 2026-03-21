@@ -16,6 +16,12 @@ import {
   type AudioVisualMappingState,
   type AudioVisualSignalUniformKey,
 } from '../contracts/audioVisualMapping.ts';
+import {
+  cloneAIState,
+  cloneShaderMasterAIState,
+  createDefaultShaderMasterAIState,
+  type ShaderMasterAIState,
+} from '../contracts/aiState.ts';
 import type {
   ShaderMasterSnapshot,
   ShaderOutput,
@@ -39,8 +45,8 @@ import {
   cloneVisualStateRuntimeSnapshot,
 } from '../contracts/visualStateRecipe.ts';
 import { listPresetCatalog, presetRegistry } from '../registry/presetRegistry.ts';
+import { buildEffectiveFeelingUniforms, resolveFinalUniforms } from '../runtime/resolveFinalUniforms.ts';
 import { resolveMappedAudioUniforms } from '../runtime/resolveMappedAudioUniforms.ts';
-import { resolveFinalUniforms } from '../runtime/resolveFinalUniforms.ts';
 import { resolveVisualStateRecipe } from '../validation/resolveVisualStateRecipe.ts';
 import { validateUniformValue } from '../validation/validateUniformValue.ts';
 
@@ -61,6 +67,7 @@ export interface ShaderMasterStoreState extends InternalShaderMasterState {
   audioUniforms: UniformValueMap;
   audioVisualMapping: AudioVisualMappingState;
   feelingUniforms: UniformValueMap;
+  aiState: ShaderMasterAIState;
   currentVisualState: ResolvedVisualState | null;
   targetVisualState: ResolvedVisualState | null;
   activeVisualStateTransition: VisualStateTransitionState | null;
@@ -89,6 +96,8 @@ export interface ShaderMasterStoreState extends InternalShaderMasterState {
   setAudioVisualSoloKey: (key: AudioVisualSignalUniformKey | null) => void;
   resetAudioVisualMapping: () => void;
   setFeelingUniforms: (uniforms: Partial<UniformValueMap>) => void;
+  setAIState: (patch: Partial<ShaderMasterAIState>) => void;
+  setAIEnabled: (enabled: boolean) => void;
   resetAudioUniforms: () => void;
   resetFeelingUniforms: () => void;
   resetAllDebugSignals: () => void;
@@ -276,6 +285,7 @@ function buildOutputSnapshot(
           runtimeUniforms: state.runtimeUniforms,
           audioUniforms: mappedAudioUniforms,
           feelingUniforms: state.feelingUniforms,
+          aiState: state.aiState,
         })
       : cloneUniformMap(output.uniforms),
   };
@@ -653,6 +663,7 @@ export function createShaderMasterStore(): ShaderMasterStore {
     audioUniforms: buildAudioDefaults(),
     audioVisualMapping: createDefaultAudioVisualMappingState(),
     feelingUniforms: buildFeelingDefaults(),
+    aiState: createDefaultShaderMasterAIState(),
     currentVisualState: null,
     targetVisualState: null,
     activeVisualStateTransition: null,
@@ -1047,6 +1058,48 @@ export function createShaderMasterStore(): ShaderMasterStore {
       });
     },
 
+    setAIState: (patch) => {
+      const state = get();
+      const nextAIState: ShaderMasterAIState = {
+        currentAIState: patch.currentAIState
+          ? cloneAIState(patch.currentAIState)
+          : cloneAIState(state.aiState.currentAIState),
+        lastAIUpdateTime: patch.lastAIUpdateTime !== undefined
+          ? patch.lastAIUpdateTime
+          : state.aiState.lastAIUpdateTime,
+        aiEnabled: patch.aiEnabled !== undefined
+          ? Boolean(patch.aiEnabled)
+          : state.aiState.aiEnabled,
+        aiFallbackActive: patch.aiFallbackActive !== undefined
+          ? Boolean(patch.aiFallbackActive)
+          : state.aiState.aiFallbackActive,
+        aiStale: patch.aiStale !== undefined
+          ? Boolean(patch.aiStale)
+          : state.aiState.aiStale,
+      };
+
+      set({
+        aiState: nextAIState,
+        uiRevision: incrementUiRevision(state),
+      });
+    },
+
+    setAIEnabled: (enabled) => {
+      const state = get();
+      if (state.aiState.aiEnabled === enabled) {
+        return;
+      }
+
+      set({
+        aiState: {
+          ...cloneShaderMasterAIState(state.aiState),
+          aiEnabled: enabled,
+          aiStale: enabled ? state.aiState.aiStale : false,
+        },
+        uiRevision: incrementUiRevision(state),
+      });
+    },
+
     resetAudioUniforms: () => {
       const state = get();
       set({
@@ -1295,6 +1348,9 @@ export function createShaderMasterStore(): ShaderMasterStore {
         audioUniforms: cloneUniformMap(snapshot.audioUniforms),
         audioVisualMapping: cloneAudioVisualMappingState(snapshot.audioVisualMapping),
         feelingUniforms: cloneUniformMap(snapshot.feelingUniforms),
+        aiState: snapshot.aiState
+          ? cloneShaderMasterAIState(snapshot.aiState)
+          : createDefaultShaderMasterAIState(),
         currentVisualState: snapshot.visualState
           ? cloneResolvedVisualState(snapshot.visualState.current)
           : null,
@@ -1345,6 +1401,10 @@ export function createShaderMasterSnapshot(
   state: ShaderMasterStoreState,
 ): ShaderMasterSnapshot {
   const mappedAudioUniforms = buildMappedAudioUniforms(state);
+  const effectiveFeelingUniforms = buildEffectiveFeelingUniforms(
+    state.feelingUniforms,
+    state.aiState,
+  );
   return {
     revision: state.uiRevision,
     presets: listPresetCatalog(),
@@ -1358,6 +1418,8 @@ export function createShaderMasterSnapshot(
     mappedAudioUniforms,
     audioVisualMapping: cloneAudioVisualMappingState(state.audioVisualMapping),
     feelingUniforms: cloneUniformMap(state.feelingUniforms),
+    effectiveFeelingUniforms,
+    aiState: cloneShaderMasterAIState(state.aiState),
     visualState: buildVisualStateSnapshot(state),
   };
 }

@@ -91,6 +91,7 @@ export class ShaderMasterRuntime {
         runtimeUniforms: latestState.runtimeUniforms,
         audioUniforms: mappedAudioUniforms,
         feelingUniforms: latestState.feelingUniforms,
+        aiState: latestState.aiState,
       });
     });
   }
