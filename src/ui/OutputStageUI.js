@@ -13,9 +13,10 @@ export class OutputStageUI {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '32px',
-      background: 'rgba(4, 6, 9, 0.52)',
+      background: 'rgba(3, 7, 3, 0.72)',
       backdropFilter: 'blur(10px)',
       pointerEvents: 'auto',
+      fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace',
     });
 
     const card = document.createElement('div');
@@ -24,21 +25,22 @@ export class OutputStageUI {
       display: 'grid',
       gap: '14px',
       padding: '24px',
-      borderRadius: '20px',
-      background: 'linear-gradient(180deg, rgba(14,18,24,0.94) 0%, rgba(9,12,17,0.9) 100%)',
-      border: '1px solid rgba(255,255,255,0.12)',
-      boxShadow: '0 28px 80px rgba(0, 0, 0, 0.42)',
-      color: '#edf1f7',
+      borderRadius: '4px',
+      background: 'linear-gradient(180deg, rgba(8, 18, 8, 0.98) 0%, rgba(5, 12, 5, 0.98) 100%)',
+      border: '1px solid rgba(120, 170, 96, 0.24)',
+      boxShadow: 'inset 0 0 0 1px rgba(189,255,172,0.03), 0 0 24px rgba(64, 120, 54, 0.12)',
+      color: '#d5f7c4',
       textAlign: 'center',
+      textShadow: '0 0 8px rgba(154, 255, 138, 0.12)',
     });
 
     const eyebrow = document.createElement('div');
     eyebrow.textContent = 'Output Window';
     Object.assign(eyebrow.style, {
       fontSize: '11px',
-      letterSpacing: '0.12em',
+      letterSpacing: '0.18em',
       textTransform: 'uppercase',
-      color: '#8fa1b9',
+      color: '#7fa96f',
     });
 
     const title = document.createElement('div');
@@ -46,7 +48,9 @@ export class OutputStageUI {
     Object.assign(title.style, {
       fontSize: '24px',
       fontWeight: '700',
-      color: '#f6f8fb',
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
+      color: '#efffdc',
     });
 
     this._messageEl = document.createElement('p');
@@ -54,7 +58,7 @@ export class OutputStageUI {
     Object.assign(this._messageEl.style, {
       fontSize: '14px',
       lineHeight: '1.6',
-      color: '#b8c2d1',
+      color: '#9dc18b',
     });
 
     this._buttonEl = document.createElement('button');
@@ -64,13 +68,16 @@ export class OutputStageUI {
       justifySelf: 'center',
       minWidth: '200px',
       padding: '12px 18px',
-      borderRadius: '999px',
-      border: '1px solid rgba(255, 194, 109, 0.32)',
-      background: 'linear-gradient(135deg, rgba(255, 180, 84, 0.32) 0%, rgba(255, 220, 168, 0.14) 100%)',
-      color: '#fff4df',
-      fontSize: '14px',
+      borderRadius: '2px',
+      border: '1px solid rgba(120, 170, 96, 0.28)',
+      background: 'linear-gradient(180deg, rgba(15, 30, 14, 0.96) 0%, rgba(7, 18, 7, 0.98) 100%)',
+      color: '#d5f7c4',
+      fontSize: '13px',
       fontWeight: '600',
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
       cursor: 'pointer',
+      boxShadow: 'inset 0 0 0 1px rgba(189,255,172,0.03), 0 0 12px rgba(116,255,108,0.05)',
     });
     this._buttonEl.addEventListener('click', () => {
       if (this.onEnterFullscreen) {
@@ -82,7 +89,7 @@ export class OutputStageUI {
     hint.textContent = 'Browser security may block fullscreen unless this window receives the click directly.';
     Object.assign(hint.style, {
       fontSize: '12px',
-      color: '#8c98aa',
+      color: '#8fb181',
       lineHeight: '1.5',
     });
 

@@ -1,5 +1,12 @@
 import type { ShaderMasterSnapshot } from '../contracts/types.ts';
-import { createButton, createCardShell, createElement, createTag, setButtonEnabled } from './dom.ts';
+import {
+  FIELD_BASE_STYLES,
+  createButton,
+  createCardShell,
+  createElement,
+  createTag,
+  setButtonEnabled,
+} from './dom.ts';
 import { PresetSelector } from './PresetSelector.ts';
 
 export class OutputsPanel {
@@ -78,9 +85,9 @@ export class OutputsPanel {
       display: 'grid',
       gap: '12px',
       padding: '14px',
-      borderRadius: '14px',
-      border: '1px solid rgba(255,255,255,0.08)',
-      background: 'rgba(255,255,255,0.03)',
+      borderRadius: '3px',
+      border: '1px solid rgba(120, 170, 96, 0.18)',
+      background: 'rgba(8, 16, 8, 0.72)',
     });
 
     const renameGroup = createElement('div', {
@@ -92,18 +99,11 @@ export class OutputsPanel {
         fontSize: '11px',
         letterSpacing: '0.08em',
         textTransform: 'uppercase',
-        color: '#7b8797',
+        color: '#7fa96f',
       }, 'Name'),
     );
     this.renameInputEl = createElement('input', {
-      width: '100%',
-      background: 'rgba(255,255,255,0.06)',
-      color: '#edf1f7',
-      border: '1px solid rgba(255,255,255,0.12)',
-      borderRadius: '10px',
-      padding: '10px 12px',
-      fontSize: '13px',
-      outline: 'none',
+      ...FIELD_BASE_STYLES,
     });
     this.renameInputEl.addEventListener('change', () => {
       if (this.selectedOutputId) {
@@ -121,7 +121,7 @@ export class OutputsPanel {
         fontSize: '11px',
         letterSpacing: '0.08em',
         textTransform: 'uppercase',
-        color: '#7b8797',
+        color: '#7fa96f',
       }, 'Preset'),
     );
     this.detailPresetSelector = new PresetSelector((presetId) => {
@@ -135,7 +135,7 @@ export class OutputsPanel {
       display: 'flex',
       alignItems: 'center',
       gap: '10px',
-      color: '#d5dce7',
+      color: '#c9ecb7',
       fontSize: '13px',
       cursor: 'pointer',
     });
@@ -162,8 +162,8 @@ export class OutputsPanel {
         onDeleteOutput(this.selectedOutputId);
       }
     }, {
-      borderColor: 'rgba(255, 119, 119, 0.18)',
-      color: '#ffb3b3',
+      borderColor: 'rgba(120, 170, 96, 0.28)',
+      color: '#d5f7c4',
     });
     actionRow.append(this.duplicateButtonEl, this.deleteButtonEl);
 
@@ -198,12 +198,13 @@ export class OutputsPanel {
       if (state.outputs.length === 0) {
         this.listEl.append(
           createElement('div', {
-            padding: '16px',
-            borderRadius: '14px',
-            border: '1px dashed rgba(255,255,255,0.12)',
-            color: '#7f8a9a',
+          padding: '16px',
+            borderRadius: '2px',
+            border: '1px dashed rgba(120, 170, 96, 0.24)',
+            color: '#86a675',
             fontSize: '13px',
             textAlign: 'center',
+            background: 'rgba(8, 16, 8, 0.62)',
           }, 'No outputs yet. Create one from a preset.'),
         );
       }
@@ -217,12 +218,13 @@ export class OutputsPanel {
           alignItems: 'center',
           width: '100%',
           padding: '14px',
-          borderRadius: '14px',
-          border: isSelected ? '1px solid rgba(231, 176, 83, 0.42)' : '1px solid rgba(255,255,255,0.08)',
-          background: isSelected ? 'rgba(118, 83, 25, 0.22)' : 'rgba(255,255,255,0.03)',
-          color: '#edf1f7',
+          borderRadius: '3px',
+          border: isSelected ? '1px solid rgba(166, 223, 134, 0.42)' : '1px solid rgba(120, 170, 96, 0.18)',
+          background: isSelected ? 'rgba(20, 38, 18, 0.82)' : 'rgba(8, 16, 8, 0.72)',
+          color: '#d5f7c4',
           textAlign: 'left',
           cursor: 'pointer',
+          boxShadow: isSelected ? '0 0 16px rgba(116, 255, 108, 0.1)' : 'none',
         });
         row.type = 'button';
         row.addEventListener('click', () => {
@@ -240,7 +242,7 @@ export class OutputsPanel {
           }, output.name),
           createElement('span', {
             fontSize: '12px',
-            color: '#8a95a6',
+            color: '#8fb181',
           }, output.presetLabel),
         );
 
@@ -252,14 +254,14 @@ export class OutputsPanel {
         tags.append(
           createTag(output.enabled ? 'Enabled' : 'Disabled', output.enabled
             ? {
-                background: 'rgba(64, 125, 93, 0.28)',
-                borderColor: 'rgba(85, 185, 129, 0.24)',
-                color: '#b9f5d5',
+                background: 'rgba(20, 38, 18, 0.9)',
+                borderColor: 'rgba(166, 223, 134, 0.26)',
+                color: '#d5f7c4',
               }
             : {
-                background: 'rgba(110, 56, 56, 0.28)',
-                borderColor: 'rgba(174, 88, 88, 0.24)',
-                color: '#ffb5b5',
+                background: 'rgba(10, 17, 9, 0.9)',
+                borderColor: 'rgba(120, 170, 96, 0.18)',
+                color: '#88a675',
               }),
         );
 

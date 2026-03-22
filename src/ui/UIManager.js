@@ -23,6 +23,41 @@ function createText(tagName, text, style = {}) {
   return element;
 }
 
+const RETRO_FONT = '"IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace';
+const RETRO_TEXT = '#d5f7c4';
+const RETRO_TEXT_STRONG = '#f0ffe2';
+const RETRO_MUTED = '#8fb181';
+const RETRO_LABEL = '#7fa96f';
+const RETRO_ACCENT = '#9ddf74';
+const RETRO_ACCENT_STRONG = '#baff9f';
+const RETRO_BORDER = 'rgba(120, 170, 96, 0.22)';
+
+function ensureRetroUiEffects() {
+  if (document.getElementById('electric-sheep-retro-ui-effects')) {
+    return;
+  }
+
+  const style = document.createElement('style');
+  style.id = 'electric-sheep-retro-ui-effects';
+  style.textContent = `
+    @keyframes electric-sheep-retro-flicker {
+      0%, 100% { opacity: 1; }
+      7% { opacity: 0.985; }
+      8% { opacity: 1; }
+      52% { opacity: 0.972; }
+      53% { opacity: 1; }
+      78% { opacity: 0.992; }
+      79% { opacity: 1; }
+    }
+
+    @keyframes electric-sheep-retro-scan {
+      0% { transform: translateY(-1.5%); }
+      100% { transform: translateY(1.5%); }
+    }
+  `;
+  document.head.append(style);
+}
+
 export class UIManager {
   constructor(uiEl) {
     this._uiEl = uiEl;
@@ -226,6 +261,8 @@ export class UIManager {
   }
 
   _build() {
+    ensureRetroUiEffects();
+
     this._shell = document.createElement('div');
     Object.assign(this._shell.style, {
       position: 'absolute',
@@ -234,22 +271,68 @@ export class UIManager {
       flexDirection: 'column',
       gap: '18px',
       padding: '18px',
+      overflow: 'hidden',
       pointerEvents: 'none',
+      fontFamily: RETRO_FONT,
+      color: RETRO_TEXT,
+      textShadow: '0 0 8px rgba(154, 255, 138, 0.12)',
+      zIndex: '1',
+      isolation: 'isolate',
+    });
+
+    const vignetteOverlay = document.createElement('div');
+    Object.assign(vignetteOverlay.style, {
+      position: 'absolute',
+      inset: '0',
+      pointerEvents: 'none',
+      background: 'radial-gradient(circle at center, transparent 52%, rgba(2, 6, 2, 0.42) 100%)',
+      zIndex: '0',
+    });
+
+    const scanlineOverlay = document.createElement('div');
+    Object.assign(scanlineOverlay.style, {
+      position: 'absolute',
+      inset: '-2%',
+      pointerEvents: 'none',
+      background: 'repeating-linear-gradient(180deg, rgba(170, 255, 150, 0.06) 0 1px, transparent 1px 4px)',
+      mixBlendMode: 'screen',
+      opacity: '0.24',
+      animation: 'electric-sheep-retro-scan 14s linear infinite',
+      zIndex: '0',
+    });
+
+    const dustOverlay = document.createElement('div');
+    Object.assign(dustOverlay.style, {
+      position: 'absolute',
+      inset: '0',
+      pointerEvents: 'none',
+      opacity: '0.08',
+      backgroundImage: [
+        'radial-gradient(circle at 18% 22%, rgba(191,255,174,0.8) 0 0.6px, transparent 0.7px)',
+        'radial-gradient(circle at 74% 31%, rgba(191,255,174,0.55) 0 0.5px, transparent 0.7px)',
+        'radial-gradient(circle at 63% 72%, rgba(191,255,174,0.5) 0 0.5px, transparent 0.7px)',
+        'radial-gradient(circle at 29% 78%, rgba(191,255,174,0.45) 0 0.45px, transparent 0.7px)',
+      ].join(','),
+      animation: 'electric-sheep-retro-flicker 12s step-end infinite',
+      zIndex: '0',
     });
 
     this._topbar = this._buildTopbar();
+    this._topbar.style.position = 'relative';
+    this._topbar.style.zIndex = '1';
     this._content = document.createElement('div');
     Object.assign(this._content.style, {
       position: 'relative',
       flex: '1',
       minHeight: '0',
+      zIndex: '1',
     });
 
     this._geoModuleEl = this._buildGeoModule();
     this._shaderModuleEl = this._buildShaderModule();
 
     this._content.append(this._geoModuleEl, this._shaderModuleEl);
-    this._shell.append(this._topbar, this._content);
+    this._shell.append(vignetteOverlay, scanlineOverlay, dustOverlay, this._topbar, this._content);
     this._uiEl.append(this._shell);
 
     this._syncModuleButtons();
@@ -272,11 +355,10 @@ export class UIManager {
       alignItems: 'center',
       gap: '18px',
       padding: '14px 18px',
-      borderRadius: '22px',
-      background: 'linear-gradient(180deg, rgba(9,12,17,0.92) 0%, rgba(10,14,20,0.84) 100%)',
-      border: '1px solid rgba(255,255,255,0.08)',
-      boxShadow: '0 24px 70px rgba(0, 0, 0, 0.35)',
-      backdropFilter: 'blur(16px)',
+      borderRadius: '4px',
+      background: 'linear-gradient(180deg, rgba(8, 18, 8, 0.98) 0%, rgba(5, 12, 5, 0.98) 100%)',
+      border: `1px solid ${RETRO_BORDER}`,
+      boxShadow: 'inset 0 0 0 1px rgba(189,255,172,0.03), 0 0 28px rgba(74, 136, 60, 0.12)',
       pointerEvents: 'auto',
     });
 
@@ -287,15 +369,16 @@ export class UIManager {
     });
     identity.append(
       createText('div', 'Electric Sheep', {
-        color: '#eef3fb',
         fontSize: '18px',
         fontWeight: '700',
-        letterSpacing: '0.01em',
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+        color: RETRO_TEXT_STRONG,
       }),
       createText('div', 'AI-driven projection mapping and visual orchestration', {
-        color: '#7f8fa4',
+        color: RETRO_MUTED,
         fontSize: '12px',
-        lineHeight: '1.4',
+        lineHeight: '1.5',
       }),
     );
 
@@ -305,9 +388,9 @@ export class UIManager {
       alignItems: 'center',
       gap: '8px',
       padding: '6px',
-      borderRadius: '999px',
-      background: 'rgba(255,255,255,0.04)',
-      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: '2px',
+      background: 'rgba(8, 16, 8, 0.76)',
+      border: `1px solid ${RETRO_BORDER}`,
       justifySelf: 'start',
     });
     tabs.append(
@@ -329,7 +412,7 @@ export class UIManager {
     this._openOutputBtn = this._createButton('Open Output', () => {
       if (this.onOpenOutputWindow) this.onOpenOutputWindow();
     }, {
-      accent: '#e7b053',
+      accent: RETRO_ACCENT,
       active: true,
     });
     this._focusOutputBtn = this._createButton('Focus Output', () => {
@@ -338,7 +421,7 @@ export class UIManager {
     this._fullscreenOutputBtn = this._createButton('Fullscreen Output', () => {
       if (this.onFullscreenOutputWindow) this.onFullscreenOutputWindow();
     }, {
-      accent: '#66d4ff',
+      accent: RETRO_ACCENT,
     });
 
     controls.append(
@@ -369,7 +452,9 @@ export class UIManager {
       gap: '14px',
       padding: '18px',
       pointerEvents: 'auto',
-      overflow: 'hidden',
+      overflowX: 'hidden',
+      overflowY: 'auto',
+      paddingRight: '10px',
     });
 
     const geoHeader = document.createElement('div');
@@ -379,12 +464,14 @@ export class UIManager {
     });
     geoHeader.append(
       createText('div', 'GEO Workspace', {
-        color: '#eef3fb',
         fontSize: '18px',
         fontWeight: '700',
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+        color: RETRO_TEXT_STRONG,
       }),
       createText('div', 'Projection geometry, surface editing, feathering, and layer order live here.', {
-        color: '#8a99ad',
+        color: RETRO_MUTED,
         fontSize: '12px',
         lineHeight: '1.5',
       }),
@@ -392,19 +479,19 @@ export class UIManager {
 
     const selectionSection = this._createSection('Surface');
     this._surfaceLabel = createText('div', 'No surface selected', {
-      color: '#eef3fb',
+      color: RETRO_TEXT_STRONG,
       fontSize: '16px',
       fontWeight: '600',
     });
     this._surfaceMetaLabel = createText('div', 'Add a surface or click one directly on the stage to begin mapping.', {
-      color: '#8a99ad',
+      color: RETRO_MUTED,
       fontSize: '12px',
       lineHeight: '1.5',
     });
     const addSurfaceBtn = this._createButton('+ Add Surface', () => {
       if (this.onAddSurface) this.onAddSurface();
     }, {
-      accent: '#9ad18b',
+      accent: RETRO_ACCENT,
       active: true,
       fullWidth: true,
     });
@@ -467,7 +554,7 @@ export class UIManager {
     layerSection.append(this._surfaceOrderLabel, orderButtons);
 
     const featherSection = this._createSection('Feather & Masking');
-    const surfaceFeatherGroup = this._createSliderGroup('Surface Feather', '#66d4ff', MAX_SURFACE_FEATHER, (value) => {
+    const surfaceFeatherGroup = this._createSliderGroup('Surface Feather', RETRO_ACCENT, MAX_SURFACE_FEATHER, (value) => {
       if (this.onFeatherChange) this.onFeatherChange(value);
     });
     this._featherSlider = surfaceFeatherGroup.input;
@@ -499,7 +586,7 @@ export class UIManager {
       this._prevSubtractBtn,
       this._nextSubtractBtn,
     );
-    const subtractFeatherGroup = this._createSliderGroup('Subtract Feather', '#ff6f61', MAX_SUBTRACT_FEATHER, (value) => {
+    const subtractFeatherGroup = this._createSliderGroup('Subtract Feather', RETRO_ACCENT, MAX_SUBTRACT_FEATHER, (value) => {
       if (this.onSubtractFeatherChange) this.onSubtractFeatherChange(value);
     });
     this._subtractFeatherSlider = subtractFeatherGroup.input;
@@ -509,7 +596,7 @@ export class UIManager {
     const helpSection = this._createSection('Stage Notes');
     helpSection.append(
       createText('div', 'Drag the visible handles directly on the stage. GEO keeps the spatial layout while SHADER handles preset logic and uniforms.', {
-        color: '#8a99ad',
+        color: RETRO_MUTED,
         fontSize: '12px',
         lineHeight: '1.6',
       }),
@@ -549,13 +636,14 @@ export class UIManager {
     });
     stageCopy.append(
       createText('div', 'GEO', {
-        color: '#eef3fb',
+        color: RETRO_TEXT_STRONG,
         fontSize: '28px',
         fontWeight: '700',
-        letterSpacing: '0.02em',
+        letterSpacing: '0.16em',
+        textTransform: 'uppercase',
       }),
       createText('div', 'This workspace stays centered on spatial editing. Use the stage itself for handles, while the side panels keep mapping controls organized.', {
-        color: '#9aa8bb',
+        color: RETRO_MUTED,
         fontSize: '13px',
         lineHeight: '1.65',
       }),
@@ -576,14 +664,15 @@ export class UIManager {
     Object.assign(stageCanvasFrame.style, {
       position: 'relative',
       minHeight: '0',
-      borderRadius: '28px',
-      border: '1px dashed rgba(255,255,255,0.08)',
+      borderRadius: '4px',
+      border: `1px dashed ${RETRO_BORDER}`,
       background: [
-        'linear-gradient(0deg, rgba(255,255,255,0.02) 1px, transparent 1px)',
-        'linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)',
+        'radial-gradient(circle at top, rgba(170,255,150,0.08), transparent 34%)',
+        'linear-gradient(0deg, rgba(170,255,150,0.03) 1px, transparent 1px)',
+        'linear-gradient(90deg, rgba(170,255,150,0.03) 1px, transparent 1px)',
       ].join(','),
-      backgroundSize: '72px 72px',
-      boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.03)',
+      backgroundSize: 'auto, 72px 72px, 72px 72px',
+      boxShadow: 'inset 0 0 0 1px rgba(189,255,172,0.03), 0 0 18px rgba(74, 136, 60, 0.08)',
     });
 
     const stageFooter = createText('div', 'The projector output window remains separate. This main window is the operator console for GEO and SHADER.', {
@@ -604,9 +693,11 @@ export class UIManager {
     });
     surfacesCard.append(
       createText('div', 'Surface Navigator', {
-        color: '#eef3fb',
+        color: RETRO_TEXT_STRONG,
         fontSize: '16px',
         fontWeight: '700',
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
       }),
     );
     this._geoSurfaceListEl = document.createElement('div');
@@ -650,24 +741,26 @@ export class UIManager {
     });
     copy.append(
       createText('div', 'SHADER Workspace', {
-        color: '#eef3fb',
+        color: RETRO_TEXT_STRONG,
         fontSize: '20px',
         fontWeight: '700',
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
       }),
       createText('div', 'Outputs, presets, assignments, and uniforms live here. GEO keeps the stage geometry independent.', {
-        color: '#8a99ad',
+        color: RETRO_MUTED,
         fontSize: '13px',
         lineHeight: '1.6',
       }),
     );
     this._shaderSummaryEl = createText('div', '0 outputs • 0 surfaces', {
-      color: '#d7deea',
+      color: RETRO_TEXT,
       fontSize: '13px',
       fontWeight: '600',
       padding: '10px 14px',
-      borderRadius: '999px',
-      background: 'rgba(255,255,255,0.05)',
-      border: '1px solid rgba(255,255,255,0.1)',
+      borderRadius: '2px',
+      background: 'rgba(8, 16, 8, 0.76)',
+      border: `1px solid ${RETRO_BORDER}`,
       whiteSpace: 'nowrap',
     });
     headerCard.append(copy, this._shaderSummaryEl);
@@ -786,7 +879,7 @@ export class UIManager {
         this.onModuleChange(module);
       }
     }, {
-      accent: module === EDITOR_MODULE_GEO ? '#66d4ff' : '#f2a756',
+      accent: RETRO_ACCENT,
       pill: true,
     });
     this._moduleButtons.set(module, button);
@@ -797,7 +890,7 @@ export class UIManager {
     const button = this._createButton(label, () => {
       if (this.onPreviewModeChange) this.onPreviewModeChange(mode);
     }, {
-      accent: '#9ad18b',
+      accent: RETRO_ACCENT,
     });
     this._previewButtons.set(mode, button);
     return button;
@@ -807,18 +900,14 @@ export class UIManager {
     const button = this._createButton(label, () => {
       if (this.onOutputDisplayModeChange) this.onOutputDisplayModeChange(mode);
     }, {
-      accent: '#f2a756',
+      accent: RETRO_ACCENT,
     });
     this._outputModeButtons.set(mode, button);
     return button;
   }
 
   _createEditTargetButton(label, target) {
-    const accent = target === EDIT_TARGET_SURFACE
-      ? '#66d4ff'
-      : target === EDIT_TARGET_CONTENT
-        ? '#ffb454'
-        : '#ff6f61';
+    const accent = RETRO_ACCENT;
 
     const button = this._createButton(label, () => {
       if (!this._hasActiveSurface) return;
@@ -836,15 +925,15 @@ export class UIManager {
       display: 'grid',
       gap: '10px',
       padding: '14px',
-      borderRadius: '18px',
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.06)',
+      borderRadius: '3px',
+      background: 'rgba(8, 16, 8, 0.78)',
+      border: `1px solid ${RETRO_BORDER}`,
     });
     section.append(
       createText('div', label, {
-        color: '#6f7f93',
+        color: RETRO_LABEL,
         fontSize: '11px',
-        letterSpacing: '0.12em',
+        letterSpacing: '0.16em',
         textTransform: 'uppercase',
       }),
     );
@@ -859,7 +948,7 @@ export class UIManager {
     });
     group.append(
       createText('div', label, {
-        color: '#aeb9c8',
+        color: RETRO_TEXT,
         fontSize: '12px',
         fontWeight: '600',
       }),
@@ -877,11 +966,10 @@ export class UIManager {
   _createCard(style = {}) {
     const card = document.createElement('div');
     Object.assign(card.style, {
-      borderRadius: '28px',
-      background: 'linear-gradient(180deg, rgba(10,13,18,0.88) 0%, rgba(8,10,14,0.76) 100%)',
-      border: '1px solid rgba(255,255,255,0.08)',
-      boxShadow: '0 24px 60px rgba(0, 0, 0, 0.32)',
-      backdropFilter: 'blur(16px)',
+      borderRadius: '4px',
+      background: 'linear-gradient(180deg, rgba(8, 18, 8, 0.98) 0%, rgba(5, 12, 5, 0.98) 100%)',
+      border: `1px solid ${RETRO_BORDER}`,
+      boxShadow: 'inset 0 0 0 1px rgba(189,255,172,0.03), 0 0 24px rgba(64, 120, 54, 0.12)',
       minHeight: '0',
     }, style);
     return card;
@@ -894,12 +982,13 @@ export class UIManager {
       justifyContent: 'center',
       gap: '8px',
       padding: '8px 12px',
-      borderRadius: '999px',
+      borderRadius: '2px',
       background: accent ? `${accent}20` : 'rgba(255,255,255,0.05)',
-      border: accent ? `1px solid ${accent}55` : '1px solid rgba(255,255,255,0.1)',
-      color: accent || '#d7deea',
+      border: accent ? `1px solid ${accent}55` : `1px solid ${RETRO_BORDER}`,
+      color: accent || RETRO_TEXT,
       fontSize: '12px',
       fontWeight: '600',
+      fontFamily: RETRO_FONT,
       whiteSpace: 'nowrap',
     });
     return badge;
@@ -921,13 +1010,13 @@ export class UIManager {
     });
 
     const title = createText('div', label, {
-      color: '#d7deea',
+      color: RETRO_TEXT,
       fontSize: '13px',
       fontWeight: '600',
     });
 
     const valueLabel = createText('div', '0.00', {
-      color: '#d7deea',
+      color: RETRO_TEXT,
       fontSize: '12px',
       fontVariantNumeric: 'tabular-nums',
     });
@@ -971,23 +1060,33 @@ export class UIManager {
       alignItems: 'center',
       gap: '8px',
       padding: pill ? '11px 16px' : '10px 14px',
-      borderRadius: pill ? '999px' : '12px',
-      border: active && accent ? `1px solid ${accent}66` : '1px solid rgba(255,255,255,0.12)',
-      background: active && accent ? `${accent}24` : 'rgba(255,255,255,0.06)',
-      color: active && accent ? accent : '#e3e9f3',
+      borderRadius: pill ? '2px' : '2px',
+      border: active && accent ? `1px solid ${accent}66` : `1px solid ${RETRO_BORDER}`,
+      background: active && accent
+        ? `linear-gradient(180deg, ${accent}26 0%, rgba(8, 18, 8, 0.96) 100%)`
+        : 'linear-gradient(180deg, rgba(15, 30, 14, 0.96) 0%, rgba(7, 18, 7, 0.98) 100%)',
+      color: active && accent ? RETRO_TEXT_STRONG : RETRO_TEXT,
       cursor: 'pointer',
-      fontSize: '13px',
+      fontSize: '12px',
       fontWeight: '600',
+      letterSpacing: '0.06em',
+      textTransform: 'uppercase',
+      fontFamily: RETRO_FONT,
       transition: 'background 0.18s, border-color 0.18s, opacity 0.18s, color 0.18s',
+      boxShadow: 'inset 0 0 0 1px rgba(189,255,172,0.03), 0 0 12px rgba(116,255,108,0.05)',
     });
     button.addEventListener('mouseenter', () => {
       if (!button.disabled) {
-        button.style.background = accent ? `${accent}2a` : 'rgba(255,255,255,0.12)';
+        button.style.background = accent
+          ? `linear-gradient(180deg, ${accent}2f 0%, rgba(9, 22, 9, 1) 100%)`
+          : 'linear-gradient(180deg, rgba(22, 42, 20, 0.98) 0%, rgba(9, 22, 9, 1) 100%)';
       }
     });
     button.addEventListener('mouseleave', () => {
       if (!button.disabled) {
-        button.style.background = active && accent ? `${accent}24` : 'rgba(255,255,255,0.06)';
+        button.style.background = active && accent
+          ? `linear-gradient(180deg, ${accent}26 0%, rgba(8, 18, 8, 0.96) 100%)`
+          : 'linear-gradient(180deg, rgba(15, 30, 14, 0.96) 0%, rgba(7, 18, 7, 0.98) 100%)';
       }
     });
     button.addEventListener('click', onClick);
@@ -996,7 +1095,7 @@ export class UIManager {
 
   _syncModuleButtons() {
     this._moduleButtons.forEach((button, module) => {
-      const accent = module === EDITOR_MODULE_GEO ? '#66d4ff' : '#f2a756';
+      const accent = RETRO_ACCENT;
       this._syncToggleButton(button, module === this._activeModule, false, accent);
     });
   }
@@ -1010,19 +1109,19 @@ export class UIManager {
     const { available, connected } = this._outputWindowState;
     if (connected) {
       this._outputStatusBadge.textContent = 'Output Live';
-      this._outputStatusBadge.style.background = 'rgba(112, 196, 135, 0.18)';
-      this._outputStatusBadge.style.borderColor = 'rgba(112, 196, 135, 0.4)';
-      this._outputStatusBadge.style.color = '#bff0cd';
+      this._outputStatusBadge.style.background = 'rgba(18, 38, 16, 0.92)';
+      this._outputStatusBadge.style.borderColor = 'rgba(166, 223, 134, 0.34)';
+      this._outputStatusBadge.style.color = RETRO_TEXT_STRONG;
     } else if (available) {
       this._outputStatusBadge.textContent = 'Output Opening';
-      this._outputStatusBadge.style.background = 'rgba(231, 176, 83, 0.18)';
-      this._outputStatusBadge.style.borderColor = 'rgba(231, 176, 83, 0.38)';
-      this._outputStatusBadge.style.color = '#ffe0ad';
+      this._outputStatusBadge.style.background = 'rgba(12, 24, 11, 0.92)';
+      this._outputStatusBadge.style.borderColor = 'rgba(120, 170, 96, 0.28)';
+      this._outputStatusBadge.style.color = RETRO_TEXT;
     } else {
       this._outputStatusBadge.textContent = 'Output Offline';
-      this._outputStatusBadge.style.background = 'rgba(255,255,255,0.05)';
-      this._outputStatusBadge.style.borderColor = 'rgba(255,255,255,0.1)';
-      this._outputStatusBadge.style.color = '#d7deea';
+      this._outputStatusBadge.style.background = 'rgba(8, 16, 8, 0.8)';
+      this._outputStatusBadge.style.borderColor = RETRO_BORDER;
+      this._outputStatusBadge.style.color = RETRO_MUTED;
     }
 
     this._syncButtonState(this._focusOutputBtn, available);
@@ -1030,23 +1129,19 @@ export class UIManager {
 
   _syncPreviewButtons() {
     this._previewButtons.forEach((button, mode) => {
-      this._syncToggleButton(button, mode === this._previewMode, false, '#9ad18b');
+      this._syncToggleButton(button, mode === this._previewMode, false, RETRO_ACCENT);
     });
   }
 
   _syncOutputModeButtons() {
     this._outputModeButtons.forEach((button, mode) => {
-      this._syncToggleButton(button, mode === this._outputDisplayMode, false, '#f2a756');
+      this._syncToggleButton(button, mode === this._outputDisplayMode, false, RETRO_ACCENT);
     });
   }
 
   _syncEditTargetButtons() {
     this._editTargetButtons.forEach((button, target) => {
-      const accent = target === EDIT_TARGET_SURFACE
-        ? '#66d4ff'
-        : target === EDIT_TARGET_CONTENT
-          ? '#ffb454'
-          : '#ff6f61';
+      const accent = RETRO_ACCENT;
       this._syncToggleButton(button, target === this._editTarget, !this._hasActiveSurface, accent);
     });
   }
@@ -1099,14 +1194,15 @@ export class UIManager {
 
     if (surfaces.length === 0) {
       this._geoSurfaceListEl.append(
-        createText('div', 'No surfaces yet. Add one from GEO to start mapping.', {
+      createText('div', 'No surfaces yet. Add one from GEO to start mapping.', {
           padding: '16px',
-          borderRadius: '16px',
-          border: '1px dashed rgba(255,255,255,0.1)',
-          color: '#7f8fa4',
+          borderRadius: '2px',
+          border: `1px dashed ${RETRO_BORDER}`,
+          color: RETRO_MUTED,
           fontSize: '13px',
           lineHeight: '1.6',
           textAlign: 'center',
+          background: 'rgba(8, 16, 8, 0.62)',
         }),
       );
       return;
@@ -1121,12 +1217,13 @@ export class UIManager {
         gap: '8px',
         width: '100%',
         padding: '14px',
-        borderRadius: '16px',
-        border: isSelected ? '1px solid rgba(102, 212, 255, 0.38)' : '1px solid rgba(255,255,255,0.08)',
-        background: isSelected ? 'rgba(26, 86, 118, 0.22)' : 'rgba(255,255,255,0.03)',
-        color: '#eef3fb',
+        borderRadius: '3px',
+        border: isSelected ? '1px solid rgba(166, 223, 134, 0.42)' : `1px solid ${RETRO_BORDER}`,
+        background: isSelected ? 'rgba(20, 38, 18, 0.82)' : 'rgba(8, 16, 8, 0.72)',
+        color: RETRO_TEXT,
         cursor: 'pointer',
         textAlign: 'left',
+        boxShadow: isSelected ? '0 0 16px rgba(116, 255, 108, 0.1)' : 'none',
       });
       row.addEventListener('click', () => {
         if (this.onSelectSurface) this.onSelectSurface(surface.id);
@@ -1143,14 +1240,14 @@ export class UIManager {
         createText('div', surface.name, {
           fontSize: '14px',
           fontWeight: '600',
-          color: '#eef3fb',
+          color: RETRO_TEXT,
         }),
-        this._createBadge(surface.assignedOutputId ? 'Assigned' : 'Unassigned', surface.assignedOutputId ? '#9ad18b' : null),
+        this._createBadge(surface.assignedOutputId ? 'Assigned' : 'Unassigned', surface.assignedOutputId ? RETRO_ACCENT : null),
       );
 
       const meta = createText('div', `Layer ${surface.order + 1} • ${surface.visible ? 'Visible' : 'Hidden'}`, {
         fontSize: '12px',
-        color: '#7f8fa4',
+        color: RETRO_MUTED,
       });
 
       row.append(top, meta);
@@ -1162,9 +1259,11 @@ export class UIManager {
     button.disabled = isDisabled;
     button.style.cursor = isDisabled ? 'not-allowed' : 'pointer';
     button.style.opacity = isDisabled ? '0.42' : '1';
-    button.style.background = isActive ? `${accent}24` : (isDisabled ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.06)');
-    button.style.borderColor = isActive ? `${accent}6a` : 'rgba(255,255,255,0.12)';
-    button.style.color = isActive ? accent : '#e3e9f3';
+    button.style.background = isActive
+      ? `linear-gradient(180deg, ${accent}26 0%, rgba(8, 18, 8, 0.96) 100%)`
+      : (isDisabled ? 'rgba(9, 17, 9, 0.76)' : 'linear-gradient(180deg, rgba(15, 30, 14, 0.96) 0%, rgba(7, 18, 7, 0.98) 100%)');
+    button.style.borderColor = isActive ? `${accent}66` : RETRO_BORDER;
+    button.style.color = isActive ? RETRO_TEXT_STRONG : RETRO_TEXT;
   }
 
   _syncSubtractButtons(surface) {
@@ -1200,7 +1299,9 @@ export class UIManager {
     button.disabled = !enabled;
     button.style.cursor = enabled ? 'pointer' : 'not-allowed';
     button.style.opacity = enabled ? '1' : '0.42';
-    button.style.background = enabled ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.04)';
+    button.style.background = enabled
+      ? 'linear-gradient(180deg, rgba(15, 30, 14, 0.96) 0%, rgba(7, 18, 7, 0.98) 100%)'
+      : 'rgba(9, 17, 9, 0.76)';
   }
 
   _describeEditTarget(target) {

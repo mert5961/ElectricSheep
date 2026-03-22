@@ -5,6 +5,7 @@ import type {
   UniformSchemaField,
 } from '../contracts/types.ts';
 import {
+  FIELD_BASE_STYLES,
   createCardShell,
   createElement,
   createTag,
@@ -53,9 +54,10 @@ function syncCheckboxValue(input: HTMLInputElement, nextChecked: boolean): void 
 function createPlaceholder(): HTMLDivElement {
   return createElement('div', {
     padding: '16px',
-    borderRadius: '14px',
-    border: '1px dashed rgba(255,255,255,0.12)',
-    color: '#7f8a9a',
+    borderRadius: '2px',
+    border: '1px dashed rgba(120, 170, 96, 0.24)',
+    background: 'rgba(8, 16, 8, 0.62)',
+    color: '#86a675',
     fontSize: '13px',
     textAlign: 'center',
   }, 'Select an output to edit its uniform schema.');
@@ -162,9 +164,9 @@ export class UniformEditor {
       display: 'grid',
       gap: '10px',
       padding: '14px',
-      borderRadius: '14px',
-      border: '1px solid rgba(255,255,255,0.08)',
-      background: editable ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.02)',
+      borderRadius: '3px',
+      border: '1px solid rgba(120, 170, 96, 0.18)',
+      background: editable ? 'rgba(8, 16, 8, 0.78)' : 'rgba(8, 16, 8, 0.62)',
       opacity: editable ? '1' : '0.78',
     });
 
@@ -182,11 +184,11 @@ export class UniformEditor {
       createElement('span', {
         fontSize: '13px',
         fontWeight: '600',
-        color: '#edf1f7',
+        color: '#d5f7c4',
       }, field.label),
       createElement('span', {
         fontSize: '12px',
-        color: '#7f8a9a',
+        color: '#8fb181',
         lineHeight: '1.4',
       }, field.description || field.key),
     );
@@ -207,10 +209,10 @@ export class UniformEditor {
     if (!editable) {
       const valueEl = createElement('div', {
         padding: '10px 12px',
-        borderRadius: '10px',
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        color: '#b6c0cf',
+        borderRadius: '2px',
+        background: 'rgba(5, 12, 5, 0.9)',
+        border: '1px solid rgba(120, 170, 96, 0.18)',
+        color: '#b8de9d',
         fontSize: '13px',
       });
       content.append(valueEl);
@@ -221,7 +223,7 @@ export class UniformEditor {
     } else if (field.type === 'float' || field.type === 'int') {
       const rangeInput = createElement('input', {
         width: '100%',
-        accentColor: '#f2a756',
+        accentColor: '#9ddf74',
       }) as HTMLInputElement;
       rangeInput.type = 'range';
       rangeInput.min = String(field.min ?? 0);
@@ -229,13 +231,7 @@ export class UniformEditor {
       rangeInput.step = String(field.step ?? (field.type === 'int' ? 1 : 0.01));
 
       const numberInput = createElement('input', {
-        width: '100%',
-        background: 'rgba(255,255,255,0.06)',
-        color: '#edf1f7',
-        border: '1px solid rgba(255,255,255,0.12)',
-        borderRadius: '10px',
-        padding: '9px 12px',
-        fontSize: '13px',
+        ...FIELD_BASE_STYLES,
       }) as HTMLInputElement;
       numberInput.type = 'number';
       numberInput.min = field.min !== undefined ? String(field.min) : '';
@@ -269,7 +265,7 @@ export class UniformEditor {
         display: 'flex',
         alignItems: 'center',
         gap: '10px',
-        color: '#d7deea',
+        color: '#c9ecb7',
         fontSize: '13px',
         cursor: 'pointer',
       });
@@ -310,9 +306,9 @@ export class UniformEditor {
           width: '100%',
           height: '40px',
           padding: '4px',
-          background: 'rgba(255,255,255,0.06)',
-          border: '1px solid rgba(255,255,255,0.12)',
-          borderRadius: '10px',
+          background: 'rgba(6, 14, 8, 0.88)',
+          border: '1px solid rgba(120, 170, 96, 0.28)',
+          borderRadius: '2px',
         }) as HTMLInputElement;
         colorInput.type = 'color';
         colorInput.addEventListener('input', () => {
@@ -341,13 +337,7 @@ export class UniformEditor {
 
       initialVector.forEach((component, index) => {
         const input = createElement('input', {
-          width: '100%',
-          background: 'rgba(255,255,255,0.06)',
-          color: '#edf1f7',
-          border: '1px solid rgba(255,255,255,0.12)',
-          borderRadius: '10px',
-          padding: '9px 12px',
-          fontSize: '13px',
+          ...FIELD_BASE_STYLES,
         }) as HTMLInputElement;
         input.type = 'number';
         input.min = field.min !== undefined ? String(field.min) : '';

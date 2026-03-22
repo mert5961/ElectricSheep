@@ -1,5 +1,5 @@
 import type { ShaderMasterSnapshot, ShaderOutputSnapshot } from '../contracts/types.ts';
-import { createCardShell, createElement, createTag } from './dom.ts';
+import { FIELD_BASE_STYLES, createCardShell, createElement, createTag } from './dom.ts';
 
 export class SurfacesPanel {
   readonly element: HTMLDivElement;
@@ -48,11 +48,12 @@ export class SurfacesPanel {
       this.listEl.append(
         createElement('div', {
           padding: '16px',
-          borderRadius: '14px',
-          border: '1px dashed rgba(255,255,255,0.12)',
-          color: '#7f8a9a',
+          borderRadius: '2px',
+          border: '1px dashed rgba(120, 170, 96, 0.24)',
+          color: '#86a675',
           fontSize: '13px',
           textAlign: 'center',
+          background: 'rgba(8, 16, 8, 0.62)',
         }, 'No surfaces available. Add one from the output editor or control toolbar.'),
       );
       return;
@@ -70,9 +71,10 @@ export class SurfacesPanel {
         gridTemplateColumns: 'minmax(0, 1fr)',
         gap: '10px',
         padding: '14px',
-        borderRadius: '14px',
-        border: isSelected ? '1px solid rgba(95, 193, 255, 0.42)' : '1px solid rgba(255,255,255,0.08)',
-        background: isSelected ? 'rgba(30, 82, 110, 0.22)' : 'rgba(255,255,255,0.03)',
+        borderRadius: '3px',
+        border: isSelected ? '1px solid rgba(166, 223, 134, 0.42)' : '1px solid rgba(120, 170, 96, 0.18)',
+        background: isSelected ? 'rgba(20, 38, 18, 0.82)' : 'rgba(8, 16, 8, 0.72)',
+        boxShadow: isSelected ? '0 0 16px rgba(116, 255, 108, 0.1)' : 'none',
       });
 
       const header = createElement('div', {
@@ -90,7 +92,7 @@ export class SurfacesPanel {
         width: '100%',
         background: 'transparent',
         border: 'none',
-        color: '#edf1f7',
+        color: '#d5f7c4',
         cursor: 'pointer',
         padding: '0',
         textAlign: 'left',
@@ -103,11 +105,11 @@ export class SurfacesPanel {
         createElement('span', {
           fontSize: '14px',
           fontWeight: '600',
-          color: '#edf1f7',
+          color: '#d5f7c4',
         }, surface.name),
         createElement('span', {
           fontSize: '12px',
-          color: '#7f8a9a',
+          color: '#8fb181',
         }, `Layer ${surface.order + 1} • ${surface.visible ? 'Visible' : 'Hidden'}`),
       );
 
@@ -117,9 +119,9 @@ export class SurfacesPanel {
           : 'Unassigned',
         surface.assignedOutputId
           ? {
-              background: 'rgba(62, 98, 152, 0.24)',
-              borderColor: 'rgba(98, 146, 225, 0.24)',
-              color: '#bdd3ff',
+              background: 'rgba(20, 38, 18, 0.9)',
+              borderColor: 'rgba(166, 223, 134, 0.26)',
+              color: '#d5f7c4',
             }
           : undefined,
       );
@@ -127,14 +129,8 @@ export class SurfacesPanel {
       header.append(surfaceButton, assignmentTag);
 
       const select = createElement('select', {
-        width: '100%',
-        background: 'rgba(255,255,255,0.06)',
-        color: '#edf1f7',
-        border: '1px solid rgba(255,255,255,0.12)',
-        borderRadius: '10px',
-        padding: '9px 12px',
-        fontSize: '13px',
-        outline: 'none',
+        ...FIELD_BASE_STYLES,
+        appearance: 'none',
       });
       select.innerHTML = [
         '<option value="">Unassigned</option>',

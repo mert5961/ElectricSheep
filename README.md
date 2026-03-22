@@ -8,6 +8,22 @@ Instead of simply reacting to audio signals, Electric Sheep treats sound as some
 
 ---
 
+## Try It Live
+
+GitHub Pages build:
+
+`https://mert5961.github.io/ElectricSheep/`
+
+Control workspace:
+
+`https://mert5961.github.io/ElectricSheep/control.html`
+
+Projection output:
+
+`https://mert5961.github.io/ElectricSheep/output.html`
+
+---
+
 ## Core Idea
 
 Electric Sheep allows users to define projection surfaces on real-world objects and map shader-based visuals onto them. Later, AI systems interpret audio input and modify visual parameters to create a generative audiovisual performance.

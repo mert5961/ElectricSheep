@@ -75,10 +75,22 @@ const ANALYZER_SIGNAL_ROWS = [
   { key: 'pulse', label: 'Pulse', uniformKey: 'u_audioPulse' },
 ] as const;
 const ANALYZER_METER_ACCENTS = {
-  raw: '#7f8a9a',
-  smoothed: '#66d4ff',
-  shared: '#87f4b5',
+  raw: '#6f8f63',
+  smoothed: '#9ddf74',
+  shared: '#d5f7c4',
 } as const;
+const RETRO_TEXT_STRONG = '#d5f7c4';
+const RETRO_TEXT = '#b8de9d';
+const RETRO_MUTED = '#7fa96f';
+const RETRO_DIM = '#58704c';
+const RETRO_PANEL = 'rgba(8, 18, 8, 0.82)';
+const RETRO_PANEL_SOFT = 'rgba(12, 24, 11, 0.88)';
+const RETRO_BORDER = 'rgba(120, 170, 96, 0.22)';
+const RETRO_BORDER_STRONG = 'rgba(166, 223, 134, 0.3)';
+const RETRO_ACCENT = '#9ddf74';
+const RETRO_ACCENT_SOFT = '#d5f7c4';
+const RETRO_WARNING = '#d6bd6a';
+const RETRO_ALERT = '#b8a06c';
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
@@ -209,15 +221,15 @@ function createMeter(accent: string): { element: HTMLDivElement; controller: Met
   const valueLabel = createElement('span', {
     fontSize: '11px',
     fontVariantNumeric: 'tabular-nums',
-    color: '#edf1f7',
+    color: RETRO_TEXT_STRONG,
   }, '0.00');
   const track = createElement('div', {
     position: 'relative',
     height: '8px',
     borderRadius: '999px',
     overflow: 'hidden',
-    background: 'rgba(255,255,255,0.08)',
-    border: '1px solid rgba(255,255,255,0.08)',
+    background: RETRO_PANEL_SOFT,
+    border: `1px solid ${RETRO_BORDER}`,
   });
   const fillEl = createElement('div', {
     width: '0%',
@@ -248,10 +260,12 @@ function setButtonActive(
   active: boolean,
   accent: string,
 ): void {
-  button.style.borderColor = active ? accent : 'rgba(255,255,255,0.12)';
-  button.style.background = active ? `${accent}22` : (button.disabled ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.08)');
-  button.style.color = active ? '#eef6ff' : '#d8dde7';
-  button.style.boxShadow = active ? `0 0 0 1px ${accent}33 inset` : 'none';
+  button.dataset.active = active ? 'true' : 'false';
+  button.dataset.activeAccent = accent;
+  button.style.borderColor = active ? accent : RETRO_BORDER;
+  button.style.background = active ? `${accent}18` : (button.disabled ? 'rgba(9, 17, 9, 0.76)' : 'linear-gradient(180deg, rgba(15, 30, 14, 0.96) 0%, rgba(7, 18, 7, 0.98) 100%)');
+  button.style.color = active ? RETRO_TEXT_STRONG : RETRO_TEXT;
+  button.style.boxShadow = active ? `0 0 0 1px ${accent}33 inset, 0 0 16px ${accent}18` : 'none';
 }
 
 export class DebugSignalsPanel {
@@ -423,6 +437,10 @@ export class DebugSignalsPanel {
     Object.assign(this.element.style, {
       minHeight: 'unset',
       gap: '18px',
+      color: RETRO_TEXT,
+      fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace',
+      textShadow: '0 0 8px rgba(154, 255, 138, 0.12)',
+      filter: 'sepia(0.2) hue-rotate(8deg) saturate(0.95)',
     });
 
     const actionRow = createElement('div', {
@@ -443,8 +461,8 @@ export class DebugSignalsPanel {
       createButton('Reset All', () => {
         onResetAllDebugSignals?.();
       }, {
-        borderColor: 'rgba(231, 176, 83, 0.28)',
-        color: '#ffe0ad',
+        borderColor: RETRO_BORDER_STRONG,
+        color: RETRO_TEXT_STRONG,
       }),
     );
 
@@ -452,9 +470,9 @@ export class DebugSignalsPanel {
       display: 'grid',
       gap: '10px',
       padding: '14px',
-      borderRadius: '16px',
-      border: '1px solid rgba(255,255,255,0.08)',
-      background: 'rgba(255,255,255,0.03)',
+      borderRadius: '4px',
+      border: `1px solid ${RETRO_BORDER}`,
+      background: RETRO_PANEL,
     });
     const quickHeader = createElement('div', {
       display: 'flex',
@@ -470,12 +488,12 @@ export class DebugSignalsPanel {
     });
     quickHeaderCopy.append(
       createTag('Primary Test States', {
-        background: 'rgba(255,255,255,0.08)',
-        color: '#d7deea',
+        background: RETRO_PANEL_SOFT,
+        color: RETRO_TEXT,
       }),
       createElement('div', {
         fontSize: '12px',
-        color: '#7f8a9a',
+        color: RETRO_MUTED,
         lineHeight: '1.6',
       }, 'Use recipes to judge full visual choreography. Use the analyzer tools below to diagnose whether shared audio signals are arriving, smoothing, and reaching the bucket cleanly.'),
     );
@@ -487,11 +505,11 @@ export class DebugSignalsPanel {
     this.recipeStatusEl = createElement('div', {
       fontSize: '12px',
       fontWeight: '600',
-      color: '#edf1f7',
+      color: RETRO_TEXT_STRONG,
     }, 'Manual / Custom');
     this.recipeMetaEl = createElement('div', {
       fontSize: '12px',
-      color: '#7f8a9a',
+      color: RETRO_MUTED,
       lineHeight: '1.5',
     }, 'Apply a recipe to drive preset, feeling, expressive controls, and transition timing together.');
     quickHeaderStatus.append(this.recipeStatusEl, this.recipeMetaEl);
@@ -507,7 +525,7 @@ export class DebugSignalsPanel {
         createButton(recipe.label, () => {
           onApplyVisualStateRecipe?.(recipe);
         }, {
-          background: 'rgba(255,255,255,0.05)',
+          background: RETRO_PANEL_SOFT,
         }),
       );
     });
@@ -517,9 +535,9 @@ export class DebugSignalsPanel {
       display: 'grid',
       gap: '16px',
       padding: '16px',
-      borderRadius: '16px',
-      border: '1px solid rgba(255,255,255,0.08)',
-      background: 'rgba(255,255,255,0.03)',
+      borderRadius: '4px',
+      border: `1px solid ${RETRO_BORDER}`,
+      background: RETRO_PANEL,
     });
 
     const analyzerHeader = createElement('div', {
@@ -542,11 +560,11 @@ export class DebugSignalsPanel {
       createElement('div', {
         fontSize: '12px',
         fontWeight: '600',
-        color: '#d7deea',
+        color: RETRO_TEXT,
       }, 'Audio Analyzer Diagnostics'),
       createElement('div', {
         fontSize: '12px',
-        color: '#7f8a9a',
+        color: RETRO_MUTED,
         lineHeight: '1.6',
       }, 'Raw shows the direct analyzer response. Smoothed shows the analyzer output after attack/release. Shared shows the actual audio bucket that Shader Master receives.'),
     );
@@ -567,18 +585,18 @@ export class DebugSignalsPanel {
     analyzerHeaderTop.append(analyzerHeaderCopy, analyzerStatusWrap);
     this.analyzerMetaEl = createElement('div', {
       fontSize: '12px',
-      color: '#8a95a6',
+      color: RETRO_MUTED,
       lineHeight: '1.55',
     }, 'Manual mode uses the slider values in the shared bucket. Live/debug modes show analyzer response side-by-side.');
     this.analyzerErrorEl = createElement('div', {
       display: 'none',
       fontSize: '12px',
       lineHeight: '1.5',
-      color: '#ffb5b5',
+      color: RETRO_WARNING,
       padding: '10px 12px',
-      borderRadius: '12px',
-      border: '1px solid rgba(255, 120, 120, 0.22)',
-      background: 'rgba(255, 84, 84, 0.08)',
+      borderRadius: '2px',
+      border: `1px solid ${RETRO_WARNING}55`,
+      background: 'rgba(117, 88, 22, 0.15)',
     });
     analyzerHeader.append(analyzerHeaderTop, this.analyzerMetaEl, this.analyzerErrorEl);
 
@@ -623,16 +641,16 @@ export class DebugSignalsPanel {
         display: 'grid',
         gap: '10px',
         padding: '12px',
-        borderRadius: '14px',
-        border: '1px solid rgba(255,255,255,0.08)',
-        background: 'rgba(255,255,255,0.025)',
+        borderRadius: '3px',
+        border: `1px solid ${RETRO_BORDER}`,
+        background: RETRO_PANEL_SOFT,
       });
       groupCard.append(
         createElement('div', {
           fontSize: '11px',
           letterSpacing: '0.08em',
           textTransform: 'uppercase',
-          color: '#7f8a9a',
+          color: RETRO_MUTED,
         }, group),
       );
 
@@ -648,7 +666,7 @@ export class DebugSignalsPanel {
         });
         const detail = createElement('span', {
           fontSize: '11px',
-          color: '#8a95a6',
+          color: RETRO_MUTED,
           fontWeight: '400',
         }, test.description);
         testButton.append(detail);
@@ -670,19 +688,19 @@ export class DebugSignalsPanel {
       display: 'grid',
       gap: '10px',
       padding: '14px',
-      borderRadius: '14px',
-      border: '1px solid rgba(255,255,255,0.08)',
-      background: 'rgba(255,255,255,0.025)',
+      borderRadius: '3px',
+      border: `1px solid ${RETRO_BORDER}`,
+      background: RETRO_PANEL_SOFT,
     });
     responseCard.append(
       createElement('div', {
         fontSize: '12px',
         fontWeight: '600',
-        color: '#d7deea',
+        color: RETRO_TEXT,
       }, 'Signal Response'),
       createElement('div', {
         fontSize: '12px',
-        color: '#7f8a9a',
+        color: RETRO_MUTED,
         lineHeight: '1.55',
       }, 'Compare direct analyzer output against smoothing and the shared bucket. If Raw is moving but Shared is not, the issue is downstream from the analyzer.'),
     );
@@ -697,7 +715,7 @@ export class DebugSignalsPanel {
         fontSize: '11px',
         letterSpacing: '0.06em',
         textTransform: 'uppercase',
-        color: '#657182',
+        color: RETRO_DIM,
       }, 'Signal'),
       createElement('div', {
         fontSize: '11px',
@@ -722,7 +740,7 @@ export class DebugSignalsPanel {
       responseGrid.append(
         createElement('div', {
           fontSize: '12px',
-          color: '#edf1f7',
+          color: RETRO_TEXT_STRONG,
           fontWeight: '600',
         }, signal.label),
       );
@@ -747,19 +765,19 @@ export class DebugSignalsPanel {
       display: 'grid',
       gap: '12px',
       padding: '14px',
-      borderRadius: '14px',
-      border: '1px solid rgba(255,255,255,0.08)',
-      background: 'rgba(255,255,255,0.025)',
+      borderRadius: '3px',
+      border: `1px solid ${RETRO_BORDER}`,
+      background: RETRO_PANEL_SOFT,
     });
     smoothingCard.append(
       createElement('div', {
         fontSize: '12px',
         fontWeight: '600',
-        color: '#d7deea',
+        color: RETRO_TEXT,
       }, 'Smoothing Diagnostics'),
       createElement('div', {
         fontSize: '12px',
-        color: '#7f8a9a',
+        color: RETRO_MUTED,
         lineHeight: '1.55',
       }, 'Tune analyzer attack/release and pulse behavior to inspect latency, decay, and whether smoothing is hiding a valid response.'),
     );
@@ -790,19 +808,19 @@ export class DebugSignalsPanel {
       const valueLabel = createElement('span', {
         fontSize: '12px',
         fontVariantNumeric: 'tabular-nums',
-        color: '#d7deea',
+        color: RETRO_TEXT,
       }, '0 ms');
       header.append(
         createElement('span', {
           fontSize: '12px',
-          color: '#edf1f7',
+          color: RETRO_TEXT_STRONG,
           fontWeight: '600',
         }, field.label),
         valueLabel,
       );
       const input = createElement('input', {
         width: '100%',
-        accentColor: '#66d4ff',
+        accentColor: RETRO_ACCENT,
       }) as HTMLInputElement;
       input.type = 'range';
       input.min = String(field.min);
@@ -828,9 +846,9 @@ export class DebugSignalsPanel {
       justifyContent: 'space-between',
       gap: '12px',
       padding: '10px 12px',
-      borderRadius: '12px',
-      border: '1px solid rgba(255,255,255,0.08)',
-      background: 'rgba(255,255,255,0.03)',
+      borderRadius: '2px',
+      border: `1px solid ${RETRO_BORDER}`,
+      background: RETRO_PANEL,
       cursor: 'pointer',
     });
     const bypassCopy = createElement('div', {
@@ -839,18 +857,18 @@ export class DebugSignalsPanel {
     });
     this.smoothingBypassValueEl = createElement('span', {
       fontSize: '11px',
-      color: '#8a95a6',
+      color: RETRO_MUTED,
       lineHeight: '1.45',
     }, 'Off');
     bypassCopy.append(
       createElement('span', {
         fontSize: '12px',
         fontWeight: '600',
-        color: '#edf1f7',
+        color: RETRO_TEXT_STRONG,
       }, 'Bypass Smoothing'),
       createElement('span', {
         fontSize: '11px',
-        color: '#7f8a9a',
+        color: RETRO_MUTED,
         lineHeight: '1.45',
       }, 'Useful for checking whether slow response comes from smoothing or from the analyzer/input itself.'),
     );
@@ -880,19 +898,19 @@ export class DebugSignalsPanel {
       display: 'grid',
       gap: '12px',
       padding: '14px',
-      borderRadius: '14px',
-      border: '1px solid rgba(255,255,255,0.08)',
-      background: 'rgba(255,255,255,0.025)',
+      borderRadius: '3px',
+      border: `1px solid ${RETRO_BORDER}`,
+      background: RETRO_PANEL_SOFT,
     });
     inputQualityCard.append(
       createElement('div', {
         fontSize: '12px',
         fontWeight: '600',
-        color: '#d7deea',
+        color: RETRO_TEXT,
       }, 'Input Signal Diagnostics'),
       createElement('div', {
         fontSize: '12px',
-        color: '#7f8a9a',
+        color: RETRO_MUTED,
         lineHeight: '1.55',
       }, 'Use these indicators to tell whether a source is noisy, compressed, or clipping before blaming the analyzer or the shaders.'),
     );
@@ -907,12 +925,12 @@ export class DebugSignalsPanel {
     this.inputClippingEl = this._createDiagnosticValueChip(inputQualityGrid, 'Clipping', 'Clean');
     this.inputQualityMetaEl = createElement('div', {
       fontSize: '11px',
-      color: '#8a95a6',
+      color: RETRO_MUTED,
       lineHeight: '1.5',
       padding: '10px 12px',
-      borderRadius: '12px',
-      border: '1px solid rgba(255,255,255,0.06)',
-      background: 'rgba(255,255,255,0.03)',
+      borderRadius: '2px',
+      border: `1px solid ${RETRO_BORDER}`,
+      background: RETRO_PANEL,
     }, 'No live analyzer signal yet.');
     inputQualityCard.append(inputQualityGrid, this.inputQualityMetaEl);
 
@@ -920,19 +938,19 @@ export class DebugSignalsPanel {
       display: 'grid',
       gap: '12px',
       padding: '14px',
-      borderRadius: '14px',
-      border: '1px solid rgba(255,255,255,0.08)',
-      background: 'rgba(255,255,255,0.025)',
+      borderRadius: '3px',
+      border: `1px solid ${RETRO_BORDER}`,
+      background: RETRO_PANEL_SOFT,
     });
     timingCard.append(
       createElement('div', {
         fontSize: '12px',
         fontWeight: '600',
-        color: '#d7deea',
+        color: RETRO_TEXT,
       }, 'Timing / Responsiveness'),
       createElement('div', {
         fontSize: '12px',
-        color: '#7f8a9a',
+        color: RETRO_MUTED,
         lineHeight: '1.55',
       }, 'These are analyzer update timings, useful for spotting stalls or unexpectedly slow response loops.'),
     );
@@ -950,9 +968,9 @@ export class DebugSignalsPanel {
       display: 'grid',
       gap: '12px',
       padding: '14px',
-      borderRadius: '14px',
-      border: '1px solid rgba(255,255,255,0.08)',
-      background: 'rgba(255,255,255,0.025)',
+      borderRadius: '3px',
+      border: `1px solid ${RETRO_BORDER}`,
+      background: RETRO_PANEL_SOFT,
     });
     const latencyProbeHeader = createElement('div', {
       display: 'flex',
@@ -970,11 +988,11 @@ export class DebugSignalsPanel {
       createElement('div', {
         fontSize: '12px',
         fontWeight: '600',
-        color: '#d7deea',
+        color: RETRO_TEXT,
       }, 'Latency Probe'),
       createElement('div', {
         fontSize: '12px',
-        color: '#7f8a9a',
+        color: RETRO_MUTED,
         lineHeight: '1.55',
       }, 'Injects a one-shot internal pulse into the live analyzer path and measures when it appears in raw analysis, smoothed output, the shared bucket, and the render submission stage.'),
     );
@@ -986,11 +1004,11 @@ export class DebugSignalsPanel {
     this.latencyProbeStatusEl = createElement('div', {
       fontSize: '12px',
       fontWeight: '600',
-      color: '#edf1f7',
+      color: RETRO_TEXT_STRONG,
     }, 'Latency Probe Idle');
     this.latencyProbeMetaEl = createElement('div', {
       fontSize: '11px',
-      color: '#8a95a6',
+      color: RETRO_MUTED,
       lineHeight: '1.5',
     }, 'Run the probe while the analyzer is active to estimate internal audio-to-shader timing.');
     latencyProbeStatus.append(this.latencyProbeStatusEl, this.latencyProbeMetaEl);
@@ -1036,20 +1054,20 @@ export class DebugSignalsPanel {
       gap: '12px',
       flexWrap: 'wrap',
       padding: '10px 12px',
-      borderRadius: '12px',
-      border: '1px solid rgba(255,255,255,0.06)',
-      background: 'rgba(255,255,255,0.03)',
+      borderRadius: '2px',
+      border: `1px solid ${RETRO_BORDER}`,
+      background: RETRO_PANEL,
     });
     this.latencyProbeSampleCountEl = createElement('span', {
       fontSize: '11px',
       fontWeight: '600',
-      color: '#d7deea',
+      color: RETRO_TEXT,
     }, 'Samples: 0');
     latencyProbeFooter.append(
       this.latencyProbeSampleCountEl,
       createElement('span', {
         fontSize: '11px',
-        color: '#7f8a9a',
+        color: RETRO_MUTED,
         lineHeight: '1.5',
       }, 'Render timing stops at CPU-side shader submission. It does not include projector or display-panel lag.'),
     );
@@ -1076,19 +1094,19 @@ export class DebugSignalsPanel {
       display: 'grid',
       gap: '10px',
       padding: '14px',
-      borderRadius: '14px',
-      border: '1px solid rgba(255,255,255,0.08)',
-      background: 'rgba(255,255,255,0.025)',
+      borderRadius: '3px',
+      border: `1px solid ${RETRO_BORDER}`,
+      background: RETRO_PANEL_SOFT,
     });
     spectrumCard.append(
       createElement('div', {
         fontSize: '12px',
         fontWeight: '600',
-        color: '#d7deea',
+        color: RETRO_TEXT,
       }, 'Live Spectrum'),
       createElement('div', {
         fontSize: '12px',
-        color: '#7f8a9a',
+        color: RETRO_MUTED,
         lineHeight: '1.55',
       }, 'A compact FFT view for spotting where energy sits. Sweeps should travel left-to-right, bass tones should stack on the left, and bright treble should cluster toward the right.'),
     );
@@ -1098,9 +1116,9 @@ export class DebugSignalsPanel {
       gap: '4px',
       height: '92px',
       padding: '10px 8px 6px',
-      borderRadius: '12px',
-      background: 'rgba(8, 10, 14, 0.72)',
-      border: '1px solid rgba(255,255,255,0.06)',
+      borderRadius: '2px',
+      background: 'rgba(6, 12, 6, 0.9)',
+      border: `1px solid ${RETRO_BORDER}`,
     });
     for (let index = 0; index < 32; index += 1) {
       const bar = createElement('div', {
@@ -1108,8 +1126,8 @@ export class DebugSignalsPanel {
         minWidth: '0',
         height: '4px',
         borderRadius: '999px 999px 3px 3px',
-        background: 'linear-gradient(180deg, rgba(102,212,255,0.98) 0%, rgba(117,246,178,0.82) 100%)',
-        boxShadow: '0 0 10px rgba(102,212,255,0.18)',
+        background: 'linear-gradient(180deg, rgba(213,247,196,0.98) 0%, rgba(125,191,94,0.84) 100%)',
+        boxShadow: '0 0 10px rgba(157,223,116,0.18)',
         transition: 'height 0.08s ease',
       });
       spectrumWrap.append(bar);
@@ -1121,19 +1139,19 @@ export class DebugSignalsPanel {
       display: 'grid',
       gap: '10px',
       padding: '14px',
-      borderRadius: '14px',
-      border: '1px solid rgba(255,255,255,0.08)',
-      background: 'rgba(255,255,255,0.025)',
+      borderRadius: '3px',
+      border: `1px solid ${RETRO_BORDER}`,
+      background: RETRO_PANEL_SOFT,
     });
     spectrogramCard.append(
       createElement('div', {
         fontSize: '12px',
         fontWeight: '600',
-        color: '#d7deea',
+        color: RETRO_TEXT,
       }, 'Scrolling Spectrogram'),
       createElement('div', {
         fontSize: '12px',
-        color: '#7f8a9a',
+        color: RETRO_MUTED,
         lineHeight: '1.55',
       }, 'Time scrolls left to right. Frequency runs bottom to top. Bright streaks show where energy persists over time, which makes source coloration and band handoffs much easier to read.'),
     );
@@ -1141,9 +1159,9 @@ export class DebugSignalsPanel {
       display: 'block',
       width: '100%',
       height: '112px',
-      borderRadius: '12px',
-      background: 'rgba(8, 10, 14, 0.88)',
-      border: '1px solid rgba(255,255,255,0.06)',
+      borderRadius: '2px',
+      background: 'rgba(6, 12, 6, 0.96)',
+      border: `1px solid ${RETRO_BORDER}`,
     }) as HTMLCanvasElement;
     this.spectrogramCanvas.width = 320;
     this.spectrogramCanvas.height = 112;
@@ -1164,9 +1182,9 @@ export class DebugSignalsPanel {
       display: 'grid',
       gap: '14px',
       padding: '16px',
-      borderRadius: '16px',
-      border: '1px solid rgba(255,255,255,0.08)',
-      background: 'rgba(255,255,255,0.03)',
+      borderRadius: '4px',
+      border: `1px solid ${RETRO_BORDER}`,
+      background: RETRO_PANEL,
     });
     const audioVisualHeader = createElement('div', {
       display: 'flex',
@@ -1184,16 +1202,16 @@ export class DebugSignalsPanel {
       createElement('div', {
         fontSize: '12px',
         fontWeight: '600',
-        color: '#d7deea',
+        color: RETRO_TEXT,
       }, 'Audio Visual Mapping'),
       createElement('div', {
         fontSize: '12px',
-        color: '#7f8a9a',
+        color: RETRO_MUTED,
         lineHeight: '1.6',
       }, 'This layer reshapes the shared audio bucket before presets render. Use it to solo one signal, reduce overlap, and suppress low-level noise without changing the analyzer itself.'),
       createElement('div', {
         fontSize: '11px',
-        color: '#8a95a6',
+        color: RETRO_MUTED,
         lineHeight: '1.5',
       }, 'For a clean music-following check, switch the selected output to the Audio Reference preset and tune from there.'),
     );
@@ -1205,7 +1223,7 @@ export class DebugSignalsPanel {
     });
     this.audioVisualSoloStatusEl = createElement('div', {
       fontSize: '12px',
-      color: '#edf1f7',
+      color: RETRO_TEXT_STRONG,
       fontWeight: '600',
       textAlign: 'right',
     }, 'Solo: All Signals');
@@ -1245,9 +1263,9 @@ export class DebugSignalsPanel {
         display: 'grid',
         gap: '10px',
         padding: '12px',
-        borderRadius: '14px',
-        border: '1px solid rgba(255,255,255,0.08)',
-        background: 'rgba(255,255,255,0.025)',
+        borderRadius: '3px',
+        border: `1px solid ${RETRO_BORDER}`,
+        background: RETRO_PANEL_SOFT,
       });
       const rowHeader = createElement('div', {
         display: 'flex',
@@ -1264,11 +1282,11 @@ export class DebugSignalsPanel {
         createElement('div', {
           fontSize: '12px',
           fontWeight: '600',
-          color: '#edf1f7',
+          color: RETRO_TEXT_STRONG,
         }, definition.label),
         createElement('div', {
           fontSize: '11px',
-          color: '#8a95a6',
+          color: RETRO_MUTED,
           lineHeight: '1.45',
         }, definition.role),
       );
@@ -1285,8 +1303,8 @@ export class DebugSignalsPanel {
       });
       const sharedValueEl = createTag('Shared 0.00');
       const mappedValueEl = createTag('Mapped 0.00', {
-        background: 'rgba(102,212,255,0.08)',
-        color: '#d9f5ff',
+        background: 'rgba(18, 36, 16, 0.92)',
+        color: RETRO_TEXT_STRONG,
       });
       valuePair.append(sharedValueEl, mappedValueEl);
       const controlButtons = createElement('div', {
@@ -1320,7 +1338,7 @@ export class DebugSignalsPanel {
         min: 0,
         max: 2,
         step: 0.01,
-        accentColor: '#66d4ff',
+        accentColor: RETRO_ACCENT,
         onInput: (value) => {
           onSetAudioVisualSignalTuning?.(definition.key, {
             gain: value,
@@ -1332,7 +1350,7 @@ export class DebugSignalsPanel {
         min: 0,
         max: 0.6,
         step: 0.01,
-        accentColor: '#f2a756',
+        accentColor: RETRO_WARNING,
         onInput: (value) => {
           onSetAudioVisualSignalTuning?.(definition.key, {
             threshold: value,
@@ -1344,7 +1362,7 @@ export class DebugSignalsPanel {
         min: 0.35,
         max: 3,
         step: 0.01,
-        accentColor: '#87f4b5',
+        accentColor: RETRO_ACCENT_SOFT,
         onInput: (value) => {
           onSetAudioVisualSignalTuning?.(definition.key, {
             curve: value,
@@ -1388,7 +1406,7 @@ export class DebugSignalsPanel {
     );
     this.manualAudioMetaEl = createElement('div', {
       fontSize: '11px',
-      color: '#7f8a9a',
+      color: RETRO_MUTED,
       lineHeight: '1.5',
     }, 'Manual mode is active.');
     audioSection.append(this.manualAudioMetaEl);
@@ -1404,7 +1422,7 @@ export class DebugSignalsPanel {
     );
     this.feelingMetaEl = createElement('div', {
       fontSize: '11px',
-      color: '#7f8a9a',
+      color: RETRO_MUTED,
       lineHeight: '1.5',
     }, 'Manual feeling mode is active.');
     feelingSection.append(this.feelingMetaEl);
@@ -1418,19 +1436,19 @@ export class DebugSignalsPanel {
       display: 'grid',
       gap: '12px',
       padding: '14px',
-      borderRadius: '16px',
-      border: '1px solid rgba(255,255,255,0.08)',
-      background: 'rgba(255,255,255,0.03)',
+      borderRadius: '4px',
+      border: `1px solid ${RETRO_BORDER}`,
+      background: RETRO_PANEL,
       minHeight: '100%',
     });
     this.aiStatusEl = createElement('div', {
       fontSize: '12px',
       fontWeight: '600',
-      color: '#d7deea',
+      color: RETRO_TEXT,
     }, 'AI Layer');
     this.aiMetaEl = createElement('div', {
       fontSize: '12px',
-      color: '#7f8a9a',
+      color: RETRO_MUTED,
       lineHeight: '1.6',
     }, 'The local Ollama layer now listens for phrase and section changes, then updates the slower feeling layer only when the music materially shifts.');
     this.aiStateGridEl = createElement('div', {
@@ -1444,20 +1462,20 @@ export class DebugSignalsPanel {
       display: 'grid',
       gap: '12px',
       padding: '14px',
-      borderRadius: '16px',
-      border: '1px solid rgba(255,255,255,0.08)',
-      background: 'rgba(255,255,255,0.03)',
+      borderRadius: '4px',
+      border: `1px solid ${RETRO_BORDER}`,
+      background: RETRO_PANEL,
       minHeight: '100%',
     });
     summaryCard.append(
       createElement('div', {
         fontSize: '12px',
         fontWeight: '600',
-        color: '#d7deea',
+        color: RETRO_TEXT,
       }, 'Active Shared Signals'),
       createElement('div', {
         fontSize: '12px',
-        color: '#7f8a9a',
+        color: RETRO_MUTED,
         lineHeight: '1.6',
       }, 'These are the effective buckets feeding Shader Master right now. Audio reflects the post-mapping values after solo/gain/threshold/curve tuning, and feeling reflects the AI-adjusted layer when AI is enabled.'),
     );
@@ -1495,9 +1513,9 @@ export class DebugSignalsPanel {
       display: 'grid',
       gap: '12px',
       padding: '14px',
-      borderRadius: '16px',
-      border: '1px solid rgba(255,255,255,0.08)',
-      background: 'rgba(255,255,255,0.03)',
+      borderRadius: '4px',
+      border: `1px solid ${RETRO_BORDER}`,
+      background: RETRO_PANEL,
     });
     const header = createElement('div', {
       display: 'grid',
@@ -1507,11 +1525,11 @@ export class DebugSignalsPanel {
       createElement('div', {
         fontSize: '12px',
         fontWeight: '600',
-        color: '#d7deea',
+        color: RETRO_TEXT,
       }, title),
       createElement('div', {
         fontSize: '12px',
-        color: '#7f8a9a',
+        color: RETRO_MUTED,
         lineHeight: '1.55',
       }, description),
     );
@@ -1531,13 +1549,13 @@ export class DebugSignalsPanel {
       const valueLabel = createElement('span', {
         fontSize: '12px',
         fontVariantNumeric: 'tabular-nums',
-        color: '#d7deea',
+        color: RETRO_TEXT,
       }, '0.00');
 
       rowHeader.append(
         createElement('span', {
           fontSize: '13px',
-          color: '#edf1f7',
+          color: RETRO_TEXT_STRONG,
           fontWeight: '600',
         }, field.label),
         valueLabel,
@@ -1545,7 +1563,7 @@ export class DebugSignalsPanel {
 
       const input = createElement('input', {
         width: '100%',
-        accentColor: field.source === 'audio' ? '#66d4ff' : '#ffb454',
+        accentColor: field.source === 'audio' ? RETRO_ACCENT : RETRO_WARNING,
       }) as HTMLInputElement;
       input.type = 'range';
       input.min = String(field.min ?? 0);
@@ -1602,13 +1620,13 @@ export class DebugSignalsPanel {
     });
     const valueLabel = createElement('span', {
       fontSize: '11px',
-      color: '#d7deea',
+      color: RETRO_TEXT,
       fontVariantNumeric: 'tabular-nums',
     }, '0.00');
     header.append(
       createElement('span', {
         fontSize: '11px',
-        color: '#8a95a6',
+        color: RETRO_MUTED,
       }, label),
       valueLabel,
     );
@@ -1641,20 +1659,20 @@ export class DebugSignalsPanel {
       display: 'grid',
       gap: '4px',
       padding: '10px',
-      borderRadius: '12px',
-      border: '1px solid rgba(255,255,255,0.06)',
-      background: 'rgba(255,255,255,0.03)',
+      borderRadius: '2px',
+      border: `1px solid ${RETRO_BORDER}`,
+      background: RETRO_PANEL,
     });
     const valueEl = createElement('span', {
       fontSize: '12px',
       fontWeight: '600',
-      color: '#edf1f7',
+      color: RETRO_TEXT_STRONG,
       fontVariantNumeric: 'tabular-nums',
     }, initialValue);
     chip.append(
       createElement('span', {
         fontSize: '11px',
-        color: '#7f8a9a',
+        color: RETRO_MUTED,
       }, label),
       valueEl,
     );
@@ -1670,9 +1688,9 @@ export class DebugSignalsPanel {
       ? `Solo: ${activeSoloDefinition.label}`
       : 'Solo: All Signals';
 
-    setButtonActive(this.clearAudioVisualSoloButton, mapping.soloKey === null, '#87f4b5');
+    setButtonActive(this.clearAudioVisualSoloButton, mapping.soloKey === null, RETRO_ACCENT_SOFT);
     setButtonEnabled(this.referencePresetButton, Boolean(this.lastSelectedOutputId));
-    setButtonActive(this.referencePresetButton, selectedOutput?.presetId === 'audio-reference', '#f2a756');
+    setButtonActive(this.referencePresetButton, selectedOutput?.presetId === 'audio-reference', RETRO_WARNING);
 
     AUDIO_VISUAL_SIGNAL_DEFINITIONS.forEach((definition) => {
       const controller = this.audioVisualSignalControllers.get(definition.key);
@@ -1696,16 +1714,16 @@ export class DebugSignalsPanel {
 
       controller.enableButton.dataset.enabled = isEnabled ? 'true' : 'false';
       controller.enableButton.textContent = isEnabled ? 'Enabled' : 'Muted';
-      setButtonActive(controller.enableButton, isEnabled, '#87f4b5');
+      setButtonActive(controller.enableButton, isEnabled, RETRO_ACCENT_SOFT);
       controller.soloButton.dataset.active = isSoloActive ? 'true' : 'false';
-      setButtonActive(controller.soloButton, isSoloActive, '#66d4ff');
+      setButtonActive(controller.soloButton, isSoloActive, RETRO_ACCENT);
 
       controller.container.style.opacity = isEnabled
         ? (isSoloFiltered ? '0.45' : '1')
         : '0.58';
       controller.container.style.borderColor = isSoloActive
-        ? 'rgba(102,212,255,0.34)'
-        : 'rgba(255,255,255,0.08)';
+        ? 'rgba(157,223,116,0.34)'
+        : RETRO_BORDER;
 
       syncRangeValue(controller.gainInput, tuning.gain);
       controller.gainValueEl.textContent = tuning.gain.toFixed(2);
@@ -1776,14 +1794,14 @@ export class DebugSignalsPanel {
     setButtonEnabled(this.microphoneButton, Boolean(audioInputState ? audioInputState.status !== 'requesting' : true));
     setButtonEnabled(this.displayAudioButton, Boolean(audioInputState ? audioInputState.status !== 'requesting' : true));
     setButtonEnabled(this.stopTestsButton, hasActiveTest);
-    setButtonActive(this.manualModeButton, isManualSource, '#87f4b5');
-    setButtonActive(this.microphoneButton, audioInputState?.source === 'microphone', '#66d4ff');
-    setButtonActive(this.displayAudioButton, audioInputState?.source === 'display', '#c98aff');
-    setButtonActive(this.stopTestsButton, hasActiveTest, '#f2a756');
+    setButtonActive(this.manualModeButton, isManualSource, RETRO_ACCENT_SOFT);
+    setButtonActive(this.microphoneButton, audioInputState?.source === 'microphone', RETRO_ACCENT);
+    setButtonActive(this.displayAudioButton, audioInputState?.source === 'display', RETRO_TEXT_STRONG);
+    setButtonActive(this.stopTestsButton, hasActiveTest, RETRO_WARNING);
 
     this.testButtons.forEach((button, mode) => {
       const active = audioInputState?.source === 'test-generator' && audioInputState.activeTestMode === mode;
-      setButtonActive(button, active, '#66d4ff');
+      setButtonActive(button, active, RETRO_ACCENT);
       setButtonEnabled(button, audioInputState?.status !== 'requesting');
     });
 
@@ -1827,7 +1845,7 @@ export class DebugSignalsPanel {
     this.inputPeakEl.textContent = `${(audioInputState?.inputDiagnostics.peakAmplitude || 0).toFixed(2)}`;
     this.inputDynamicRangeEl.textContent = `${(audioInputState?.inputDiagnostics.dynamicRangeDb || 0).toFixed(1)} dB`;
     this.inputClippingEl.textContent = audioInputState?.inputDiagnostics.clippingWarning ? 'Warning' : 'Clean';
-    this.inputClippingEl.style.color = audioInputState?.inputDiagnostics.clippingWarning ? '#ffb5b5' : '#87f4b5';
+    this.inputClippingEl.style.color = audioInputState?.inputDiagnostics.clippingWarning ? RETRO_WARNING : RETRO_ACCENT_SOFT;
     this.inputQualityMetaEl.textContent = describeInputQuality(audioInputState);
     this._updateLatencyProbe(audioInputState?.latencyProbe || null, audioSectionIsLive);
 
@@ -1909,12 +1927,12 @@ export class DebugSignalsPanel {
     setButtonActive(
       this.runLatencyProbeButton,
       latencyProbe?.status === 'armed' || latencyProbe?.status === 'partial',
-      '#66d4ff',
+      RETRO_ACCENT,
     );
     setButtonActive(
       this.resetLatencyProbeButton,
       Boolean(latencyProbe && latencyProbe.sampleCount > 0),
-      '#f2a756',
+      RETRO_WARNING,
     );
   }
 
@@ -1982,19 +2000,19 @@ export class DebugSignalsPanel {
         display: 'grid',
         gap: '4px',
         padding: '9px 10px',
-        borderRadius: '12px',
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.06)',
+        borderRadius: '2px',
+        background: RETRO_PANEL_SOFT,
+        border: `1px solid ${RETRO_BORDER}`,
       });
       chip.append(
         createElement('span', {
           fontSize: '11px',
-          color: '#7f8a9a',
+          color: RETRO_MUTED,
           lineHeight: '1.4',
         }, String(label)),
         createElement('span', {
           fontSize: '12px',
-          color: '#edf1f7',
+          color: RETRO_TEXT_STRONG,
           fontWeight: '600',
           fontVariantNumeric: 'tabular-nums',
         }, typeof value === 'number' ? Number(value).toFixed(2) : String(value)),
@@ -2018,19 +2036,19 @@ export class DebugSignalsPanel {
         display: 'grid',
         gap: '4px',
         padding: '9px 10px',
-        borderRadius: '12px',
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.06)',
+        borderRadius: '2px',
+        background: RETRO_PANEL_SOFT,
+        border: `1px solid ${RETRO_BORDER}`,
       });
       chip.append(
         createElement('span', {
           fontSize: '11px',
-          color: '#7f8a9a',
+          color: RETRO_MUTED,
           lineHeight: '1.4',
         }, field.label),
         createElement('span', {
           fontSize: '12px',
-          color: '#edf1f7',
+          color: RETRO_TEXT_STRONG,
           fontWeight: '600',
           fontVariantNumeric: 'tabular-nums',
         }, numericValue.toFixed(2)),
@@ -2048,7 +2066,7 @@ export class DebugSignalsPanel {
     const width = this.spectrogramCanvas.width;
     const height = this.spectrogramCanvas.height;
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = 'rgba(8, 10, 14, 0.96)';
+    ctx.fillStyle = 'rgba(6, 12, 6, 0.96)';
     ctx.fillRect(0, 0, width, height);
 
     if (frames.length === 0) {
@@ -2067,9 +2085,9 @@ export class DebugSignalsPanel {
         const amplitude = clamp01(value);
         const x = frameIndex * columnWidth;
         const y = height - ((bandIndex + 1) * rowHeight);
-        const hue = 222 - (amplitude * 170);
-        const saturation = 58 + (amplitude * 28);
-        const lightness = 8 + (amplitude * 64);
+        const hue = 86 + (amplitude * 8);
+        const saturation = 28 + (amplitude * 36);
+        const lightness = 10 + (amplitude * 56);
         ctx.fillStyle = `hsl(${hue} ${saturation}% ${lightness}%)`;
         ctx.fillRect(x, y, Math.ceil(columnWidth), Math.ceil(rowHeight));
       });

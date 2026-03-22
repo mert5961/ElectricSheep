@@ -1,5 +1,5 @@
 import type { PresetCatalogEntry } from '../contracts/types.ts';
-import { createElement } from './dom.ts';
+import { FIELD_BASE_STYLES, createElement } from './dom.ts';
 
 export class PresetSelector {
   readonly element: HTMLSelectElement;
@@ -11,14 +11,8 @@ export class PresetSelector {
   constructor(onChange: (presetId: string) => void) {
     this.onChange = onChange;
     this.element = createElement('select', {
-      width: '100%',
-      background: 'rgba(255,255,255,0.06)',
-      color: '#edf1f7',
-      border: '1px solid rgba(255,255,255,0.12)',
-      borderRadius: '10px',
-      padding: '10px 12px',
-      fontSize: '13px',
-      outline: 'none',
+      ...FIELD_BASE_STYLES,
+      appearance: 'none',
     });
     this.element.addEventListener('change', () => {
       if (this.onChange) {

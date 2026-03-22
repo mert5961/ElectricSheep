@@ -1,5 +1,16 @@
 import { ShaderMasterPanel } from '../systems/shader-master/ui/ShaderMasterPanel.ts';
 
+const RETRO_FONT = '"IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace';
+const RETRO_TEXT = '#b8de9d';
+const RETRO_TEXT_STRONG = '#d5f7c4';
+const RETRO_MUTED = '#7fa96f';
+const RETRO_BORDER = 'rgba(120, 170, 96, 0.28)';
+const RETRO_PANEL = 'linear-gradient(180deg, rgba(8, 18, 8, 0.96) 0%, rgba(5, 12, 5, 0.98) 100%)';
+const RETRO_PANEL_SOFT = 'rgba(8, 18, 8, 0.82)';
+const RETRO_ACCENT = '#9ddf74';
+const RETRO_WARNING = '#d6bd6a';
+const RETRO_ALERT = '#b8a06c';
+
 export class ControlUI {
   constructor(rootEl, bridge) {
     this._rootEl = rootEl;
@@ -40,39 +51,57 @@ export class ControlUI {
   }
 
   _syncDisplay() {
-    this._statusDot.style.background = this._connected ? '#4f4' : '#f44';
+    this._statusDot.style.background = this._connected ? RETRO_ACCENT : RETRO_WARNING;
+    this._statusDot.style.boxShadow = this._connected
+      ? '0 0 10px rgba(157, 223, 116, 0.5)'
+      : '0 0 10px rgba(214, 189, 106, 0.35)';
     this._statusText.textContent = this._connected ? 'Output connected' : 'Output not connected';
     this._modeLabel.textContent = this._mode === 'show' ? 'Show Mode' : 'Editor Mode';
-    this._modeLabel.style.color = this._mode === 'show' ? '#f90' : '#6f6';
+    this._modeLabel.style.color = this._mode === 'show' ? RETRO_WARNING : RETRO_TEXT_STRONG;
     this._editTargetLabel.textContent = this._editTarget === 'content'
       ? 'Content Quad'
       : this._editTarget === 'subtract'
         ? 'Subtract Quads'
         : 'Surface Quad';
     this._editTargetLabel.style.color = this._editTarget === 'content'
-      ? '#ffb454'
+      ? RETRO_WARNING
       : this._editTarget === 'subtract'
-        ? '#ff6f61'
-        : '#66d4ff';
+        ? RETRO_ALERT
+        : RETRO_TEXT_STRONG;
     this._surfaceCountLabel.textContent = `${this._surfaceCount} surface${this._surfaceCount !== 1 ? 's' : ''}`;
   }
 
   _build() {
+    Object.assign(this._rootEl.style, {
+      padding: '24px',
+      overflowY: 'auto',
+      display: 'grid',
+      alignContent: 'start',
+      gap: '18px',
+      fontFamily: RETRO_FONT,
+      color: RETRO_TEXT,
+      textShadow: '0 0 8px rgba(154, 255, 138, 0.12)',
+    });
+
     // Header
     const header = this._el('div', {
-      marginBottom: '32px',
+      display: 'grid',
+      gap: '8px',
     });
     const title = this._el('h1', {
       fontSize: '22px',
-      fontWeight: '600',
-      color: '#eee',
-      marginBottom: '8px',
+      fontWeight: '700',
+      color: RETRO_TEXT_STRONG,
+      letterSpacing: '0.12em',
+      textTransform: 'uppercase',
     });
     title.textContent = 'Electric Sheep';
 
     const subtitle = this._el('p', {
       fontSize: '13px',
-      color: '#666',
+      color: RETRO_MUTED,
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
     });
     subtitle.textContent = 'Control Screen';
 
@@ -83,19 +112,21 @@ export class ControlUI {
       display: 'flex',
       alignItems: 'center',
       gap: '8px',
-      marginBottom: '24px',
-      padding: '10px 14px',
-      background: '#1a1a1a',
-      borderRadius: '8px',
+      padding: '12px 14px',
+      background: RETRO_PANEL,
+      borderRadius: '2px',
+      border: `1px solid ${RETRO_BORDER}`,
+      boxShadow: 'inset 0 0 0 1px rgba(189,255,172,0.03), 0 0 18px rgba(74, 136, 60, 0.08)',
     });
     this._statusDot = this._el('span', {
-      width: '8px',
-      height: '8px',
-      borderRadius: '50%',
-      background: '#f44',
+      width: '9px',
+      height: '9px',
+      borderRadius: '1px',
+      background: RETRO_WARNING,
       flexShrink: '0',
+      boxShadow: '0 0 10px currentColor',
     });
-    this._statusText = this._el('span', { fontSize: '13px', color: '#888' });
+    this._statusText = this._el('span', { fontSize: '13px', color: RETRO_MUTED });
     this._statusText.textContent = 'Output not connected';
     statusRow.append(this._statusDot, this._statusText);
 
@@ -104,7 +135,7 @@ export class ControlUI {
     this._modeLabel = this._el('div', {
       fontSize: '18px',
       fontWeight: '600',
-      color: '#6f6',
+      color: RETRO_TEXT_STRONG,
       marginBottom: '12px',
     });
     this._modeLabel.textContent = 'Editor Mode';
@@ -124,7 +155,7 @@ export class ControlUI {
     this._editTargetLabel = this._el('div', {
       fontSize: '18px',
       fontWeight: '600',
-      color: '#66d4ff',
+      color: RETRO_TEXT_STRONG,
       marginBottom: '12px',
     });
     this._editTargetLabel.textContent = 'Surface Quad';
@@ -146,7 +177,7 @@ export class ControlUI {
     const surfaceSection = this._section('Surfaces');
     this._surfaceCountLabel = this._el('div', {
       fontSize: '14px',
-      color: '#aaa',
+      color: RETRO_MUTED,
       marginBottom: '12px',
     });
     this._surfaceCountLabel.textContent = '0 surfaces';
@@ -258,18 +289,18 @@ export class ControlUI {
 
   _section(title) {
     const section = this._el('div', {
-      marginBottom: '24px',
       padding: '16px',
-      background: '#1a1a1a',
-      borderRadius: '8px',
-      border: '1px solid #222',
+      background: RETRO_PANEL,
+      borderRadius: '2px',
+      border: `1px solid ${RETRO_BORDER}`,
+      boxShadow: 'inset 0 0 0 1px rgba(189,255,172,0.03), 0 0 18px rgba(74, 136, 60, 0.08)',
     });
     const heading = this._el('h2', {
       fontSize: '13px',
       fontWeight: '600',
-      color: '#555',
+      color: RETRO_MUTED,
       textTransform: 'uppercase',
-      letterSpacing: '0.05em',
+      letterSpacing: '0.12em',
       marginBottom: '12px',
     });
     heading.textContent = title;
@@ -280,12 +311,13 @@ export class ControlUI {
   _placeholder(text) {
     const el = this._el('div', {
       fontSize: '13px',
-      color: '#444',
+      color: RETRO_MUTED,
       fontStyle: 'italic',
       padding: '12px',
-      border: '1px dashed #333',
-      borderRadius: '6px',
+      border: `1px dashed ${RETRO_BORDER}`,
+      borderRadius: '2px',
       textAlign: 'center',
+      background: RETRO_PANEL_SOFT,
     });
     el.textContent = text;
     return el;
@@ -295,20 +327,29 @@ export class ControlUI {
     const btn = document.createElement('button');
     btn.textContent = label;
     Object.assign(btn.style, {
-      background: 'rgba(255,255,255,0.08)',
-      color: '#ccc',
-      border: '1px solid rgba(255,255,255,0.12)',
-      borderRadius: '6px',
-      padding: '8px 16px',
+      background: RETRO_PANEL,
+      color: RETRO_TEXT,
+      border: `1px solid ${RETRO_BORDER}`,
+      borderRadius: '2px',
+      padding: '9px 14px',
       cursor: 'pointer',
-      fontSize: '13px',
-      transition: 'background 0.15s',
+      fontSize: '12px',
+      fontFamily: RETRO_FONT,
+      fontWeight: '600',
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
+      transition: 'background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease',
+      boxShadow: 'inset 0 0 0 1px rgba(189,255,172,0.03), 0 0 12px rgba(116,255,108,0.05)',
     });
     btn.addEventListener('mouseenter', () => {
-      btn.style.background = 'rgba(255,255,255,0.15)';
+      btn.style.background = 'linear-gradient(180deg, rgba(22, 42, 20, 0.98) 0%, rgba(9, 22, 9, 1) 100%)';
+      btn.style.borderColor = 'rgba(166, 223, 134, 0.5)';
+      btn.style.boxShadow = 'inset 0 0 0 1px rgba(189,255,172,0.08), 0 0 16px rgba(116,255,108,0.12)';
     });
     btn.addEventListener('mouseleave', () => {
-      btn.style.background = 'rgba(255,255,255,0.08)';
+      btn.style.background = RETRO_PANEL;
+      btn.style.borderColor = RETRO_BORDER;
+      btn.style.boxShadow = 'inset 0 0 0 1px rgba(189,255,172,0.03), 0 0 12px rgba(116,255,108,0.05)';
     });
     btn.addEventListener('click', onClick);
     return btn;
