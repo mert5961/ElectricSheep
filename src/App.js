@@ -95,6 +95,10 @@ function audioSignalsToUniformPatch(signals) {
   };
 }
 
+function getOutputWindowUrl() {
+  return new URL('output.html', window.location.origin + import.meta.env.BASE_URL).toString();
+}
+
 export class App {
   constructor({
     bridge = null,
@@ -291,8 +295,10 @@ export class App {
       return null;
     }
 
+    const outputWindowUrl = getOutputWindowUrl();
     const existingOutputWindow = this._resolveOutputWindowRef();
     if (existingOutputWindow) {
+      this._navigateOutputWindow(existingOutputWindow, outputWindowUrl);
       existingOutputWindow.focus();
       this._broadcastSceneState();
       this._syncOutputWindowState();
@@ -300,7 +306,7 @@ export class App {
     }
 
     this._outputWindowRef = window.open(
-      new URL('output.html', window.location.origin + import.meta.env.BASE_URL).toString(),
+      outputWindowUrl,
       'electric-sheep-output',
       'popup,width=1440,height=900',
     );
@@ -320,6 +326,7 @@ export class App {
 
     const outputWindow = this._resolveOutputWindowRef();
     if (outputWindow) {
+      this._navigateOutputWindow(outputWindow, getOutputWindowUrl());
       outputWindow.focus();
       this._syncOutputWindowState();
       return outputWindow;
@@ -1151,6 +1158,22 @@ export class App {
     }
 
     return this._outputWindowRef;
+  }
+
+  _navigateOutputWindow(outputWindow, targetUrl) {
+    if (!outputWindow) {
+      return null;
+    }
+
+    try {
+      if (outputWindow.location.href !== targetUrl) {
+        outputWindow.location.replace(targetUrl);
+      }
+    } catch (error) {
+      outputWindow.location = targetUrl;
+    }
+
+    return outputWindow;
   }
 
   _syncOutputWindowState() {
