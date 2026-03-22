@@ -166,3 +166,9 @@ This separation enables:
 ## Conceptual Statement
 
 Electric Sheep does not simply analyze sound. It **interprets** it, **translates** it into emotion, and **projects** it onto space.
+
+---
+
+## License
+
+This project is licensed under the Apache License 2.0. See the `LICENSE` file for details.
