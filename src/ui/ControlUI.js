@@ -224,7 +224,8 @@ export class ControlUI {
     // Output window section
     const outputSection = this._section('Output Window');
     const openBtn = this._btn('Open Output Window', () => {
-      window.open('/output.html', 'electric-sheep-output', 'popup');
+      const outputUrl = new URL('output.html', window.location.origin + import.meta.env.BASE_URL);
+      window.open(outputUrl.toString(), 'electric-sheep-output', 'popup');
     });
     outputSection.append(openBtn);
 

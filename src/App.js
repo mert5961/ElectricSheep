@@ -300,7 +300,7 @@ export class App {
     }
 
     this._outputWindowRef = window.open(
-      '/output.html',
+      new URL('output.html', window.location.origin + import.meta.env.BASE_URL).toString(),
       'electric-sheep-output',
       'popup,width=1440,height=900',
     );
