@@ -31,6 +31,8 @@ const RETRO_LABEL = '#7fa96f';
 const RETRO_ACCENT = '#9ddf74';
 const RETRO_ACCENT_STRONG = '#baff9f';
 const RETRO_BORDER = 'rgba(120, 170, 96, 0.22)';
+const MODULE_FADE_DURATION_MS = 150;
+const MODULE_FADE_TRANSITION = `opacity ${MODULE_FADE_DURATION_MS}ms linear`;
 
 function ensureRetroUiEffects() {
   if (document.getElementById('electric-sheep-retro-ui-effects')) {
@@ -40,19 +42,153 @@ function ensureRetroUiEffects() {
   const style = document.createElement('style');
   style.id = 'electric-sheep-retro-ui-effects';
   style.textContent = `
-    @keyframes electric-sheep-retro-flicker {
-      0%, 100% { opacity: 1; }
-      7% { opacity: 0.985; }
-      8% { opacity: 1; }
-      52% { opacity: 0.972; }
-      53% { opacity: 1; }
-      78% { opacity: 0.992; }
-      79% { opacity: 1; }
-    }
-
     @keyframes electric-sheep-retro-scan {
       0% { transform: translateY(-1.5%); }
       100% { transform: translateY(1.5%); }
+    }
+
+    @keyframes electric-sheep-retro-line-glow {
+      0%, 100% {
+        box-shadow:
+          inset 0 0 0 1px rgba(189, 255, 172, 0.03),
+          0 0 16px rgba(74, 136, 60, 0.08),
+          0 0 0 1px rgba(157, 223, 116, 0.05);
+        border-color: rgba(120, 170, 96, 0.22);
+      }
+
+      50% {
+        box-shadow:
+          inset 0 0 0 1px rgba(210, 255, 198, 0.08),
+          0 0 24px rgba(116, 255, 108, 0.14),
+          0 0 0 1px rgba(157, 223, 116, 0.12);
+        border-color: rgba(157, 223, 116, 0.34);
+      }
+    }
+
+    @keyframes electric-sheep-retro-badge-glow {
+      0%, 100% {
+        box-shadow:
+          inset 0 0 0 1px rgba(189, 255, 172, 0.02),
+          0 0 8px rgba(116, 255, 108, 0.04);
+      }
+
+      50% {
+        box-shadow:
+          inset 0 0 0 1px rgba(220, 255, 204, 0.08),
+          0 0 14px rgba(116, 255, 108, 0.12);
+      }
+    }
+
+    #ui,
+    #ui * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(150, 223, 116, 0.72) rgba(6, 14, 6, 0.78);
+    }
+
+    #ui::-webkit-scrollbar,
+    #ui *::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    #ui::-webkit-scrollbar-track,
+    #ui *::-webkit-scrollbar-track {
+      background:
+        linear-gradient(180deg, rgba(8, 16, 8, 0.94) 0%, rgba(4, 10, 4, 0.98) 100%);
+      border-left: 1px solid rgba(120, 170, 96, 0.16);
+      border-right: 1px solid rgba(120, 170, 96, 0.1);
+      box-shadow:
+        inset 0 0 0 1px rgba(189, 255, 172, 0.03),
+        inset 0 0 18px rgba(0, 0, 0, 0.28);
+    }
+
+    #ui::-webkit-scrollbar-thumb,
+    #ui *::-webkit-scrollbar-thumb {
+      background:
+        linear-gradient(180deg, rgba(126, 196, 92, 0.92) 0%, rgba(81, 140, 62, 0.98) 100%);
+      border: 1px solid rgba(196, 248, 168, 0.26);
+      border-radius: 999px;
+      box-shadow:
+        inset 0 0 0 1px rgba(224, 255, 212, 0.08),
+        0 0 10px rgba(116, 255, 108, 0.12);
+    }
+
+    #ui::-webkit-scrollbar-thumb:hover,
+    #ui *::-webkit-scrollbar-thumb:hover {
+      background:
+        linear-gradient(180deg, rgba(150, 223, 116, 0.98) 0%, rgba(98, 168, 75, 1) 100%);
+      border-color: rgba(220, 255, 204, 0.34);
+      box-shadow:
+        inset 0 0 0 1px rgba(224, 255, 212, 0.12),
+        0 0 14px rgba(116, 255, 108, 0.18);
+    }
+
+    #ui::-webkit-scrollbar-corner,
+    #ui *::-webkit-scrollbar-corner {
+      background: rgba(4, 10, 4, 0.98);
+    }
+
+    #ui .es-retro-panel,
+    #ui .es-retro-section,
+    #ui .es-retro-stage-frame,
+    #ui .es-retro-badge,
+    #ui .es-retro-button {
+      position: relative;
+      isolation: isolate;
+    }
+
+    #ui .es-retro-panel,
+    #ui .es-retro-section,
+    #ui .es-retro-stage-frame {
+      animation: electric-sheep-retro-line-glow 6.4s ease-in-out infinite;
+    }
+
+    #ui .es-retro-panel::before,
+    #ui .es-retro-section::before,
+    #ui .es-retro-stage-frame::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        repeating-linear-gradient(
+          180deg,
+          rgba(190, 255, 200, 0.028) 0 1px,
+          rgba(0, 0, 0, 0) 1px 4px
+        ),
+        linear-gradient(180deg, rgba(180, 255, 190, 0.028), transparent 34%);
+      mix-blend-mode: screen;
+      opacity: 0.12;
+    }
+
+    #ui .es-retro-panel::after,
+    #ui .es-retro-section::after,
+    #ui .es-retro-stage-frame::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(circle at center, transparent 54%, rgba(0, 0, 0, 0.16) 100%),
+        linear-gradient(125deg, rgba(255, 255, 255, 0.016) 0%, transparent 22%, rgba(255, 255, 255, 0.01) 52%, transparent 74%, rgba(255, 255, 255, 0.012) 100%);
+      opacity: 0.22;
+    }
+
+    #ui .es-retro-panel > *,
+    #ui .es-retro-section > *,
+    #ui .es-retro-stage-frame > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    #ui .es-retro-badge {
+      animation: electric-sheep-retro-badge-glow 5.2s ease-in-out infinite;
+    }
+
+    #ui .es-retro-button {
+      animation: electric-sheep-retro-badge-glow 4.8s ease-in-out infinite;
     }
   `;
   document.head.append(style);
@@ -79,6 +215,7 @@ export class UIManager {
     this._content = null;
     this._geoModuleEl = null;
     this._shaderModuleEl = null;
+    this._moduleFadeTimeouts = new Map();
     this._moduleButtons = new Map();
     this._previewButtons = new Map();
     this._outputModeButtons = new Map();
@@ -313,7 +450,6 @@ export class UIManager {
         'radial-gradient(circle at 63% 72%, rgba(191,255,174,0.5) 0 0.5px, transparent 0.7px)',
         'radial-gradient(circle at 29% 78%, rgba(191,255,174,0.45) 0 0.45px, transparent 0.7px)',
       ].join(','),
-      animation: 'electric-sheep-retro-flicker 12s step-end infinite',
       zIndex: '0',
     });
 
@@ -336,7 +472,7 @@ export class UIManager {
     this._uiEl.append(this._shell);
 
     this._syncModuleButtons();
-    this._syncModuleVisibility();
+    this._syncModuleVisibility({ immediate: true });
     this._syncPreviewButtons();
     this._syncOutputModeButtons();
     this._syncEditTargetButtons();
@@ -349,6 +485,7 @@ export class UIManager {
 
   _buildTopbar() {
     const bar = document.createElement('div');
+    bar.className = 'es-retro-panel';
     Object.assign(bar.style, {
       display: 'grid',
       gridTemplateColumns: 'minmax(220px, auto) minmax(220px, auto) minmax(0, 1fr)',
@@ -444,6 +581,11 @@ export class UIManager {
       gridTemplateColumns: '320px minmax(0, 1fr) 290px',
       gap: '18px',
       minHeight: '0',
+      opacity: '0',
+      visibility: 'hidden',
+      pointerEvents: 'none',
+      transition: MODULE_FADE_TRANSITION,
+      willChange: 'opacity',
     });
 
     const controlsCard = this._createCard({
@@ -661,6 +803,7 @@ export class UIManager {
     stageTop.append(stageCopy, stageBadges);
 
     const stageCanvasFrame = document.createElement('div');
+    stageCanvasFrame.className = 'es-retro-stage-frame';
     Object.assign(stageCanvasFrame.style, {
       position: 'relative',
       minHeight: '0',
@@ -720,10 +863,15 @@ export class UIManager {
     Object.assign(moduleEl.style, {
       position: 'absolute',
       inset: '0',
-      display: 'none',
+      display: 'grid',
       gridTemplateRows: 'auto 1fr',
       gap: '18px',
       minHeight: '0',
+      opacity: '0',
+      visibility: 'hidden',
+      pointerEvents: 'none',
+      transition: MODULE_FADE_TRANSITION,
+      willChange: 'opacity',
     });
 
     const headerCard = this._createCard({
@@ -921,6 +1069,7 @@ export class UIManager {
 
   _createSection(label) {
     const section = document.createElement('div');
+    section.className = 'es-retro-section';
     Object.assign(section.style, {
       display: 'grid',
       gap: '10px',
@@ -965,6 +1114,7 @@ export class UIManager {
 
   _createCard(style = {}) {
     const card = document.createElement('div');
+    card.className = 'es-retro-panel';
     Object.assign(card.style, {
       borderRadius: '4px',
       background: 'linear-gradient(180deg, rgba(8, 18, 8, 0.98) 0%, rgba(5, 12, 5, 0.98) 100%)',
@@ -991,6 +1141,7 @@ export class UIManager {
       fontFamily: RETRO_FONT,
       whiteSpace: 'nowrap',
     });
+    badge.className = 'es-retro-badge';
     return badge;
   }
 
@@ -1050,6 +1201,7 @@ export class UIManager {
     fullWidth = false,
   } = {}) {
     const button = document.createElement('button');
+    button.className = 'es-retro-button';
     button.type = 'button';
     button.textContent = label;
     button.dataset.accent = accent || '';
@@ -1100,9 +1252,58 @@ export class UIManager {
     });
   }
 
-  _syncModuleVisibility() {
-    this._geoModuleEl.style.display = this._activeModule === EDITOR_MODULE_GEO ? 'grid' : 'none';
-    this._shaderModuleEl.style.display = this._activeModule === EDITOR_MODULE_SHADER ? 'grid' : 'none';
+  _syncModuleVisibility({ immediate = false } = {}) {
+    this._setModuleVisibility(this._geoModuleEl, this._activeModule === EDITOR_MODULE_GEO, immediate);
+    this._setModuleVisibility(this._shaderModuleEl, this._activeModule === EDITOR_MODULE_SHADER, immediate);
+  }
+
+  _setModuleVisibility(moduleEl, isActive, immediate) {
+    if (!moduleEl) {
+      return;
+    }
+
+    moduleEl.dataset.moduleVisibleTarget = isActive ? 'true' : 'false';
+
+    const hideTimeout = this._moduleFadeTimeouts.get(moduleEl);
+    if (hideTimeout) {
+      clearTimeout(hideTimeout);
+      this._moduleFadeTimeouts.delete(moduleEl);
+    }
+
+    if (immediate) {
+      moduleEl.style.transition = 'none';
+      moduleEl.style.opacity = isActive ? '1' : '0';
+      moduleEl.style.visibility = isActive ? 'visible' : 'hidden';
+      moduleEl.style.pointerEvents = isActive ? 'auto' : 'none';
+      moduleEl.style.zIndex = isActive ? '1' : '0';
+      // Force the browser to commit the immediate state before reenabling transitions.
+      void moduleEl.offsetHeight;
+      moduleEl.style.transition = MODULE_FADE_TRANSITION;
+      return;
+    }
+
+    if (isActive) {
+      moduleEl.style.visibility = 'visible';
+      moduleEl.style.pointerEvents = 'auto';
+      moduleEl.style.zIndex = '1';
+      requestAnimationFrame(() => {
+        if (moduleEl.dataset.moduleVisibleTarget === 'true') {
+          moduleEl.style.opacity = '1';
+        }
+      });
+      return;
+    }
+
+    moduleEl.style.pointerEvents = 'none';
+    moduleEl.style.zIndex = '0';
+    moduleEl.style.opacity = '0';
+    const timeoutId = window.setTimeout(() => {
+      if (moduleEl.dataset.moduleVisibleTarget === 'false') {
+        moduleEl.style.visibility = 'hidden';
+      }
+      this._moduleFadeTimeouts.delete(moduleEl);
+    }, MODULE_FADE_DURATION_MS);
+    this._moduleFadeTimeouts.set(moduleEl, timeoutId);
   }
 
   _syncOutputWindowControls() {
@@ -1311,6 +1512,10 @@ export class UIManager {
   }
 
   dispose() {
+    this._moduleFadeTimeouts.forEach((timeoutId) => {
+      clearTimeout(timeoutId);
+    });
+    this._moduleFadeTimeouts.clear();
     if (this._shell) {
       this._shell.remove();
     }
