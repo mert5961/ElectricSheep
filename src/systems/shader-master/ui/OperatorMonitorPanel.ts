@@ -216,7 +216,7 @@ export class OperatorMonitorPanel {
     commandDeck.append(commandCopy, actions);
 
     this.signalMonitorElement = createElement('div');
-    this.signalMonitorElement.className = 'es-operator-crt crt-panel crt-flicker';
+    this.signalMonitorElement.className = 'es-operator-crt crt-panel';
     const monitorPanel = this.signalMonitorElement;
 
     const monitorInner = createElement('div');

@@ -13,8 +13,8 @@ export function ensureOperatorWorkspaceStyles(): void {
   style.id = OPERATOR_STYLE_ID;
   style.textContent = `
     .es-shader-tab {
-      --crt-bg: #06110a;
-      --crt-bg-2: #08160d;
+      --crt-bg: #163823;
+      --crt-bg-2: #0e2416;
       --crt-panel: rgba(7, 24, 12, 0.92);
       --crt-line-dim: rgba(120, 255, 150, 0.08);
       --crt-line: rgba(120, 255, 150, 0.16);
@@ -64,6 +64,7 @@ export function ensureOperatorWorkspaceStyles(): void {
         inset 0 0 88px rgba(30, 120, 40, 0.06),
         var(--es-glow-soft);
       overflow: hidden;
+      animation: es-border-hum 6.4s ease-in-out infinite;
     }
 
     .es-machine-panel::before {
@@ -81,7 +82,7 @@ export function ensureOperatorWorkspaceStyles(): void {
         ),
         linear-gradient(180deg, rgba(180, 255, 190, 0.03), transparent 34%);
       mix-blend-mode: screen;
-      opacity: 0.34;
+      opacity: 0.18;
     }
 
     .es-machine-panel::after {
@@ -224,6 +225,7 @@ export function ensureOperatorWorkspaceStyles(): void {
 
     .es-summary-cell,
     .es-monitor-chip {
+      position: relative;
       display: grid;
       gap: 4px;
       padding: 10px 12px;
@@ -232,6 +234,37 @@ export function ensureOperatorWorkspaceStyles(): void {
       background: rgba(80, 255, 120, 0.02);
       box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
       min-width: 0;
+      overflow: hidden;
+      animation: es-border-hum-subtle 5.8s ease-in-out infinite;
+    }
+
+    .es-summary-cell::before,
+    .es-monitor-chip::before,
+    .es-monitor-section::before,
+    .es-meter-row::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          rgba(190, 255, 200, 0.028) 0px,
+          rgba(190, 255, 200, 0.028) 1px,
+          rgba(0, 0, 0, 0) 2px,
+          rgba(0, 0, 0, 0) 4px
+        ),
+        linear-gradient(180deg, rgba(180, 255, 190, 0.02), transparent 34%);
+      mix-blend-mode: screen;
+      opacity: 0.08;
+    }
+
+    .es-summary-cell > *,
+    .es-monitor-chip > *,
+    .es-monitor-section > *,
+    .es-meter-row > * {
+      position: relative;
+      z-index: 1;
     }
 
     .es-summary-cell-label,
@@ -272,6 +305,7 @@ export function ensureOperatorWorkspaceStyles(): void {
       box-shadow: var(--crt-inset-shadow), var(--crt-glow-soft);
       border-radius: 0;
       isolation: isolate;
+      animation: es-border-hum 6.8s ease-in-out infinite;
     }
 
     .crt-panel::before {
@@ -288,7 +322,7 @@ export function ensureOperatorWorkspaceStyles(): void {
           rgba(0, 0, 0, 0) 2px,
           rgba(0, 0, 0, 0) 4px
         );
-      opacity: 0.34;
+      opacity: 0.18;
       mix-blend-mode: screen;
     }
 
@@ -382,6 +416,7 @@ export function ensureOperatorWorkspaceStyles(): void {
         linear-gradient(180deg, rgba(120, 255, 150, 0.025), rgba(0, 0, 0, 0.02)),
         rgba(0, 0, 0, 0.16);
       overflow: hidden;
+      animation: es-border-hum-subtle 6.2s ease-in-out infinite;
     }
 
     .crt-monitor::before {
@@ -397,9 +432,9 @@ export function ensureOperatorWorkspaceStyles(): void {
           rgba(190, 255, 200, 0.04) 1px,
           rgba(0, 0, 0, 0) 2px,
           rgba(0, 0, 0, 0) 4px
-        ),
+      ),
         radial-gradient(circle at center, transparent 54%, rgba(0, 0, 0, 0.24) 100%);
-      opacity: 0.28;
+      opacity: 0.14;
     }
 
     .crt-monitor::after {
@@ -454,10 +489,6 @@ export function ensureOperatorWorkspaceStyles(): void {
       padding: 12px;
     }
 
-    .crt-flicker::after {
-      animation: crt-flicker 5.2s steps(2, end) infinite;
-    }
-
     .es-monitor-grid {
       position: relative;
       z-index: 1;
@@ -472,12 +503,15 @@ export function ensureOperatorWorkspaceStyles(): void {
     }
 
     .es-monitor-section {
+      position: relative;
       padding: 12px;
       border: 1px solid rgba(120, 255, 150, 0.08);
       border-radius: 0;
       background: rgba(80, 255, 120, 0.02);
       box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
       min-width: 0;
+      overflow: hidden;
+      animation: es-border-hum-subtle 6s ease-in-out infinite;
     }
 
     .es-monitor-head {
@@ -506,6 +540,7 @@ export function ensureOperatorWorkspaceStyles(): void {
     }
 
     .es-meter-row {
+      position: relative;
       display: grid;
       gap: 6px;
       padding: 8px 10px;
@@ -513,6 +548,8 @@ export function ensureOperatorWorkspaceStyles(): void {
       background: rgba(80, 255, 120, 0.02);
       box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
       min-width: 0;
+      overflow: hidden;
+      animation: es-border-hum-subtle 5.6s ease-in-out infinite;
     }
 
     .es-meter-copy {
@@ -596,6 +633,7 @@ export function ensureOperatorWorkspaceStyles(): void {
       border: 1px solid rgba(120, 255, 150, 0.1);
       background: rgba(5, 12, 6, 0.94);
       box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.28);
+      animation: es-border-hum-subtle 6.4s ease-in-out infinite;
     }
 
     .es-operator-layout {
@@ -655,18 +693,38 @@ export function ensureOperatorWorkspaceStyles(): void {
       }
     }
 
-    @keyframes crt-flicker {
-      0% { opacity: 0.985; }
-      10% { opacity: 0.992; }
-      20% { opacity: 0.988; }
-      30% { opacity: 1; }
-      40% { opacity: 0.994; }
-      50% { opacity: 0.989; }
-      60% { opacity: 0.997; }
-      70% { opacity: 0.991; }
-      80% { opacity: 1; }
-      90% { opacity: 0.993; }
-      100% { opacity: 0.987; }
+    @keyframes es-border-hum {
+      0%, 100% {
+        border-color: rgba(120, 255, 150, 0.12);
+        box-shadow:
+          inset 0 0 0 1px rgba(140, 255, 170, 0.05),
+          inset 0 0 30px rgba(0, 0, 0, 0.28),
+          0 0 10px rgba(140, 255, 160, 0.06);
+      }
+
+      50% {
+        border-color: rgba(160, 255, 180, 0.2);
+        box-shadow:
+          inset 0 0 0 1px rgba(180, 255, 190, 0.08),
+          inset 0 0 34px rgba(0, 0, 0, 0.3),
+          0 0 16px rgba(140, 255, 160, 0.12);
+      }
+    }
+
+    @keyframes es-border-hum-subtle {
+      0%, 100% {
+        border-color: rgba(120, 255, 150, 0.08);
+        box-shadow:
+          inset 0 0 0 1px rgba(0, 0, 0, 0.22),
+          0 0 8px rgba(140, 255, 160, 0.04);
+      }
+
+      50% {
+        border-color: rgba(160, 255, 180, 0.14);
+        box-shadow:
+          inset 0 0 0 1px rgba(0, 0, 0, 0.22),
+          0 0 12px rgba(140, 255, 160, 0.08);
+      }
     }
 
     @media (max-width: 1280px) {

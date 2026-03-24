@@ -31,6 +31,7 @@ import { AudioAnalyzer } from './systems/audio-analyzer/audioAnalyzer.ts';
 import { createAudioAnalyzerStore } from './systems/audio-analyzer/audioAnalyzerStore.ts';
 import { MappingAssistOverlay } from './overlays/MappingAssistOverlay.js';
 import { OutputStageUI } from './ui/OutputStageUI.js';
+import { mountWindowCrtEffects } from './ui/windowCrtEffects.js';
 
 const AI_BOOT_WARMUP_MS = 3000;
 const AI_REQUEST_COOLDOWN_MS = 3000;
@@ -104,6 +105,7 @@ export class App {
     bridge = null,
     role = APP_ROLE_EDITOR,
   } = {}) {
+    const appEl = document.getElementById('app');
     const canvas = document.getElementById('webgl-canvas');
     const overlayEl = document.getElementById('overlay');
     const uiEl = document.getElementById('ui');
@@ -127,6 +129,7 @@ export class App {
     this._lastCommittedAIPhraseState = null;
     this._lastCommittedAISectionState = null;
     this._aiRequestInFlight = false;
+    this._windowCrtOverlay = mountWindowCrtEffects(appEl);
     this._aiFeatureTracker = role === APP_ROLE_EDITOR
       ? new AIFeatureTracker()
       : null;
@@ -1258,6 +1261,7 @@ export class App {
     if (this.ui) this.ui.dispose();
     if (this.outputUi) this.outputUi.dispose();
     if (this.assistOverlay) this.assistOverlay.dispose();
+    if (this._windowCrtOverlay) this._windowCrtOverlay.remove();
     this.shaderRuntime.dispose();
     this.renderer.dispose();
     if (this._bridge) this._bridge.dispose();
