@@ -12,15 +12,15 @@ Instead of simply reacting to audio signals, Electric Sheep treats sound as some
 
 GitHub Pages build:
 
-`https://mert5961.github.io/ElectricSheep/`
+[https://mert5961.github.io/ElectricSheep/](https://mert5961.github.io/ElectricSheep/)
 
 Control workspace:
 
-`https://mert5961.github.io/ElectricSheep/control.html`
+[https://mert5961.github.io/ElectricSheep/control.html](https://mert5961.github.io/ElectricSheep/control.html)
 
 Projection output:
 
-`https://mert5961.github.io/ElectricSheep/output.html`
+[https://mert5961.github.io/ElectricSheep/output.html](https://mert5961.github.io/ElectricSheep/output.html)
 
 ---
 
@@ -188,3 +188,47 @@ Electric Sheep does not simply analyze sound. It **interprets** it, **translates
 ## License
 
 This project is licensed under the Apache License 2.0. See the `LICENSE` file for details.
+
+---
+
+## Installation
+
+Requirements:
+
+- Node.js 18+ recommended
+- npm
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start the local development server:
+
+```bash
+npm run dev
+```
+
+Create a production build:
+
+```bash
+npm run build
+```
+
+Preview the production build locally:
+
+```bash
+npm run preview
+```
+
+Build the GitHub Pages version:
+
+```bash
+npm run build:pages
+```
+
+Note:
+
+- The public GitHub Pages version is static and works in the browser without install.
+- AI-driven features that depend on a local backend in [src/systems/shader-master/runtime/getAIState.ts](/Users/mertbarut/Desktop/ElectricSheep/src/systems/shader-master/runtime/getAIState.ts) will not work for other people unless that backend is hosted separately.
