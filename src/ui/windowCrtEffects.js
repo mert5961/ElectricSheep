@@ -12,11 +12,6 @@ function ensureWindowCrtStyles() {
   const style = document.createElement('style');
   style.id = WINDOW_CRT_STYLE_ID;
   style.textContent = `
-    @keyframes electric-sheep-window-crt-scan {
-      0% { transform: translateY(-100%); }
-      100% { transform: translateY(100%); }
-    }
-
     .electric-sheep-window-crt {
       position: fixed;
       inset: 0;
@@ -69,23 +64,6 @@ function ensureWindowCrtStyles() {
       opacity: 0.62;
     }
 
-    .electric-sheep-window-crt__sweep {
-      inset: -35% 0;
-      background:
-        linear-gradient(
-          180deg,
-          transparent 0%,
-          transparent 42%,
-          rgba(160, 255, 180, 0.03) 48%,
-          rgba(160, 255, 180, 0.11) 50%,
-          rgba(160, 255, 180, 0.03) 52%,
-          transparent 58%,
-          transparent 100%
-        );
-      opacity: 0.34;
-      animation: electric-sheep-window-crt-scan 11s linear infinite;
-    }
-
     .electric-sheep-window-crt__noise {
       background-image:
         radial-gradient(circle at 18% 22%, rgba(191, 255, 174, 0.92) 0 0.7px, transparent 0.9px),
@@ -96,10 +74,6 @@ function ensureWindowCrtStyles() {
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .electric-sheep-window-crt__sweep {
-        animation: none;
-      }
-
       .electric-sheep-window-crt__glass {
         backdrop-filter: none;
       }
@@ -139,13 +113,10 @@ export function mountWindowCrtEffects(rootEl) {
   const scanlines = document.createElement('div');
   scanlines.className = 'electric-sheep-window-crt__scanlines';
 
-  const sweep = document.createElement('div');
-  sweep.className = 'electric-sheep-window-crt__sweep';
-
   const noise = document.createElement('div');
   noise.className = 'electric-sheep-window-crt__noise';
 
-  overlay.append(glass, scanlines, sweep, noise);
+  overlay.append(glass, scanlines, noise);
   rootEl.append(overlay);
   return overlay;
 }

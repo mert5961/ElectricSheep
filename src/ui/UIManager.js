@@ -15,6 +15,7 @@ import {
   PREVIEW_MODE_OUTPUT,
 } from '../core/AppModes.js';
 import { ShaderTab } from '../systems/shader-master/ui/ShaderTab.ts';
+import { mountStageProjectionTilt } from './stageProjectionTilt.js';
 import './retro-ui.css';
 
 function createText(tagName, text, className = '') {
@@ -74,6 +75,8 @@ export class UIManager {
     this._geoStageModeBadge = null;
     this._shaderSummaryEl = null;
     this._shaderMasterPanel = null;
+    this._stageCanvasFrame = null;
+    this._stageProjectionTilt = null;
 
     this.onModuleChange = null;
     this.onAddSurface = null;
@@ -183,8 +186,12 @@ export class UIManager {
     this._hasActiveSurface = Boolean(surface);
 
     if (surface) {
-      this._surfaceLabel.textContent = surface.name;
-      this._surfaceMetaLabel.textContent = `Editing ${this._describeEditTarget(this._editTarget)} on the shared stage`;
+      if (this._surfaceLabel) {
+        this._surfaceLabel.textContent = surface.name;
+      }
+      if (this._surfaceMetaLabel) {
+        this._surfaceMetaLabel.textContent = `Editing ${this._describeEditTarget(this._editTarget)} on the shared stage`;
+      }
       const resolvedSurfaceCount = Math.max(surfaceCount, surface.order + 1);
       this._surfaceOrderLabel.textContent = `Layer ${surface.order + 1}/${resolvedSurfaceCount}`;
       this._featherSlider.value = String(surface.feather);
@@ -197,8 +204,12 @@ export class UIManager {
       this._subtractFeatherLabel.textContent = surface.activeSubtractFeather.toFixed(2);
       this._subtractFeatherSlider.disabled = surface.subtractQuadCount === 0;
     } else {
-      this._surfaceLabel.textContent = 'No surface selected';
-      this._surfaceMetaLabel.textContent = 'Add a surface or click one directly on the stage to begin mapping.';
+      if (this._surfaceLabel) {
+        this._surfaceLabel.textContent = 'No surface selected';
+      }
+      if (this._surfaceMetaLabel) {
+        this._surfaceMetaLabel.textContent = 'Add a surface or click one directly on the stage to begin mapping.';
+      }
       this._surfaceOrderLabel.textContent = 'No layer';
       this._featherSlider.value = '0';
       this._featherLabel.textContent = '0.00';
@@ -249,6 +260,8 @@ export class UIManager {
     this._content.append(this._geoModuleEl, this._shaderModuleEl);
     this._shell.append(vignetteOverlay, scanlineOverlay, dustOverlay, this._topbar, this._content);
     this._uiEl.append(this._shell);
+
+    this._stageProjectionTilt = mountStageProjectionTilt(this._stageCanvasFrame);
 
     this._syncModuleButtons();
     this._syncModuleVisibility({ immediate: true });
@@ -319,13 +332,9 @@ export class UIManager {
       createText('div', 'Projection geometry, surface editing, feathering, and layer order live here.', 'es-text-subtitle'),
     );
 
-    const selectionSection = this._createSection('Surface');
-    this._surfaceLabel = createText('div', 'No surface selected', 'es-text-strong');
-    this._surfaceMetaLabel = createText('div', 'Add a surface or click one directly on the stage to begin mapping.', 'es-text-subtitle');
     const addSurfaceBtn = this._createButton('+ Add Surface', () => {
       if (this.onAddSurface) this.onAddSurface();
     }, { active: true, fullWidth: true });
-    selectionSection.append(this._surfaceLabel, this._surfaceMetaLabel, addSurfaceBtn);
 
     const workspaceSection = this._createSection('Workspace');
     const previewGroup = this._createInlineGroup('Preview');
@@ -411,19 +420,13 @@ export class UIManager {
     this._subtractFeatherLabel = subtractFeatherGroup.valueLabel;
     featherSection.append(this._subtractLabel, subtractActions, subtractFeatherGroup.element);
 
-    const helpSection = this._createSection('Stage Notes');
-    helpSection.append(
-      createText('div', 'Drag the visible handles directly on the stage. GEO keeps the spatial layout while SHADER handles preset logic and uniforms.', 'es-text-muted'),
-    );
-
     controlsCard.append(
       geoHeader,
-      selectionSection,
+      addSurfaceBtn,
       workspaceSection,
       editSection,
       layerSection,
       featherSection,
-      helpSection,
     );
 
     const stageCard = this._createCard('es-card--stage');
@@ -442,12 +445,12 @@ export class UIManager {
     stageBadges.append(this._geoStagePreviewBadge, this._geoStageModeBadge);
     stageTop.append(stageCopy, stageBadges);
 
-    const stageCanvasFrame = document.createElement('div');
-    stageCanvasFrame.className = 'es-retro-stage-frame es-stage__canvas-frame';
+    this._stageCanvasFrame = document.createElement('div');
+    this._stageCanvasFrame.className = 'es-retro-stage-frame es-stage__canvas-frame';
 
     const stageFooter = createText('div', 'The projector output window remains separate. This main window is the operator console for GEO and SHADER.', 'es-text-footer');
 
-    stageCard.append(stageTop, stageCanvasFrame, stageFooter);
+    stageCard.append(stageTop, this._stageCanvasFrame, stageFooter);
 
     const surfacesCard = this._createCard('es-card--surfaces');
     surfacesCard.append(
@@ -464,16 +467,6 @@ export class UIManager {
   _buildShaderModule() {
     const moduleEl = document.createElement('div');
     moduleEl.className = 'es-module es-module--shader';
-
-    const headerCard = this._createCard('es-card--shader-header');
-    const copy = document.createElement('div');
-    copy.className = 'es-header-copy';
-    copy.append(
-      createText('div', 'SHADER Workspace', 'es-text-title-lg'),
-      createText('div', 'Outputs, presets, assignments, and uniforms live here. GEO keeps the stage geometry independent.', 'es-text-desc'),
-    );
-    this._shaderSummaryEl = createText('div', '0 outputs • 0 surfaces', 'es-shader-summary');
-    headerCard.append(copy, this._shaderSummaryEl);
 
     const bodyCard = this._createCard('es-card--shader-body');
     const panelWrap = document.createElement('div');
@@ -569,7 +562,7 @@ export class UIManager {
     panelWrap.append(this._shaderMasterPanel.element);
     bodyCard.append(panelWrap);
 
-    moduleEl.append(headerCard, bodyCard);
+    moduleEl.append(bodyCard);
     return moduleEl;
   }
 
@@ -867,6 +860,11 @@ export class UIManager {
   }
 
   dispose() {
+    if (this._stageProjectionTilt) {
+      this._stageProjectionTilt.dispose();
+      this._stageProjectionTilt = null;
+    }
+
     if (this._shell) {
       this._shell.remove();
     }

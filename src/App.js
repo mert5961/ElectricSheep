@@ -129,7 +129,9 @@ export class App {
     this._lastCommittedAIPhraseState = null;
     this._lastCommittedAISectionState = null;
     this._aiRequestInFlight = false;
-    this._windowCrtOverlay = mountWindowCrtEffects(appEl);
+    this._windowCrtOverlay = role === APP_ROLE_EDITOR
+      ? mountWindowCrtEffects(appEl)
+      : null;
     this._aiFeatureTracker = role === APP_ROLE_EDITOR
       ? new AIFeatureTracker()
       : null;
