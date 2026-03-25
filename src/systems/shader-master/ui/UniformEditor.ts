@@ -5,7 +5,7 @@ import type {
   UniformSchemaField,
 } from '../contracts/types.ts';
 import {
-  FIELD_BASE_STYLES,
+  FIELD_CLASS,
   createCardShell,
   createElement,
   createTag,
@@ -230,9 +230,7 @@ export class UniformEditor {
       rangeInput.max = String(field.max ?? Math.max(Number(field.defaultValue), 1));
       rangeInput.step = String(field.step ?? (field.type === 'int' ? 1 : 0.01));
 
-      const numberInput = createElement('input', {
-        ...FIELD_BASE_STYLES,
-      }) as HTMLInputElement;
+      const numberInput = createElement('input', FIELD_CLASS) as HTMLInputElement;
       numberInput.type = 'number';
       numberInput.min = field.min !== undefined ? String(field.min) : '';
       numberInput.max = field.max !== undefined ? String(field.max) : '';
@@ -336,9 +334,7 @@ export class UniformEditor {
           : [];
 
       initialVector.forEach((component, index) => {
-        const input = createElement('input', {
-          ...FIELD_BASE_STYLES,
-        }) as HTMLInputElement;
+        const input = createElement('input', FIELD_CLASS) as HTMLInputElement;
         input.type = 'number';
         input.min = field.min !== undefined ? String(field.min) : '';
         input.max = field.max !== undefined ? String(field.max) : '';

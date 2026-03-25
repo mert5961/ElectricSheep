@@ -1,29 +1,23 @@
 import type { ShaderUniformValue } from '../contracts/types.ts';
+import '../../../ui/retro-ui.css';
 
 export type StyleMap = Partial<CSSStyleDeclaration>;
 
-export const FIELD_BASE_STYLES: StyleMap = {
-  width: '100%',
-  minHeight: '40px',
-  boxSizing: 'border-box',
-  background: 'rgba(6, 14, 8, 0.88)',
-  color: '#d5f7c4',
-  border: '1px solid rgba(120, 170, 96, 0.28)',
-  borderRadius: '2px',
-  padding: '10px 12px',
-  fontSize: '13px',
-  lineHeight: '1.35',
-  fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace',
-  outline: 'none',
-};
+export const FIELD_BASE_STYLES: StyleMap = {};
+
+export const FIELD_CLASS = 'es-field';
 
 export function createElement<K extends keyof HTMLElementTagNameMap>(
   tag: K,
-  styles: StyleMap = {},
+  stylesOrClass: StyleMap | string = {},
   textContent?: string,
 ): HTMLElementTagNameMap[K] {
   const element = document.createElement(tag);
-  Object.assign(element.style, styles);
+  if (typeof stylesOrClass === 'string') {
+    if (stylesOrClass) element.className = stylesOrClass;
+  } else if (Object.keys(stylesOrClass).length > 0) {
+    Object.assign(element.style, stylesOrClass);
+  }
   if (textContent !== undefined) {
     element.textContent = textContent;
   }
@@ -35,24 +29,13 @@ export function createButton(
   onClick: () => void,
   styles: StyleMap = {},
 ): HTMLButtonElement {
-  const button = createElement('button', {
-    background: 'linear-gradient(180deg, rgba(15, 30, 14, 0.96) 0%, rgba(7, 18, 7, 0.98) 100%)',
-    color: '#d5f7c4',
-    border: '1px solid rgba(120, 170, 96, 0.28)',
-    borderRadius: '2px',
-    padding: '9px 13px',
-    cursor: 'pointer',
-    fontSize: '12px',
-    fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace',
-    fontWeight: '600',
-    letterSpacing: '0.06em',
-    textTransform: 'uppercase',
-    transition: 'background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease',
-    boxShadow: 'inset 0 0 0 1px rgba(189, 255, 172, 0.03), 0 0 12px rgba(116, 255, 108, 0.05)',
-    ...styles,
-  });
+  const button = document.createElement('button');
+  button.className = 'es-retro-button es-btn';
   button.type = 'button';
   button.textContent = label;
+  if (Object.keys(styles).length > 0) {
+    Object.assign(button.style, styles);
+  }
   button.addEventListener('mouseenter', () => {
     if (!button.disabled) {
       const activeAccent = button.dataset.active === 'true'
@@ -73,13 +56,13 @@ export function createButton(
       ? `${activeAccent}18`
       : (button.disabled
         ? 'rgba(9, 17, 9, 0.76)'
-        : 'linear-gradient(180deg, rgba(15, 30, 14, 0.96) 0%, rgba(7, 18, 7, 0.98) 100%)');
-    button.style.borderColor = activeAccent || (button.disabled ? 'rgba(102, 136, 86, 0.18)' : 'rgba(120, 170, 96, 0.28)');
+        : '');
+    button.style.borderColor = activeAccent || (button.disabled ? 'rgba(102, 136, 86, 0.18)' : '');
     button.style.boxShadow = activeAccent
       ? `0 0 0 1px ${activeAccent}33 inset, 0 0 16px ${activeAccent}18`
       : (button.disabled
         ? 'none'
-        : 'inset 0 0 0 1px rgba(189, 255, 172, 0.03), 0 0 12px rgba(116, 255, 108, 0.05)');
+        : '');
   });
   button.addEventListener('click', onClick);
   return button;
@@ -87,54 +70,39 @@ export function createButton(
 
 export function setButtonEnabled(button: HTMLButtonElement, enabled: boolean): void {
   button.disabled = !enabled;
-  button.style.opacity = enabled ? '1' : '0.45';
-  button.style.cursor = enabled ? 'pointer' : 'not-allowed';
-  button.style.background = enabled
-    ? 'linear-gradient(180deg, rgba(15, 30, 14, 0.96) 0%, rgba(7, 18, 7, 0.98) 100%)'
-    : 'rgba(9, 17, 9, 0.76)';
-  button.style.borderColor = enabled ? 'rgba(120, 170, 96, 0.28)' : 'rgba(102, 136, 86, 0.18)';
+  button.style.opacity = enabled ? '' : '0.45';
+  button.style.cursor = enabled ? '' : 'not-allowed';
+  if (!enabled) {
+    button.style.background = 'rgba(9, 17, 9, 0.76)';
+    button.style.borderColor = 'rgba(102, 136, 86, 0.18)';
+  } else {
+    button.style.background = '';
+    button.style.borderColor = '';
+  }
 }
 
 export function createCardShell(title: string, subtitle?: string): HTMLDivElement {
-  const card = createElement('div', {
-    position: 'relative',
-    minHeight: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
-    padding: '18px',
-    background: 'transparent',
-    border: '1px solid transparent',
-    borderRadius: '0',
-    boxShadow: 'none',
-    overflow: 'hidden',
-  });
+  const card = createElement('div');
   card.className = 'es-machine-panel es-workspace-card';
+  card.style.position = 'relative';
+  card.style.minHeight = '100%';
+  card.style.display = 'flex';
+  card.style.flexDirection = 'column';
+  card.style.gap = '16px';
+  card.style.padding = '18px';
+  card.style.overflow = 'hidden';
 
   const header = createElement('div', {
     display: 'flex',
     flexDirection: 'column',
     gap: '4px',
   });
-  header.append(
-    createElement('h3', {
-      fontSize: '11px',
-      fontWeight: '700',
-      letterSpacing: '0.14em',
-      textTransform: 'uppercase',
-      color: '#7fa96f',
-      fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace',
-    }, title),
-  );
+  const titleEl = createElement('h3', 'es-card-header__title', title);
+  header.append(titleEl);
 
   if (subtitle) {
     header.append(
-      createElement('p', {
-        fontSize: '12px',
-        color: '#9dc18b',
-        lineHeight: '1.45',
-        fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace',
-      }, subtitle),
+      createElement('p', 'es-card-header__subtitle', subtitle),
     );
   }
 
@@ -183,18 +151,11 @@ export function hexToVec3(hex: string): [number, number, number] {
 }
 
 export function createTag(label: string, styles: StyleMap = {}): HTMLSpanElement {
-  return createElement('span', {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '6px',
-    minHeight: '22px',
-    padding: '3px 8px',
-    borderRadius: '2px',
-    background: 'rgba(12, 24, 11, 0.88)',
-    border: '1px solid rgba(120, 170, 96, 0.22)',
-    color: '#b8de9d',
-    fontSize: '11px',
-    fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace',
-    ...styles,
-  }, label);
+  const tag = document.createElement('span');
+  tag.className = 'es-tag';
+  tag.textContent = label;
+  if (Object.keys(styles).length > 0) {
+    Object.assign(tag.style, styles);
+  }
+  return tag;
 }

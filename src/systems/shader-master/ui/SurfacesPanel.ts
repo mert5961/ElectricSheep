@@ -1,5 +1,5 @@
 import type { ShaderMasterSnapshot, ShaderOutputSnapshot } from '../contracts/types.ts';
-import { FIELD_BASE_STYLES, createCardShell, createElement, createTag } from './dom.ts';
+import { FIELD_CLASS, createCardShell, createElement, createTag } from './dom.ts';
 
 export class SurfacesPanel {
   readonly element: HTMLDivElement;
@@ -128,10 +128,8 @@ export class SurfacesPanel {
 
       header.append(surfaceButton, assignmentTag);
 
-      const select = createElement('select', {
-        ...FIELD_BASE_STYLES,
-        appearance: 'none',
-      });
+      const select = createElement('select', FIELD_CLASS);
+      select.style.appearance = 'none';
       select.innerHTML = [
         '<option value="">Unassigned</option>',
         ...state.outputs.map((output) => `<option value="${output.id}">${output.name}</option>`),

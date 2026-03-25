@@ -1,5 +1,52 @@
 # Electric Sheep Logbook
 
+## 2026-03-25 — CSS Extraction: Inline Styles Moved To Separate Stylesheet
+
+### What Changed
+- Extracted all hardcoded inline JavaScript styles (`Object.assign(element.style, {...})`) from UI component files into a dedicated CSS file at `src/ui/retro-ui.css`.
+- Theme constants (colors, fonts, borders) that were previously JS variables are now CSS custom properties (`--es-font`, `--es-text`, `--es-accent`, `--es-border`, etc.).
+- Button hover and disabled states are now CSS `:hover` and `:disabled` pseudo-classes instead of JS `mouseenter`/`mouseleave` event handlers.
+- Module visibility transitions (GEO/SHADER tab switching) use CSS `transition-delay` on `visibility` instead of JS `setTimeout` and `requestAnimationFrame`.
+- Component state (active buttons, output badge status, module visibility, surface selection) is driven by `data-*` attributes and CSS attribute selectors instead of inline style manipulation.
+
+### CSS File: `src/ui/retro-ui.css`
+This is the single source of truth for all retro UI visual styles. It is imported via Vite in each UI component file. The file contains:
+- **Custom properties** — `:root` block with `--es-font`, `--es-text`, `--es-text-strong`, `--es-muted`, `--es-label`, `--es-accent`, `--es-border`, and ControlUI-specific `--es-ctrl-*` variants.
+- **Keyframes** — `electric-sheep-retro-scan`, `electric-sheep-retro-line-glow`, `electric-sheep-retro-badge-glow` (previously injected at runtime by `ensureRetroUiEffects()`).
+- **Scrollbar theme** — Custom scrollbar styles scoped to `#ui` and descendants.
+- **Panel effects** — `::before`/`::after` pseudo-elements for scanline and vignette overlays on `.es-retro-panel`, `.es-retro-section`, `.es-retro-stage-frame`.
+- **UIManager classes** — `.es-ui-shell`, `.es-vignette-overlay`, `.es-scanline-overlay`, `.es-dust-overlay`, `.es-topbar`, `.es-ui-content`, `.es-module`, `.es-card`, `.es-section`, `.es-btn`, `.es-badge`, `.es-slider`, `.es-surface-list`, `.es-surface-row`, `.es-stage__canvas-frame`, and text utility classes.
+- **ControlUI classes** — `.es-control-root`, `.es-status-row`, `.es-status-dot`, `.es-control-section`, `.es-ctrl-btn`, `.es-control-mode-label`, `.es-control-target-label`.
+- **OutputStageUI classes** — `.es-output-prompt`, `.es-output-card`, `.es-output-btn`.
+- **Shader dom.ts classes** — `.es-field` (form inputs), `.es-tag` (tag badges), `.es-card-header__title`, `.es-card-header__subtitle`.
+
+### How State Is Managed In CSS
+- **Button toggle** — `_syncToggleButton` adds/removes `.es-btn--active` class and sets `disabled`. CSS handles all visual feedback.
+- **Button enabled/disabled** — `_syncButtonState` only sets `button.disabled`. CSS `:disabled` and `:disabled:not(.es-btn--active)` provide the rest.
+- **Output badge** — `data-status="connected|available|offline"` attribute selects the right color scheme via `.es-output-badge[data-status="..."]`.
+- **Module visibility** — `data-visible="true|false"` on `.es-module` drives opacity, visibility, pointer-events, and z-index. CSS `transition-delay` on `visibility` replaces the old `setTimeout` logic.
+- **Surface rows** — `data-selected="true|false"` on `.es-surface-row`.
+- **ControlUI status** — `data-connected`, `data-mode`, `data-target` attributes drive color states.
+
+### Files Modified
+- `src/ui/retro-ui.css` — **created**, comprehensive retro UI stylesheet.
+- `src/ui/UIManager.js` — removed `ensureRetroUiEffects()`, all inline styles, JS hover handlers, and `_moduleFadeTimeouts`. Now uses CSS classes and data attributes.
+- `src/ui/ControlUI.js` — removed `_el()` style helper and all `Object.assign(el.style, ...)`. Uses CSS classes and data attributes.
+- `src/ui/OutputStageUI.js` — replaced all inline styles with CSS classes.
+- `src/systems/shader-master/ui/dom.ts` — `createElement` now accepts a class name string or style object. `createButton` uses `.es-btn` base class. `FIELD_BASE_STYLES` replaced by `FIELD_CLASS = 'es-field'`. `createTag` uses `.es-tag` class.
+- `src/systems/shader-master/ui/PresetSelector.ts` — uses `FIELD_CLASS` instead of `FIELD_BASE_STYLES` spread.
+- `src/systems/shader-master/ui/OutputsPanel.ts` — uses `FIELD_CLASS`.
+- `src/systems/shader-master/ui/SurfacesPanel.ts` — uses `FIELD_CLASS`.
+- `src/systems/shader-master/ui/UniformEditor.ts` — uses `FIELD_CLASS`.
+
+### Notes For Future Development
+- **Adding new UI components**: create CSS classes in `src/ui/retro-ui.css` and reference them via `element.className`. Do not add new `Object.assign(element.style, {...})` blocks.
+- **Theme changes**: update the CSS custom properties in the `:root` block. All components inherit through `var(--es-*)` references.
+- **State-driven visuals**: use `data-*` attributes and CSS attribute selectors (`[data-foo="bar"]`) instead of setting inline styles from JS.
+- **Shader panel files** (`DebugSignalsPanel.ts`, `OperatorMonitorPanel.ts`) still use inline styles via `createElement(tag, styleObject)` from `dom.ts`. These can be gradually migrated by passing a class name string instead. `createElement` already accepts either form.
+- **`dom.ts` hover handlers**: `createButton` in `dom.ts` still has JS mouseenter/mouseleave handlers for backward compatibility with transport-button active accent states in `OperatorMonitorPanel`. New buttons should rely on CSS `:hover` on `.es-btn` instead.
+- **`ensureRetroUiEffects()` is removed**: all keyframes, scrollbar themes, and pseudo-element rules now live in `retro-ui.css`. Do not re-add runtime style injection for these.
+
 ## 2026-03-20 — Audio Analyzer Signal Enrichment Pipeline
 
 ### Feature Implemented

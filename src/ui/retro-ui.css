@@ -1,0 +1,983 @@
+/* ==========================================================================
+   Electric Sheep – Retro UI Theme & Components
+   Replaces inline JS styles with proper CSS classes.
+   ========================================================================== */
+
+/* ---------- Custom Properties ---------- */
+:root {
+  --es-font: "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  --es-text: #d5f7c4;
+  --es-text-strong: #f0ffe2;
+  --es-muted: #8fb181;
+  --es-label: #7fa96f;
+  --es-accent: #9ddf74;
+  --es-accent-strong: #baff9f;
+  --es-border: rgba(120, 170, 96, 0.22);
+  --es-ctrl-text: #b8de9d;
+  --es-ctrl-text-strong: #d5f7c4;
+  --es-ctrl-muted: #7fa96f;
+  --es-ctrl-border: rgba(120, 170, 96, 0.28);
+  --es-ctrl-panel: linear-gradient(180deg, rgba(8, 18, 8, 0.96) 0%, rgba(5, 12, 5, 0.98) 100%);
+  --es-ctrl-panel-soft: rgba(8, 18, 8, 0.82);
+  --es-ctrl-accent: #9ddf74;
+  --es-ctrl-warning: #d6bd6a;
+  --es-ctrl-alert: #b8a06c;
+}
+
+/* ---------- Keyframes ---------- */
+@keyframes electric-sheep-retro-scan {
+  0% { transform: translateY(-1.5%); }
+  100% { transform: translateY(1.5%); }
+}
+
+@keyframes electric-sheep-retro-line-glow {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 0 1px rgba(189, 255, 172, 0.03),
+      0 0 16px rgba(74, 136, 60, 0.08),
+      0 0 0 1px rgba(157, 223, 116, 0.05);
+    border-color: rgba(120, 170, 96, 0.22);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1px rgba(210, 255, 198, 0.08),
+      0 0 24px rgba(116, 255, 108, 0.14),
+      0 0 0 1px rgba(157, 223, 116, 0.12);
+    border-color: rgba(157, 223, 116, 0.34);
+  }
+}
+
+@keyframes electric-sheep-retro-badge-glow {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 0 1px rgba(189, 255, 172, 0.02),
+      0 0 8px rgba(116, 255, 108, 0.04);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1px rgba(220, 255, 204, 0.08),
+      0 0 14px rgba(116, 255, 108, 0.12);
+  }
+}
+
+/* ---------- Scrollbar (for #ui and descendants) ---------- */
+#ui,
+#ui * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(150, 223, 116, 0.72) rgba(6, 14, 6, 0.78);
+}
+
+#ui::-webkit-scrollbar,
+#ui *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+#ui::-webkit-scrollbar-track,
+#ui *::-webkit-scrollbar-track {
+  background:
+    linear-gradient(180deg, rgba(8, 16, 8, 0.94) 0%, rgba(4, 10, 4, 0.98) 100%);
+  border-left: 1px solid rgba(120, 170, 96, 0.16);
+  border-right: 1px solid rgba(120, 170, 96, 0.1);
+  box-shadow:
+    inset 0 0 0 1px rgba(189, 255, 172, 0.03),
+    inset 0 0 18px rgba(0, 0, 0, 0.28);
+}
+
+#ui::-webkit-scrollbar-thumb,
+#ui *::-webkit-scrollbar-thumb {
+  background:
+    linear-gradient(180deg, rgba(126, 196, 92, 0.92) 0%, rgba(81, 140, 62, 0.98) 100%);
+  border: 1px solid rgba(196, 248, 168, 0.26);
+  border-radius: 999px;
+  box-shadow:
+    inset 0 0 0 1px rgba(224, 255, 212, 0.08),
+    0 0 10px rgba(116, 255, 108, 0.12);
+}
+
+#ui::-webkit-scrollbar-thumb:hover,
+#ui *::-webkit-scrollbar-thumb:hover {
+  background:
+    linear-gradient(180deg, rgba(150, 223, 116, 0.98) 0%, rgba(98, 168, 75, 1) 100%);
+  border-color: rgba(220, 255, 204, 0.34);
+  box-shadow:
+    inset 0 0 0 1px rgba(224, 255, 212, 0.12),
+    0 0 14px rgba(116, 255, 108, 0.18);
+}
+
+#ui::-webkit-scrollbar-corner,
+#ui *::-webkit-scrollbar-corner {
+  background: rgba(4, 10, 4, 0.98);
+}
+
+/* ---------- Retro Panel / Section / Badge / Button (pseudo-element effects) ---------- */
+#ui .es-retro-panel,
+#ui .es-retro-section,
+#ui .es-retro-stage-frame,
+#ui .es-retro-badge,
+#ui .es-retro-button {
+  position: relative;
+  isolation: isolate;
+}
+
+#ui .es-retro-panel,
+#ui .es-retro-section,
+#ui .es-retro-stage-frame {
+  animation: electric-sheep-retro-line-glow 6.4s ease-in-out infinite;
+}
+
+#ui .es-retro-panel::before,
+#ui .es-retro-section::before,
+#ui .es-retro-stage-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(190, 255, 200, 0.028) 0 1px,
+      rgba(0, 0, 0, 0) 1px 4px
+    ),
+    linear-gradient(180deg, rgba(180, 255, 190, 0.028), transparent 34%);
+  mix-blend-mode: screen;
+  opacity: 0.12;
+}
+
+#ui .es-retro-panel::after,
+#ui .es-retro-section::after,
+#ui .es-retro-stage-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at center, transparent 54%, rgba(0, 0, 0, 0.16) 100%),
+    linear-gradient(125deg, rgba(255, 255, 255, 0.016) 0%, transparent 22%, rgba(255, 255, 255, 0.01) 52%, transparent 74%, rgba(255, 255, 255, 0.012) 100%);
+  opacity: 0.22;
+}
+
+#ui .es-retro-panel > *,
+#ui .es-retro-section > *,
+#ui .es-retro-stage-frame > * {
+  position: relative;
+  z-index: 1;
+}
+
+#ui .es-retro-badge {
+  animation: electric-sheep-retro-badge-glow 5.2s ease-in-out infinite;
+}
+
+#ui .es-retro-button {
+  animation: electric-sheep-retro-badge-glow 4.8s ease-in-out infinite;
+}
+
+/* ==========================================================================
+   UIManager – Shell & Overlays
+   ========================================================================== */
+.es-ui-shell {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 18px;
+  overflow: hidden;
+  pointer-events: none;
+  font-family: var(--es-font);
+  color: var(--es-text);
+  text-shadow: 0 0 8px rgba(154, 255, 138, 0.12);
+  z-index: 1;
+  isolation: isolate;
+}
+
+.es-vignette-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, transparent 52%, rgba(2, 6, 2, 0.42) 100%);
+  z-index: 0;
+}
+
+.es-scanline-overlay {
+  position: absolute;
+  inset: -2%;
+  pointer-events: none;
+  background: repeating-linear-gradient(180deg, rgba(170, 255, 150, 0.06) 0 1px, transparent 1px 4px);
+  mix-blend-mode: screen;
+  opacity: 0.24;
+  animation: electric-sheep-retro-scan 14s linear infinite;
+  z-index: 0;
+}
+
+.es-dust-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.08;
+  background-image:
+    radial-gradient(circle at 18% 22%, rgba(191, 255, 174, 0.8) 0 0.6px, transparent 0.7px),
+    radial-gradient(circle at 74% 31%, rgba(191, 255, 174, 0.55) 0 0.5px, transparent 0.7px),
+    radial-gradient(circle at 63% 72%, rgba(191, 255, 174, 0.5) 0 0.5px, transparent 0.7px),
+    radial-gradient(circle at 29% 78%, rgba(191, 255, 174, 0.45) 0 0.45px, transparent 0.7px);
+  z-index: 0;
+}
+
+/* ==========================================================================
+   UIManager – Topbar
+   ========================================================================== */
+.es-topbar {
+  display: grid;
+  grid-template-columns: minmax(220px, auto) minmax(220px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  padding: 14px 18px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(8, 18, 8, 0.98) 0%, rgba(5, 12, 5, 0.98) 100%);
+  border: 1px solid var(--es-border);
+  box-shadow: inset 0 0 0 1px rgba(189, 255, 172, 0.03), 0 0 28px rgba(74, 136, 60, 0.12);
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
+}
+
+.es-topbar__identity { display: grid; gap: 4px; }
+
+.es-topbar__tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 2px;
+  background: rgba(8, 16, 8, 0.76);
+  border: 1px solid var(--es-border);
+  justify-self: start;
+}
+
+.es-topbar__controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* ==========================================================================
+   UIManager – Content & Modules
+   ========================================================================== */
+.es-ui-content {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  z-index: 1;
+}
+
+.es-module {
+  position: absolute;
+  inset: 0;
+  gap: 18px;
+  min-height: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity 150ms linear, visibility 0s linear 150ms;
+  will-change: opacity;
+}
+
+.es-module[data-visible="true"] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  z-index: 1;
+  transition: opacity 150ms linear, visibility 0s linear 0s;
+}
+
+.es-module--no-transition { transition: none !important; }
+
+.es-module--geo {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr) 290px;
+}
+
+.es-module--shader {
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+/* ==========================================================================
+   UIManager – Cards & Panels
+   ========================================================================== */
+.es-card {
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(8, 18, 8, 0.98) 0%, rgba(5, 12, 5, 0.98) 100%);
+  border: 1px solid var(--es-border);
+  box-shadow: inset 0 0 0 1px rgba(189, 255, 172, 0.03), 0 0 24px rgba(64, 120, 54, 0.12);
+  min-height: 0;
+}
+
+.es-card--controls {
+  display: grid;
+  grid-template-rows: auto auto auto auto auto 1fr;
+  gap: 14px;
+  padding: 18px;
+  pointer-events: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.es-card--stage {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 18px;
+  padding: 22px;
+  overflow: hidden;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(9, 12, 16, 0.38) 0%, rgba(7, 10, 14, 0.18) 100%);
+}
+
+.es-card--surfaces {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 14px;
+  padding: 18px;
+  pointer-events: auto;
+  overflow: hidden;
+}
+
+.es-card--shader-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 18px 20px;
+  pointer-events: auto;
+}
+
+.es-card--shader-body {
+  display: grid;
+  min-height: 0;
+  overflow: hidden;
+  padding: 18px;
+  pointer-events: auto;
+}
+
+/* ==========================================================================
+   UIManager – Sections
+   ========================================================================== */
+.es-section {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 3px;
+  background: rgba(8, 16, 8, 0.78);
+  border: 1px solid var(--es-border);
+}
+
+/* ==========================================================================
+   UIManager – Buttons
+   ========================================================================== */
+.es-btn {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 2px;
+  border: 1px solid var(--es-border);
+  background: linear-gradient(180deg, rgba(15, 30, 14, 0.96) 0%, rgba(7, 18, 7, 0.98) 100%);
+  color: var(--es-text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-family: var(--es-font);
+  transition: background 0.18s, border-color 0.18s, opacity 0.18s, color 0.18s;
+  box-shadow: inset 0 0 0 1px rgba(189, 255, 172, 0.03), 0 0 12px rgba(116, 255, 108, 0.05);
+}
+
+.es-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(22, 42, 20, 0.98) 0%, rgba(9, 22, 9, 1) 100%);
+}
+
+.es-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.es-btn:disabled:not(.es-btn--active) {
+  background: rgba(9, 17, 9, 0.76);
+}
+
+.es-btn--active {
+  border-color: rgba(157, 223, 116, 0.4) !important;
+  background: linear-gradient(180deg, rgba(157, 223, 116, 0.15) 0%, rgba(8, 18, 8, 0.96) 100%);
+  color: var(--es-text-strong);
+}
+
+.es-btn--active:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(157, 223, 116, 0.18) 0%, rgba(9, 22, 9, 1) 100%);
+}
+
+.es-btn--pill { padding: 11px 16px; }
+
+.es-btn--full { display: flex; width: 100%; }
+
+/* ==========================================================================
+   UIManager – Badges
+   ========================================================================== */
+.es-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--es-border);
+  color: var(--es-text);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--es-font);
+  white-space: nowrap;
+}
+
+.es-badge--accent {
+  background: rgba(157, 223, 116, 0.125);
+  border-color: rgba(157, 223, 116, 0.33);
+  color: var(--es-accent);
+}
+
+.es-output-badge[data-status="connected"] {
+  background: rgba(18, 38, 16, 0.92);
+  border-color: rgba(166, 223, 134, 0.34);
+  color: var(--es-text-strong);
+}
+
+.es-output-badge[data-status="available"] {
+  background: rgba(12, 24, 11, 0.92);
+  border-color: rgba(120, 170, 96, 0.28);
+  color: var(--es-text);
+}
+
+.es-output-badge[data-status="offline"] {
+  background: rgba(8, 16, 8, 0.8);
+  border-color: var(--es-border);
+  color: var(--es-muted);
+}
+
+/* ==========================================================================
+   UIManager – Text Styles
+   ========================================================================== */
+.es-text-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--es-text-strong);
+}
+
+.es-text-title-sm {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--es-text-strong);
+}
+
+.es-text-title-lg {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--es-text-strong);
+}
+
+.es-text-title-xl {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--es-text-strong);
+}
+
+.es-text-subtitle {
+  color: var(--es-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.es-text-desc {
+  color: var(--es-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.es-text-strong {
+  color: var(--es-text-strong);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.es-text-muted {
+  color: var(--es-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.es-text-label {
+  color: var(--es-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.es-text-section-label {
+  color: var(--es-label);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.es-text-section-header {
+  color: var(--es-text-strong);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.es-text-footer {
+  color: #748195;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* ==========================================================================
+   UIManager – Slider Groups
+   ========================================================================== */
+.es-slider { display: grid; gap: 8px; }
+
+.es-slider__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.es-slider__title {
+  color: var(--es-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.es-slider__value {
+  color: var(--es-text);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.es-slider__input {
+  width: 100%;
+  accent-color: var(--es-accent);
+}
+
+/* ==========================================================================
+   UIManager – Inline Groups
+   ========================================================================== */
+.es-inline-group { display: grid; gap: 8px; }
+
+.es-inline-group__row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ==========================================================================
+   UIManager – Layout Grids
+   ========================================================================== */
+.es-grid-3col {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.es-grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+/* ==========================================================================
+   UIManager – Stage Elements
+   ========================================================================== */
+.es-stage__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.es-stage__copy { display: grid; gap: 8px; max-width: 520px; }
+
+.es-stage__badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.es-stage__canvas-frame {
+  position: relative;
+  min-height: 0;
+  border-radius: 4px;
+  border: 1px dashed var(--es-border);
+  background:
+    radial-gradient(circle at top, rgba(170, 255, 150, 0.08), transparent 34%),
+    linear-gradient(0deg, rgba(170, 255, 150, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(170, 255, 150, 0.03) 1px, transparent 1px);
+  background-size: auto, 72px 72px, 72px 72px;
+  box-shadow: inset 0 0 0 1px rgba(189, 255, 172, 0.03), 0 0 18px rgba(74, 136, 60, 0.08);
+}
+
+/* ==========================================================================
+   UIManager – Surface List
+   ========================================================================== */
+.es-surface-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 4px;
+}
+
+.es-surface-empty {
+  padding: 16px;
+  border-radius: 2px;
+  border: 1px dashed var(--es-border);
+  color: var(--es-muted);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+  background: rgba(8, 16, 8, 0.62);
+}
+
+.es-surface-row {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--es-border);
+  background: rgba(8, 16, 8, 0.72);
+  color: var(--es-text);
+  cursor: pointer;
+  text-align: left;
+  box-shadow: none;
+}
+
+.es-surface-row[data-selected="true"] {
+  border-color: rgba(166, 223, 134, 0.42);
+  background: rgba(20, 38, 18, 0.82);
+  box-shadow: 0 0 16px rgba(116, 255, 108, 0.1);
+}
+
+.es-surface-row__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.es-surface-row__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--es-text);
+}
+
+.es-surface-row__meta {
+  font-size: 12px;
+  color: var(--es-muted);
+}
+
+/* ==========================================================================
+   UIManager – Shader Module Extras
+   ========================================================================== */
+.es-shader-summary {
+  color: var(--es-text);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 2px;
+  background: rgba(8, 16, 8, 0.76);
+  border: 1px solid var(--es-border);
+  white-space: nowrap;
+}
+
+.es-panel-wrap {
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.es-header-copy { display: grid; gap: 6px; }
+
+/* ==========================================================================
+   ControlUI
+   ========================================================================== */
+.es-control-root {
+  padding: 24px;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  font-family: var(--es-font);
+  color: var(--es-ctrl-text);
+  text-shadow: 0 0 8px rgba(154, 255, 138, 0.12);
+}
+
+.es-control-header { display: grid; gap: 8px; }
+
+.es-control-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--es-ctrl-text-strong);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.es-control-subtitle {
+  font-size: 13px;
+  color: var(--es-ctrl-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.es-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--es-ctrl-panel);
+  border-radius: 2px;
+  border: 1px solid var(--es-ctrl-border);
+  box-shadow: inset 0 0 0 1px rgba(189, 255, 172, 0.03), 0 0 18px rgba(74, 136, 60, 0.08);
+}
+
+.es-status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.es-status-dot[data-connected="true"] {
+  background: var(--es-ctrl-accent);
+  box-shadow: 0 0 10px rgba(157, 223, 116, 0.5);
+}
+
+.es-status-dot[data-connected="false"] {
+  background: var(--es-ctrl-warning);
+  box-shadow: 0 0 10px rgba(214, 189, 106, 0.35);
+}
+
+.es-status-text { font-size: 13px; color: var(--es-ctrl-muted); }
+
+.es-control-section {
+  padding: 16px;
+  background: var(--es-ctrl-panel);
+  border-radius: 2px;
+  border: 1px solid var(--es-ctrl-border);
+  box-shadow: inset 0 0 0 1px rgba(189, 255, 172, 0.03), 0 0 18px rgba(74, 136, 60, 0.08);
+}
+
+.es-control-section__heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--es-ctrl-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 12px;
+}
+
+.es-control-mode-label {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--es-ctrl-text-strong);
+  margin-bottom: 12px;
+}
+
+.es-control-mode-label[data-mode="show"] { color: var(--es-ctrl-warning); }
+
+.es-control-target-label {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--es-ctrl-text-strong);
+  margin-bottom: 12px;
+}
+
+.es-control-target-label[data-target="content"] { color: var(--es-ctrl-warning); }
+.es-control-target-label[data-target="subtract"] { color: var(--es-ctrl-alert); }
+
+.es-control-count {
+  font-size: 14px;
+  color: var(--es-ctrl-muted);
+  margin-bottom: 12px;
+}
+
+.es-control-placeholder {
+  font-size: 13px;
+  color: var(--es-ctrl-muted);
+  font-style: italic;
+  padding: 12px;
+  border: 1px dashed var(--es-ctrl-border);
+  border-radius: 2px;
+  text-align: center;
+  background: var(--es-ctrl-panel-soft);
+}
+
+.es-control-btn-row { display: flex; gap: 8px; }
+
+.es-ctrl-btn {
+  background: var(--es-ctrl-panel);
+  color: var(--es-ctrl-text);
+  border: 1px solid var(--es-ctrl-border);
+  border-radius: 2px;
+  padding: 9px 14px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: var(--es-font);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: inset 0 0 0 1px rgba(189, 255, 172, 0.03), 0 0 12px rgba(116, 255, 108, 0.05);
+}
+
+.es-ctrl-btn:hover {
+  background: linear-gradient(180deg, rgba(22, 42, 20, 0.98) 0%, rgba(9, 22, 9, 1) 100%);
+  border-color: rgba(166, 223, 134, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(189, 255, 172, 0.08), 0 0 16px rgba(116, 255, 108, 0.12);
+}
+
+/* ==========================================================================
+   OutputStageUI
+   ========================================================================== */
+.es-output-prompt {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgba(3, 7, 3, 0.72);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+  font-family: var(--es-font);
+}
+
+.es-output-card {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 14px;
+  padding: 24px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(8, 18, 8, 0.98) 0%, rgba(5, 12, 5, 0.98) 100%);
+  border: 1px solid rgba(120, 170, 96, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(189, 255, 172, 0.03), 0 0 24px rgba(64, 120, 54, 0.12);
+  color: #d5f7c4;
+  text-align: center;
+  text-shadow: 0 0 8px rgba(154, 255, 138, 0.12);
+}
+
+.es-output-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #7fa96f;
+}
+
+.es-output-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #efffdc;
+}
+
+.es-output-message {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #9dc18b;
+}
+
+.es-output-btn {
+  justify-self: center;
+  min-width: 200px;
+  padding: 12px 18px;
+  border-radius: 2px;
+  border: 1px solid rgba(120, 170, 96, 0.28);
+  background: linear-gradient(180deg, rgba(15, 30, 14, 0.96) 0%, rgba(7, 18, 7, 0.98) 100%);
+  color: #d5f7c4;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(189, 255, 172, 0.03), 0 0 12px rgba(116, 255, 108, 0.05);
+}
+
+.es-output-hint {
+  font-size: 12px;
+  color: #8fb181;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   Shader dom.ts – Field & Tag Base
+   ========================================================================== */
+.es-field {
+  width: 100%;
+  min-height: 40px;
+  box-sizing: border-box;
+  background: rgba(6, 14, 8, 0.88);
+  color: #d5f7c4;
+  border: 1px solid rgba(120, 170, 96, 0.28);
+  border-radius: 2px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.35;
+  font-family: var(--es-font);
+  outline: none;
+}
+
+.es-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  padding: 3px 8px;
+  border-radius: 2px;
+  background: rgba(12, 24, 11, 0.88);
+  border: 1px solid rgba(120, 170, 96, 0.22);
+  color: #b8de9d;
+  font-size: 11px;
+  font-family: var(--es-font);
+}
+
+.es-card-header__title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #7fa96f;
+  font-family: var(--es-font);
+}
+
+.es-card-header__subtitle {
+  font-size: 12px;
+  color: #9dc18b;
+  line-height: 1.45;
+  font-family: var(--es-font);
+}
