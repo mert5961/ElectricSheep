@@ -1,6 +1,6 @@
 import type { ShaderMasterSnapshot } from '../contracts/types.ts';
 import {
-  FIELD_BASE_STYLES,
+  FIELD_CLASS,
   createButton,
   createCardShell,
   createElement,
@@ -102,9 +102,7 @@ export class OutputsPanel {
         color: '#7fa96f',
       }, 'Name'),
     );
-    this.renameInputEl = createElement('input', {
-      ...FIELD_BASE_STYLES,
-    });
+    this.renameInputEl = createElement('input', FIELD_CLASS);
     this.renameInputEl.addEventListener('change', () => {
       if (this.selectedOutputId) {
         onRenameOutput(this.selectedOutputId, this.renameInputEl.value);

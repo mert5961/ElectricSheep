@@ -15,183 +15,13 @@ import {
   PREVIEW_MODE_OUTPUT,
 } from '../core/AppModes.js';
 import { ShaderTab } from '../systems/shader-master/ui/ShaderTab.ts';
+import './retro-ui.css';
 
-function createText(tagName, text, style = {}) {
+function createText(tagName, text, className = '') {
   const element = document.createElement(tagName);
   element.textContent = text;
-  Object.assign(element.style, style);
+  if (className) element.className = className;
   return element;
-}
-
-const RETRO_FONT = '"IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace';
-const RETRO_TEXT = '#d5f7c4';
-const RETRO_TEXT_STRONG = '#f0ffe2';
-const RETRO_MUTED = '#8fb181';
-const RETRO_LABEL = '#7fa96f';
-const RETRO_ACCENT = '#9ddf74';
-const RETRO_ACCENT_STRONG = '#baff9f';
-const RETRO_BORDER = 'rgba(120, 170, 96, 0.22)';
-const MODULE_FADE_DURATION_MS = 150;
-const MODULE_FADE_TRANSITION = `opacity ${MODULE_FADE_DURATION_MS}ms linear`;
-
-function ensureRetroUiEffects() {
-  if (document.getElementById('electric-sheep-retro-ui-effects')) {
-    return;
-  }
-
-  const style = document.createElement('style');
-  style.id = 'electric-sheep-retro-ui-effects';
-  style.textContent = `
-    @keyframes electric-sheep-retro-scan {
-      0% { transform: translateY(-1.5%); }
-      100% { transform: translateY(1.5%); }
-    }
-
-    @keyframes electric-sheep-retro-line-glow {
-      0%, 100% {
-        box-shadow:
-          inset 0 0 0 1px rgba(189, 255, 172, 0.03),
-          0 0 16px rgba(74, 136, 60, 0.08),
-          0 0 0 1px rgba(157, 223, 116, 0.05);
-        border-color: rgba(120, 170, 96, 0.22);
-      }
-
-      50% {
-        box-shadow:
-          inset 0 0 0 1px rgba(210, 255, 198, 0.08),
-          0 0 24px rgba(116, 255, 108, 0.14),
-          0 0 0 1px rgba(157, 223, 116, 0.12);
-        border-color: rgba(157, 223, 116, 0.34);
-      }
-    }
-
-    @keyframes electric-sheep-retro-badge-glow {
-      0%, 100% {
-        box-shadow:
-          inset 0 0 0 1px rgba(189, 255, 172, 0.02),
-          0 0 8px rgba(116, 255, 108, 0.04);
-      }
-
-      50% {
-        box-shadow:
-          inset 0 0 0 1px rgba(220, 255, 204, 0.08),
-          0 0 14px rgba(116, 255, 108, 0.12);
-      }
-    }
-
-    #ui,
-    #ui * {
-      scrollbar-width: thin;
-      scrollbar-color: rgba(150, 223, 116, 0.72) rgba(6, 14, 6, 0.78);
-    }
-
-    #ui::-webkit-scrollbar,
-    #ui *::-webkit-scrollbar {
-      width: 10px;
-      height: 10px;
-    }
-
-    #ui::-webkit-scrollbar-track,
-    #ui *::-webkit-scrollbar-track {
-      background:
-        linear-gradient(180deg, rgba(8, 16, 8, 0.94) 0%, rgba(4, 10, 4, 0.98) 100%);
-      border-left: 1px solid rgba(120, 170, 96, 0.16);
-      border-right: 1px solid rgba(120, 170, 96, 0.1);
-      box-shadow:
-        inset 0 0 0 1px rgba(189, 255, 172, 0.03),
-        inset 0 0 18px rgba(0, 0, 0, 0.28);
-    }
-
-    #ui::-webkit-scrollbar-thumb,
-    #ui *::-webkit-scrollbar-thumb {
-      background:
-        linear-gradient(180deg, rgba(126, 196, 92, 0.92) 0%, rgba(81, 140, 62, 0.98) 100%);
-      border: 1px solid rgba(196, 248, 168, 0.26);
-      border-radius: 999px;
-      box-shadow:
-        inset 0 0 0 1px rgba(224, 255, 212, 0.08),
-        0 0 10px rgba(116, 255, 108, 0.12);
-    }
-
-    #ui::-webkit-scrollbar-thumb:hover,
-    #ui *::-webkit-scrollbar-thumb:hover {
-      background:
-        linear-gradient(180deg, rgba(150, 223, 116, 0.98) 0%, rgba(98, 168, 75, 1) 100%);
-      border-color: rgba(220, 255, 204, 0.34);
-      box-shadow:
-        inset 0 0 0 1px rgba(224, 255, 212, 0.12),
-        0 0 14px rgba(116, 255, 108, 0.18);
-    }
-
-    #ui::-webkit-scrollbar-corner,
-    #ui *::-webkit-scrollbar-corner {
-      background: rgba(4, 10, 4, 0.98);
-    }
-
-    #ui .es-retro-panel,
-    #ui .es-retro-section,
-    #ui .es-retro-stage-frame,
-    #ui .es-retro-badge,
-    #ui .es-retro-button {
-      position: relative;
-      isolation: isolate;
-    }
-
-    #ui .es-retro-panel,
-    #ui .es-retro-section,
-    #ui .es-retro-stage-frame {
-      animation: electric-sheep-retro-line-glow 6.4s ease-in-out infinite;
-    }
-
-    #ui .es-retro-panel::before,
-    #ui .es-retro-section::before,
-    #ui .es-retro-stage-frame::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-      background:
-        repeating-linear-gradient(
-          180deg,
-          rgba(190, 255, 200, 0.028) 0 1px,
-          rgba(0, 0, 0, 0) 1px 4px
-        ),
-        linear-gradient(180deg, rgba(180, 255, 190, 0.028), transparent 34%);
-      mix-blend-mode: screen;
-      opacity: 0.12;
-    }
-
-    #ui .es-retro-panel::after,
-    #ui .es-retro-section::after,
-    #ui .es-retro-stage-frame::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-      background:
-        radial-gradient(circle at center, transparent 54%, rgba(0, 0, 0, 0.16) 100%),
-        linear-gradient(125deg, rgba(255, 255, 255, 0.016) 0%, transparent 22%, rgba(255, 255, 255, 0.01) 52%, transparent 74%, rgba(255, 255, 255, 0.012) 100%);
-      opacity: 0.22;
-    }
-
-    #ui .es-retro-panel > *,
-    #ui .es-retro-section > *,
-    #ui .es-retro-stage-frame > * {
-      position: relative;
-      z-index: 1;
-    }
-
-    #ui .es-retro-badge {
-      animation: electric-sheep-retro-badge-glow 5.2s ease-in-out infinite;
-    }
-
-    #ui .es-retro-button {
-      animation: electric-sheep-retro-badge-glow 4.8s ease-in-out infinite;
-    }
-  `;
-  document.head.append(style);
 }
 
 export class UIManager {
@@ -215,7 +45,6 @@ export class UIManager {
     this._content = null;
     this._geoModuleEl = null;
     this._shaderModuleEl = null;
-    this._moduleFadeTimeouts = new Map();
     this._moduleButtons = new Map();
     this._previewButtons = new Map();
     this._outputModeButtons = new Map();
@@ -398,71 +227,21 @@ export class UIManager {
   }
 
   _build() {
-    ensureRetroUiEffects();
-
     this._shell = document.createElement('div');
-    Object.assign(this._shell.style, {
-      position: 'absolute',
-      inset: '0',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '18px',
-      padding: '18px',
-      overflow: 'hidden',
-      pointerEvents: 'none',
-      fontFamily: RETRO_FONT,
-      color: RETRO_TEXT,
-      textShadow: '0 0 8px rgba(154, 255, 138, 0.12)',
-      zIndex: '1',
-      isolation: 'isolate',
-    });
+    this._shell.className = 'es-ui-shell';
 
     const vignetteOverlay = document.createElement('div');
-    Object.assign(vignetteOverlay.style, {
-      position: 'absolute',
-      inset: '0',
-      pointerEvents: 'none',
-      background: 'radial-gradient(circle at center, transparent 52%, rgba(2, 6, 2, 0.42) 100%)',
-      zIndex: '0',
-    });
+    vignetteOverlay.className = 'es-vignette-overlay';
 
     const scanlineOverlay = document.createElement('div');
-    Object.assign(scanlineOverlay.style, {
-      position: 'absolute',
-      inset: '-2%',
-      pointerEvents: 'none',
-      background: 'repeating-linear-gradient(180deg, rgba(170, 255, 150, 0.06) 0 1px, transparent 1px 4px)',
-      mixBlendMode: 'screen',
-      opacity: '0.24',
-      animation: 'electric-sheep-retro-scan 14s linear infinite',
-      zIndex: '0',
-    });
+    scanlineOverlay.className = 'es-scanline-overlay';
 
     const dustOverlay = document.createElement('div');
-    Object.assign(dustOverlay.style, {
-      position: 'absolute',
-      inset: '0',
-      pointerEvents: 'none',
-      opacity: '0.08',
-      backgroundImage: [
-        'radial-gradient(circle at 18% 22%, rgba(191,255,174,0.8) 0 0.6px, transparent 0.7px)',
-        'radial-gradient(circle at 74% 31%, rgba(191,255,174,0.55) 0 0.5px, transparent 0.7px)',
-        'radial-gradient(circle at 63% 72%, rgba(191,255,174,0.5) 0 0.5px, transparent 0.7px)',
-        'radial-gradient(circle at 29% 78%, rgba(191,255,174,0.45) 0 0.45px, transparent 0.7px)',
-      ].join(','),
-      zIndex: '0',
-    });
+    dustOverlay.className = 'es-dust-overlay';
 
     this._topbar = this._buildTopbar();
-    this._topbar.style.position = 'relative';
-    this._topbar.style.zIndex = '1';
     this._content = document.createElement('div');
-    Object.assign(this._content.style, {
-      position: 'relative',
-      flex: '1',
-      minHeight: '0',
-      zIndex: '1',
-    });
+    this._content.className = 'es-ui-content';
 
     this._geoModuleEl = this._buildGeoModule();
     this._shaderModuleEl = this._buildShaderModule();
@@ -485,80 +264,35 @@ export class UIManager {
 
   _buildTopbar() {
     const bar = document.createElement('div');
-    bar.className = 'es-retro-panel';
-    Object.assign(bar.style, {
-      display: 'grid',
-      gridTemplateColumns: 'minmax(220px, auto) minmax(220px, auto) minmax(0, 1fr)',
-      alignItems: 'center',
-      gap: '18px',
-      padding: '14px 18px',
-      borderRadius: '4px',
-      background: 'linear-gradient(180deg, rgba(8, 18, 8, 0.98) 0%, rgba(5, 12, 5, 0.98) 100%)',
-      border: `1px solid ${RETRO_BORDER}`,
-      boxShadow: 'inset 0 0 0 1px rgba(189,255,172,0.03), 0 0 28px rgba(74, 136, 60, 0.12)',
-      pointerEvents: 'auto',
-    });
+    bar.className = 'es-retro-panel es-topbar';
 
     const identity = document.createElement('div');
-    Object.assign(identity.style, {
-      display: 'grid',
-      gap: '4px',
-    });
+    identity.className = 'es-topbar__identity';
     identity.append(
-      createText('div', 'Electric Sheep', {
-        fontSize: '18px',
-        fontWeight: '700',
-        letterSpacing: '0.12em',
-        textTransform: 'uppercase',
-        color: RETRO_TEXT_STRONG,
-      }),
-      createText('div', 'AI-driven projection mapping and visual orchestration', {
-        color: RETRO_MUTED,
-        fontSize: '12px',
-        lineHeight: '1.5',
-      }),
+      createText('div', 'Electric Sheep', 'es-text-title'),
+      createText('div', 'AI-driven projection mapping and visual orchestration', 'es-text-subtitle'),
     );
 
     const tabs = document.createElement('div');
-    Object.assign(tabs.style, {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: '8px',
-      padding: '6px',
-      borderRadius: '2px',
-      background: 'rgba(8, 16, 8, 0.76)',
-      border: `1px solid ${RETRO_BORDER}`,
-      justifySelf: 'start',
-    });
+    tabs.className = 'es-topbar__tabs';
     tabs.append(
       this._createModuleButton('GEO', EDITOR_MODULE_GEO),
       this._createModuleButton('SHADER', EDITOR_MODULE_SHADER),
     );
 
     const controls = document.createElement('div');
-    Object.assign(controls.style, {
-      display: 'flex',
-      justifyContent: 'flex-end',
-      alignItems: 'center',
-      flexWrap: 'wrap',
-      gap: '10px',
-      minWidth: '0',
-    });
+    controls.className = 'es-topbar__controls';
 
     this._outputStatusBadge = this._createBadge('Output Offline');
+    this._outputStatusBadge.classList.add('es-output-badge');
     this._openOutputBtn = this._createButton('Open Output', () => {
       if (this.onOpenOutputWindow) this.onOpenOutputWindow();
-    }, {
-      accent: RETRO_ACCENT,
-      active: true,
-    });
+    }, { active: true });
     this._focusOutputBtn = this._createButton('Focus Output', () => {
       if (this.onFocusOutputWindow) this.onFocusOutputWindow();
     });
     this._fullscreenOutputBtn = this._createButton('Fullscreen Output', () => {
       if (this.onFullscreenOutputWindow) this.onFullscreenOutputWindow();
-    }, {
-      accent: RETRO_ACCENT,
     });
 
     controls.append(
@@ -574,69 +308,23 @@ export class UIManager {
 
   _buildGeoModule() {
     const moduleEl = document.createElement('div');
-    Object.assign(moduleEl.style, {
-      position: 'absolute',
-      inset: '0',
-      display: 'grid',
-      gridTemplateColumns: '320px minmax(0, 1fr) 290px',
-      gap: '18px',
-      minHeight: '0',
-      opacity: '0',
-      visibility: 'hidden',
-      pointerEvents: 'none',
-      transition: MODULE_FADE_TRANSITION,
-      willChange: 'opacity',
-    });
+    moduleEl.className = 'es-module es-module--geo';
 
-    const controlsCard = this._createCard({
-      display: 'grid',
-      gridTemplateRows: 'auto auto auto auto auto 1fr',
-      gap: '14px',
-      padding: '18px',
-      pointerEvents: 'auto',
-      overflowX: 'hidden',
-      overflowY: 'auto',
-      paddingRight: '10px',
-    });
+    const controlsCard = this._createCard('es-card--controls');
 
     const geoHeader = document.createElement('div');
-    Object.assign(geoHeader.style, {
-      display: 'grid',
-      gap: '6px',
-    });
+    geoHeader.className = 'es-inline-group';
     geoHeader.append(
-      createText('div', 'GEO Workspace', {
-        fontSize: '18px',
-        fontWeight: '700',
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
-        color: RETRO_TEXT_STRONG,
-      }),
-      createText('div', 'Projection geometry, surface editing, feathering, and layer order live here.', {
-        color: RETRO_MUTED,
-        fontSize: '12px',
-        lineHeight: '1.5',
-      }),
+      createText('div', 'GEO Workspace', 'es-text-title-sm'),
+      createText('div', 'Projection geometry, surface editing, feathering, and layer order live here.', 'es-text-subtitle'),
     );
 
     const selectionSection = this._createSection('Surface');
-    this._surfaceLabel = createText('div', 'No surface selected', {
-      color: RETRO_TEXT_STRONG,
-      fontSize: '16px',
-      fontWeight: '600',
-    });
-    this._surfaceMetaLabel = createText('div', 'Add a surface or click one directly on the stage to begin mapping.', {
-      color: RETRO_MUTED,
-      fontSize: '12px',
-      lineHeight: '1.5',
-    });
+    this._surfaceLabel = createText('div', 'No surface selected', 'es-text-strong');
+    this._surfaceMetaLabel = createText('div', 'Add a surface or click one directly on the stage to begin mapping.', 'es-text-subtitle');
     const addSurfaceBtn = this._createButton('+ Add Surface', () => {
       if (this.onAddSurface) this.onAddSurface();
-    }, {
-      accent: RETRO_ACCENT,
-      active: true,
-      fullWidth: true,
-    });
+    }, { active: true, fullWidth: true });
     selectionSection.append(this._surfaceLabel, this._surfaceMetaLabel, addSurfaceBtn);
 
     const workspaceSection = this._createSection('Workspace');
@@ -655,11 +343,7 @@ export class UIManager {
 
     const editSection = this._createSection('Edit Target');
     const editButtons = document.createElement('div');
-    Object.assign(editButtons.style, {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-      gap: '8px',
-    });
+    editButtons.className = 'es-grid-3col';
     editButtons.append(
       this._createEditTargetButton('Surface', EDIT_TARGET_SURFACE),
       this._createEditTargetButton('Content', EDIT_TARGET_CONTENT),
@@ -670,11 +354,7 @@ export class UIManager {
     const layerSection = this._createSection('Layer Order');
     this._surfaceOrderLabel = this._createBadge('No layer');
     const orderButtons = document.createElement('div');
-    Object.assign(orderButtons.style, {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-      gap: '8px',
-    });
+    orderButtons.className = 'es-grid-2col';
     this._sendToBackBtn = this._createButton('To Back', () => {
       if (this.onSendToBack) this.onSendToBack();
     });
@@ -696,7 +376,7 @@ export class UIManager {
     layerSection.append(this._surfaceOrderLabel, orderButtons);
 
     const featherSection = this._createSection('Feather & Masking');
-    const surfaceFeatherGroup = this._createSliderGroup('Surface Feather', RETRO_ACCENT, MAX_SURFACE_FEATHER, (value) => {
+    const surfaceFeatherGroup = this._createSliderGroup('Surface Feather', MAX_SURFACE_FEATHER, (value) => {
       if (this.onFeatherChange) this.onFeatherChange(value);
     });
     this._featherSlider = surfaceFeatherGroup.input;
@@ -705,11 +385,7 @@ export class UIManager {
 
     this._subtractLabel = this._createBadge('No subtract quads');
     const subtractActions = document.createElement('div');
-    Object.assign(subtractActions.style, {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-      gap: '8px',
-    });
+    subtractActions.className = 'es-grid-2col';
     this._addSubtractBtn = this._createButton('+ Subtract', () => {
       if (this.onAddSubtractQuad) this.onAddSubtractQuad();
     });
@@ -728,7 +404,7 @@ export class UIManager {
       this._prevSubtractBtn,
       this._nextSubtractBtn,
     );
-    const subtractFeatherGroup = this._createSliderGroup('Subtract Feather', RETRO_ACCENT, MAX_SUBTRACT_FEATHER, (value) => {
+    const subtractFeatherGroup = this._createSliderGroup('Subtract Feather', MAX_SUBTRACT_FEATHER, (value) => {
       if (this.onSubtractFeatherChange) this.onSubtractFeatherChange(value);
     });
     this._subtractFeatherSlider = subtractFeatherGroup.input;
@@ -737,11 +413,7 @@ export class UIManager {
 
     const helpSection = this._createSection('Stage Notes');
     helpSection.append(
-      createText('div', 'Drag the visible handles directly on the stage. GEO keeps the spatial layout while SHADER handles preset logic and uniforms.', {
-        color: RETRO_MUTED,
-        fontSize: '12px',
-        lineHeight: '1.6',
-      }),
+      createText('div', 'Drag the visible handles directly on the stage. GEO keeps the spatial layout while SHADER handles preset logic and uniforms.', 'es-text-muted'),
     );
 
     controlsCard.append(
@@ -754,104 +426,35 @@ export class UIManager {
       helpSection,
     );
 
-    const stageCard = this._createCard({
-      display: 'grid',
-      gridTemplateRows: 'auto 1fr auto',
-      gap: '18px',
-      padding: '22px',
-      overflow: 'hidden',
-      pointerEvents: 'none',
-      background: 'linear-gradient(180deg, rgba(9,12,16,0.38) 0%, rgba(7,10,14,0.18) 100%)',
-    });
+    const stageCard = this._createCard('es-card--stage');
     const stageTop = document.createElement('div');
-    Object.assign(stageTop.style, {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      gap: '12px',
-    });
+    stageTop.className = 'es-stage__top';
     const stageCopy = document.createElement('div');
-    Object.assign(stageCopy.style, {
-      display: 'grid',
-      gap: '8px',
-      maxWidth: '520px',
-    });
+    stageCopy.className = 'es-stage__copy';
     stageCopy.append(
-      createText('div', 'GEO', {
-        color: RETRO_TEXT_STRONG,
-        fontSize: '28px',
-        fontWeight: '700',
-        letterSpacing: '0.16em',
-        textTransform: 'uppercase',
-      }),
-      createText('div', 'This workspace stays centered on spatial editing. Use the stage itself for handles, while the side panels keep mapping controls organized.', {
-        color: RETRO_MUTED,
-        fontSize: '13px',
-        lineHeight: '1.65',
-      }),
+      createText('div', 'GEO', 'es-text-title-xl'),
+      createText('div', 'This workspace stays centered on spatial editing. Use the stage itself for handles, while the side panels keep mapping controls organized.', 'es-text-desc'),
     );
     const stageBadges = document.createElement('div');
-    Object.assign(stageBadges.style, {
-      display: 'flex',
-      flexWrap: 'wrap',
-      justifyContent: 'flex-end',
-      gap: '8px',
-    });
+    stageBadges.className = 'es-stage__badges';
     this._geoStagePreviewBadge = this._createBadge('Preview: Edit');
     this._geoStageModeBadge = this._createBadge('Stage: Show');
     stageBadges.append(this._geoStagePreviewBadge, this._geoStageModeBadge);
     stageTop.append(stageCopy, stageBadges);
 
     const stageCanvasFrame = document.createElement('div');
-    stageCanvasFrame.className = 'es-retro-stage-frame';
-    Object.assign(stageCanvasFrame.style, {
-      position: 'relative',
-      minHeight: '0',
-      borderRadius: '4px',
-      border: `1px dashed ${RETRO_BORDER}`,
-      background: [
-        'radial-gradient(circle at top, rgba(170,255,150,0.08), transparent 34%)',
-        'linear-gradient(0deg, rgba(170,255,150,0.03) 1px, transparent 1px)',
-        'linear-gradient(90deg, rgba(170,255,150,0.03) 1px, transparent 1px)',
-      ].join(','),
-      backgroundSize: 'auto, 72px 72px, 72px 72px',
-      boxShadow: 'inset 0 0 0 1px rgba(189,255,172,0.03), 0 0 18px rgba(74, 136, 60, 0.08)',
-    });
+    stageCanvasFrame.className = 'es-retro-stage-frame es-stage__canvas-frame';
 
-    const stageFooter = createText('div', 'The projector output window remains separate. This main window is the operator console for GEO and SHADER.', {
-      color: '#748195',
-      fontSize: '12px',
-      lineHeight: '1.6',
-    });
+    const stageFooter = createText('div', 'The projector output window remains separate. This main window is the operator console for GEO and SHADER.', 'es-text-footer');
 
     stageCard.append(stageTop, stageCanvasFrame, stageFooter);
 
-    const surfacesCard = this._createCard({
-      display: 'grid',
-      gridTemplateRows: 'auto 1fr',
-      gap: '14px',
-      padding: '18px',
-      pointerEvents: 'auto',
-      overflow: 'hidden',
-    });
+    const surfacesCard = this._createCard('es-card--surfaces');
     surfacesCard.append(
-      createText('div', 'Surface Navigator', {
-        color: RETRO_TEXT_STRONG,
-        fontSize: '16px',
-        fontWeight: '700',
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
-      }),
+      createText('div', 'Surface Navigator', 'es-text-section-header'),
     );
     this._geoSurfaceListEl = document.createElement('div');
-    Object.assign(this._geoSurfaceListEl.style, {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '10px',
-      overflowY: 'auto',
-      minHeight: '0',
-      paddingRight: '4px',
-    });
+    this._geoSurfaceListEl.className = 'es-surface-list';
     surfacesCard.append(this._geoSurfaceListEl);
 
     moduleEl.append(controlsCard, stageCard, surfacesCard);
@@ -860,72 +463,21 @@ export class UIManager {
 
   _buildShaderModule() {
     const moduleEl = document.createElement('div');
-    Object.assign(moduleEl.style, {
-      position: 'absolute',
-      inset: '0',
-      display: 'grid',
-      gridTemplateRows: 'auto 1fr',
-      gap: '18px',
-      minHeight: '0',
-      opacity: '0',
-      visibility: 'hidden',
-      pointerEvents: 'none',
-      transition: MODULE_FADE_TRANSITION,
-      willChange: 'opacity',
-    });
+    moduleEl.className = 'es-module es-module--shader';
 
-    const headerCard = this._createCard({
-      display: 'grid',
-      gridTemplateColumns: 'minmax(0, 1fr) auto',
-      gap: '16px',
-      alignItems: 'center',
-      padding: '18px 20px',
-      pointerEvents: 'auto',
-    });
+    const headerCard = this._createCard('es-card--shader-header');
     const copy = document.createElement('div');
-    Object.assign(copy.style, {
-      display: 'grid',
-      gap: '6px',
-    });
+    copy.className = 'es-header-copy';
     copy.append(
-      createText('div', 'SHADER Workspace', {
-        color: RETRO_TEXT_STRONG,
-        fontSize: '20px',
-        fontWeight: '700',
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
-      }),
-      createText('div', 'Outputs, presets, assignments, and uniforms live here. GEO keeps the stage geometry independent.', {
-        color: RETRO_MUTED,
-        fontSize: '13px',
-        lineHeight: '1.6',
-      }),
+      createText('div', 'SHADER Workspace', 'es-text-title-lg'),
+      createText('div', 'Outputs, presets, assignments, and uniforms live here. GEO keeps the stage geometry independent.', 'es-text-desc'),
     );
-    this._shaderSummaryEl = createText('div', '0 outputs • 0 surfaces', {
-      color: RETRO_TEXT,
-      fontSize: '13px',
-      fontWeight: '600',
-      padding: '10px 14px',
-      borderRadius: '2px',
-      background: 'rgba(8, 16, 8, 0.76)',
-      border: `1px solid ${RETRO_BORDER}`,
-      whiteSpace: 'nowrap',
-    });
+    this._shaderSummaryEl = createText('div', '0 outputs • 0 surfaces', 'es-shader-summary');
     headerCard.append(copy, this._shaderSummaryEl);
 
-    const bodyCard = this._createCard({
-      display: 'grid',
-      minHeight: '0',
-      overflow: 'hidden',
-      padding: '18px',
-      pointerEvents: 'auto',
-    });
+    const bodyCard = this._createCard('es-card--shader-body');
     const panelWrap = document.createElement('div');
-    Object.assign(panelWrap.style, {
-      minHeight: '0',
-      overflow: 'auto',
-      paddingRight: '4px',
-    });
+    panelWrap.className = 'es-panel-wrap';
 
     this._shaderMasterPanel = new ShaderTab({
       onSelectSurface: (surfaceId) => {
@@ -1026,10 +578,7 @@ export class UIManager {
       if (this.onModuleChange) {
         this.onModuleChange(module);
       }
-    }, {
-      accent: RETRO_ACCENT,
-      pill: true,
-    });
+    }, { pill: true });
     this._moduleButtons.set(module, button);
     return button;
   }
@@ -1037,8 +586,6 @@ export class UIManager {
   _createPreviewButton(label, mode) {
     const button = this._createButton(label, () => {
       if (this.onPreviewModeChange) this.onPreviewModeChange(mode);
-    }, {
-      accent: RETRO_ACCENT,
     });
     this._previewButtons.set(mode, button);
     return button;
@@ -1047,21 +594,15 @@ export class UIManager {
   _createOutputModeButton(label, mode) {
     const button = this._createButton(label, () => {
       if (this.onOutputDisplayModeChange) this.onOutputDisplayModeChange(mode);
-    }, {
-      accent: RETRO_ACCENT,
     });
     this._outputModeButtons.set(mode, button);
     return button;
   }
 
   _createEditTargetButton(label, target) {
-    const accent = RETRO_ACCENT;
-
     const button = this._createButton(label, () => {
       if (!this._hasActiveSurface) return;
       if (this.onEditTargetChange) this.onEditTargetChange(target);
-    }, {
-      accent,
     });
     this._editTargetButtons.set(target, button);
     return button;
@@ -1069,108 +610,43 @@ export class UIManager {
 
   _createSection(label) {
     const section = document.createElement('div');
-    section.className = 'es-retro-section';
-    Object.assign(section.style, {
-      display: 'grid',
-      gap: '10px',
-      padding: '14px',
-      borderRadius: '3px',
-      background: 'rgba(8, 16, 8, 0.78)',
-      border: `1px solid ${RETRO_BORDER}`,
-    });
-    section.append(
-      createText('div', label, {
-        color: RETRO_LABEL,
-        fontSize: '11px',
-        letterSpacing: '0.16em',
-        textTransform: 'uppercase',
-      }),
-    );
+    section.className = 'es-retro-section es-section';
+    section.append(createText('div', label, 'es-text-section-label'));
     return section;
   }
 
   _createInlineGroup(label) {
     const group = document.createElement('div');
-    Object.assign(group.style, {
-      display: 'grid',
-      gap: '8px',
-    });
-    group.append(
-      createText('div', label, {
-        color: RETRO_TEXT,
-        fontSize: '12px',
-        fontWeight: '600',
-      }),
-    );
+    group.className = 'es-inline-group';
+    group.append(createText('div', label, 'es-text-label'));
     const row = document.createElement('div');
-    Object.assign(row.style, {
-      display: 'flex',
-      flexWrap: 'wrap',
-      gap: '8px',
-    });
+    row.className = 'es-inline-group__row';
     group.append(row);
     return { element: group, row };
   }
 
-  _createCard(style = {}) {
+  _createCard(extraClass = '') {
     const card = document.createElement('div');
-    card.className = 'es-retro-panel';
-    Object.assign(card.style, {
-      borderRadius: '4px',
-      background: 'linear-gradient(180deg, rgba(8, 18, 8, 0.98) 0%, rgba(5, 12, 5, 0.98) 100%)',
-      border: `1px solid ${RETRO_BORDER}`,
-      boxShadow: 'inset 0 0 0 1px rgba(189,255,172,0.03), 0 0 24px rgba(64, 120, 54, 0.12)',
-      minHeight: '0',
-    }, style);
+    card.className = `es-retro-panel es-card ${extraClass}`.trim();
     return card;
   }
 
-  _createBadge(text, accent = null) {
-    const badge = createText('div', text, {
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '8px',
-      padding: '8px 12px',
-      borderRadius: '2px',
-      background: accent ? `${accent}20` : 'rgba(255,255,255,0.05)',
-      border: accent ? `1px solid ${accent}55` : `1px solid ${RETRO_BORDER}`,
-      color: accent || RETRO_TEXT,
-      fontSize: '12px',
-      fontWeight: '600',
-      fontFamily: RETRO_FONT,
-      whiteSpace: 'nowrap',
-    });
-    badge.className = 'es-retro-badge';
+  _createBadge(text, useAccent = false) {
+    const badge = document.createElement('div');
+    badge.textContent = text;
+    badge.className = `es-retro-badge es-badge${useAccent ? ' es-badge--accent' : ''}`;
     return badge;
   }
 
-  _createSliderGroup(label, accentColor, maxValue, onChange) {
+  _createSliderGroup(label, maxValue, onChange) {
     const group = document.createElement('div');
-    Object.assign(group.style, {
-      display: 'grid',
-      gap: '8px',
-    });
+    group.className = 'es-slider';
 
     const header = document.createElement('div');
-    Object.assign(header.style, {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      gap: '10px',
-    });
+    header.className = 'es-slider__header';
 
-    const title = createText('div', label, {
-      color: RETRO_TEXT,
-      fontSize: '13px',
-      fontWeight: '600',
-    });
-
-    const valueLabel = createText('div', '0.00', {
-      color: RETRO_TEXT,
-      fontSize: '12px',
-      fontVariantNumeric: 'tabular-nums',
-    });
+    const title = createText('div', label, 'es-slider__title');
+    const valueLabel = createText('div', '0.00', 'es-slider__value');
 
     const input = document.createElement('input');
     input.type = 'range';
@@ -1179,10 +655,7 @@ export class UIManager {
     input.step = '0.005';
     input.value = '0';
     input.disabled = true;
-    Object.assign(input.style, {
-      width: '100%',
-      accentColor,
-    });
+    input.className = 'es-slider__input';
     input.addEventListener('input', (event) => {
       const value = Number.parseFloat(event.target.value);
       valueLabel.textContent = value.toFixed(2);
@@ -1195,60 +668,25 @@ export class UIManager {
   }
 
   _createButton(label, onClick, {
-    accent = null,
     active = false,
     pill = false,
     fullWidth = false,
   } = {}) {
     const button = document.createElement('button');
-    button.className = 'es-retro-button';
+    let classes = 'es-retro-button es-btn';
+    if (active) classes += ' es-btn--active';
+    if (pill) classes += ' es-btn--pill';
+    if (fullWidth) classes += ' es-btn--full';
+    button.className = classes;
     button.type = 'button';
     button.textContent = label;
-    button.dataset.accent = accent || '';
-    Object.assign(button.style, {
-      display: fullWidth ? 'flex' : 'inline-flex',
-      width: fullWidth ? '100%' : 'auto',
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: '8px',
-      padding: pill ? '11px 16px' : '10px 14px',
-      borderRadius: pill ? '2px' : '2px',
-      border: active && accent ? `1px solid ${accent}66` : `1px solid ${RETRO_BORDER}`,
-      background: active && accent
-        ? `linear-gradient(180deg, ${accent}26 0%, rgba(8, 18, 8, 0.96) 100%)`
-        : 'linear-gradient(180deg, rgba(15, 30, 14, 0.96) 0%, rgba(7, 18, 7, 0.98) 100%)',
-      color: active && accent ? RETRO_TEXT_STRONG : RETRO_TEXT,
-      cursor: 'pointer',
-      fontSize: '12px',
-      fontWeight: '600',
-      letterSpacing: '0.06em',
-      textTransform: 'uppercase',
-      fontFamily: RETRO_FONT,
-      transition: 'background 0.18s, border-color 0.18s, opacity 0.18s, color 0.18s',
-      boxShadow: 'inset 0 0 0 1px rgba(189,255,172,0.03), 0 0 12px rgba(116,255,108,0.05)',
-    });
-    button.addEventListener('mouseenter', () => {
-      if (!button.disabled) {
-        button.style.background = accent
-          ? `linear-gradient(180deg, ${accent}2f 0%, rgba(9, 22, 9, 1) 100%)`
-          : 'linear-gradient(180deg, rgba(22, 42, 20, 0.98) 0%, rgba(9, 22, 9, 1) 100%)';
-      }
-    });
-    button.addEventListener('mouseleave', () => {
-      if (!button.disabled) {
-        button.style.background = active && accent
-          ? `linear-gradient(180deg, ${accent}26 0%, rgba(8, 18, 8, 0.96) 100%)`
-          : 'linear-gradient(180deg, rgba(15, 30, 14, 0.96) 0%, rgba(7, 18, 7, 0.98) 100%)';
-      }
-    });
     button.addEventListener('click', onClick);
     return button;
   }
 
   _syncModuleButtons() {
     this._moduleButtons.forEach((button, module) => {
-      const accent = RETRO_ACCENT;
-      this._syncToggleButton(button, module === this._activeModule, false, accent);
+      this._syncToggleButton(button, module === this._activeModule, false);
     });
   }
 
@@ -1262,67 +700,28 @@ export class UIManager {
       return;
     }
 
-    moduleEl.dataset.moduleVisibleTarget = isActive ? 'true' : 'false';
-
-    const hideTimeout = this._moduleFadeTimeouts.get(moduleEl);
-    if (hideTimeout) {
-      clearTimeout(hideTimeout);
-      this._moduleFadeTimeouts.delete(moduleEl);
-    }
-
     if (immediate) {
-      moduleEl.style.transition = 'none';
-      moduleEl.style.opacity = isActive ? '1' : '0';
-      moduleEl.style.visibility = isActive ? 'visible' : 'hidden';
-      moduleEl.style.pointerEvents = isActive ? 'auto' : 'none';
-      moduleEl.style.zIndex = isActive ? '1' : '0';
-      // Force the browser to commit the immediate state before reenabling transitions.
+      moduleEl.classList.add('es-module--no-transition');
+      moduleEl.dataset.visible = isActive ? 'true' : 'false';
       void moduleEl.offsetHeight;
-      moduleEl.style.transition = MODULE_FADE_TRANSITION;
+      moduleEl.classList.remove('es-module--no-transition');
       return;
     }
 
-    if (isActive) {
-      moduleEl.style.visibility = 'visible';
-      moduleEl.style.pointerEvents = 'auto';
-      moduleEl.style.zIndex = '1';
-      requestAnimationFrame(() => {
-        if (moduleEl.dataset.moduleVisibleTarget === 'true') {
-          moduleEl.style.opacity = '1';
-        }
-      });
-      return;
-    }
-
-    moduleEl.style.pointerEvents = 'none';
-    moduleEl.style.zIndex = '0';
-    moduleEl.style.opacity = '0';
-    const timeoutId = window.setTimeout(() => {
-      if (moduleEl.dataset.moduleVisibleTarget === 'false') {
-        moduleEl.style.visibility = 'hidden';
-      }
-      this._moduleFadeTimeouts.delete(moduleEl);
-    }, MODULE_FADE_DURATION_MS);
-    this._moduleFadeTimeouts.set(moduleEl, timeoutId);
+    moduleEl.dataset.visible = isActive ? 'true' : 'false';
   }
 
   _syncOutputWindowControls() {
     const { available, connected } = this._outputWindowState;
     if (connected) {
       this._outputStatusBadge.textContent = 'Output Live';
-      this._outputStatusBadge.style.background = 'rgba(18, 38, 16, 0.92)';
-      this._outputStatusBadge.style.borderColor = 'rgba(166, 223, 134, 0.34)';
-      this._outputStatusBadge.style.color = RETRO_TEXT_STRONG;
+      this._outputStatusBadge.dataset.status = 'connected';
     } else if (available) {
       this._outputStatusBadge.textContent = 'Output Opening';
-      this._outputStatusBadge.style.background = 'rgba(12, 24, 11, 0.92)';
-      this._outputStatusBadge.style.borderColor = 'rgba(120, 170, 96, 0.28)';
-      this._outputStatusBadge.style.color = RETRO_TEXT;
+      this._outputStatusBadge.dataset.status = 'available';
     } else {
       this._outputStatusBadge.textContent = 'Output Offline';
-      this._outputStatusBadge.style.background = 'rgba(8, 16, 8, 0.8)';
-      this._outputStatusBadge.style.borderColor = RETRO_BORDER;
-      this._outputStatusBadge.style.color = RETRO_MUTED;
+      this._outputStatusBadge.dataset.status = 'offline';
     }
 
     this._syncButtonState(this._focusOutputBtn, available);
@@ -1330,20 +729,19 @@ export class UIManager {
 
   _syncPreviewButtons() {
     this._previewButtons.forEach((button, mode) => {
-      this._syncToggleButton(button, mode === this._previewMode, false, RETRO_ACCENT);
+      this._syncToggleButton(button, mode === this._previewMode, false);
     });
   }
 
   _syncOutputModeButtons() {
     this._outputModeButtons.forEach((button, mode) => {
-      this._syncToggleButton(button, mode === this._outputDisplayMode, false, RETRO_ACCENT);
+      this._syncToggleButton(button, mode === this._outputDisplayMode, false);
     });
   }
 
   _syncEditTargetButtons() {
     this._editTargetButtons.forEach((button, target) => {
-      const accent = RETRO_ACCENT;
-      this._syncToggleButton(button, target === this._editTarget, !this._hasActiveSurface, accent);
+      this._syncToggleButton(button, target === this._editTarget, !this._hasActiveSurface);
     });
   }
 
@@ -1395,16 +793,7 @@ export class UIManager {
 
     if (surfaces.length === 0) {
       this._geoSurfaceListEl.append(
-      createText('div', 'No surfaces yet. Add one from GEO to start mapping.', {
-          padding: '16px',
-          borderRadius: '2px',
-          border: `1px dashed ${RETRO_BORDER}`,
-          color: RETRO_MUTED,
-          fontSize: '13px',
-          lineHeight: '1.6',
-          textAlign: 'center',
-          background: 'rgba(8, 16, 8, 0.62)',
-        }),
+        createText('div', 'No surfaces yet. Add one from GEO to start mapping.', 'es-surface-empty'),
       );
       return;
     }
@@ -1413,58 +802,29 @@ export class UIManager {
       const isSelected = surface.id === snapshot.selectedSurfaceId;
       const row = document.createElement('button');
       row.type = 'button';
-      Object.assign(row.style, {
-        display: 'grid',
-        gap: '8px',
-        width: '100%',
-        padding: '14px',
-        borderRadius: '3px',
-        border: isSelected ? '1px solid rgba(166, 223, 134, 0.42)' : `1px solid ${RETRO_BORDER}`,
-        background: isSelected ? 'rgba(20, 38, 18, 0.82)' : 'rgba(8, 16, 8, 0.72)',
-        color: RETRO_TEXT,
-        cursor: 'pointer',
-        textAlign: 'left',
-        boxShadow: isSelected ? '0 0 16px rgba(116, 255, 108, 0.1)' : 'none',
-      });
+      row.className = 'es-surface-row';
+      row.dataset.selected = isSelected ? 'true' : 'false';
       row.addEventListener('click', () => {
         if (this.onSelectSurface) this.onSelectSurface(surface.id);
       });
 
       const top = document.createElement('div');
-      Object.assign(top.style, {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: '10px',
-      });
+      top.className = 'es-surface-row__top';
       top.append(
-        createText('div', surface.name, {
-          fontSize: '14px',
-          fontWeight: '600',
-          color: RETRO_TEXT,
-        }),
-        this._createBadge(surface.assignedOutputId ? 'Assigned' : 'Unassigned', surface.assignedOutputId ? RETRO_ACCENT : null),
+        createText('div', surface.name, 'es-surface-row__name'),
+        this._createBadge(surface.assignedOutputId ? 'Assigned' : 'Unassigned', Boolean(surface.assignedOutputId)),
       );
 
-      const meta = createText('div', `Layer ${surface.order + 1} • ${surface.visible ? 'Visible' : 'Hidden'}`, {
-        fontSize: '12px',
-        color: RETRO_MUTED,
-      });
+      const meta = createText('div', `Layer ${surface.order + 1} • ${surface.visible ? 'Visible' : 'Hidden'}`, 'es-surface-row__meta');
 
       row.append(top, meta);
       this._geoSurfaceListEl.append(row);
     });
   }
 
-  _syncToggleButton(button, isActive, isDisabled, accent) {
+  _syncToggleButton(button, isActive, isDisabled) {
     button.disabled = isDisabled;
-    button.style.cursor = isDisabled ? 'not-allowed' : 'pointer';
-    button.style.opacity = isDisabled ? '0.42' : '1';
-    button.style.background = isActive
-      ? `linear-gradient(180deg, ${accent}26 0%, rgba(8, 18, 8, 0.96) 100%)`
-      : (isDisabled ? 'rgba(9, 17, 9, 0.76)' : 'linear-gradient(180deg, rgba(15, 30, 14, 0.96) 0%, rgba(7, 18, 7, 0.98) 100%)');
-    button.style.borderColor = isActive ? `${accent}66` : RETRO_BORDER;
-    button.style.color = isActive ? RETRO_TEXT_STRONG : RETRO_TEXT;
+    button.classList.toggle('es-btn--active', isActive);
   }
 
   _syncSubtractButtons(surface) {
@@ -1498,11 +858,6 @@ export class UIManager {
   _syncButtonState(button, enabled) {
     if (!button) return;
     button.disabled = !enabled;
-    button.style.cursor = enabled ? 'pointer' : 'not-allowed';
-    button.style.opacity = enabled ? '1' : '0.42';
-    button.style.background = enabled
-      ? 'linear-gradient(180deg, rgba(15, 30, 14, 0.96) 0%, rgba(7, 18, 7, 0.98) 100%)'
-      : 'rgba(9, 17, 9, 0.76)';
   }
 
   _describeEditTarget(target) {
@@ -1512,10 +867,6 @@ export class UIManager {
   }
 
   dispose() {
-    this._moduleFadeTimeouts.forEach((timeoutId) => {
-      clearTimeout(timeoutId);
-    });
-    this._moduleFadeTimeouts.clear();
     if (this._shell) {
       this._shell.remove();
     }
