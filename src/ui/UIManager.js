@@ -15,7 +15,6 @@ import {
   PREVIEW_MODE_OUTPUT,
 } from '../core/AppModes.js';
 import { ShaderTab } from '../systems/shader-master/ui/ShaderTab.ts';
-import { mountStageProjectionTilt } from './stageProjectionTilt.js';
 import './retro-ui.css';
 
 function createText(tagName, text, className = '') {
@@ -43,6 +42,7 @@ export class UIManager {
 
     this._shell = null;
     this._topbar = null;
+    this._bottomNav = null;
     this._content = null;
     this._geoModuleEl = null;
     this._shaderModuleEl = null;
@@ -76,7 +76,6 @@ export class UIManager {
     this._shaderSummaryEl = null;
     this._shaderMasterPanel = null;
     this._stageCanvasFrame = null;
-    this._stageProjectionTilt = null;
 
     this.onModuleChange = null;
     this.onAddSurface = null;
@@ -251,6 +250,7 @@ export class UIManager {
     dustOverlay.className = 'es-dust-overlay';
 
     this._topbar = this._buildTopbar();
+    this._bottomNav = this._buildBottomNav();
     this._content = document.createElement('div');
     this._content.className = 'es-ui-content';
 
@@ -258,10 +258,8 @@ export class UIManager {
     this._shaderModuleEl = this._buildShaderModule();
 
     this._content.append(this._geoModuleEl, this._shaderModuleEl);
-    this._shell.append(vignetteOverlay, scanlineOverlay, dustOverlay, this._topbar, this._content);
+    this._shell.append(vignetteOverlay, scanlineOverlay, dustOverlay, this._topbar, this._content, this._bottomNav);
     this._uiEl.append(this._shell);
-
-    this._stageProjectionTilt = mountStageProjectionTilt(this._stageCanvasFrame);
 
     this._syncModuleButtons();
     this._syncModuleVisibility({ immediate: true });
@@ -282,22 +280,22 @@ export class UIManager {
     const identity = document.createElement('div');
     identity.className = 'es-topbar__identity';
     identity.append(
-      createText('div', 'Electric Sheep', 'es-text-title'),
-      createText('div', 'AI-driven projection mapping and visual orchestration', 'es-text-subtitle'),
-    );
-
-    const tabs = document.createElement('div');
-    tabs.className = 'es-topbar__tabs';
-    tabs.append(
-      this._createModuleButton('GEO', EDITOR_MODULE_GEO),
-      this._createModuleButton('SHADER', EDITOR_MODULE_SHADER),
+      createText('div', 'ELECTRIC_SHEEP', 'es-text-title'),
+      createText('div', 'GEO_ENGINE / SHADER_ROUTING', 'es-text-subtitle'),
     );
 
     const controls = document.createElement('div');
     controls.className = 'es-topbar__controls';
 
+    const status = document.createElement('div');
+    status.className = 'es-topbar__status';
+
     this._outputStatusBadge = this._createBadge('Output Offline');
     this._outputStatusBadge.classList.add('es-output-badge');
+    status.append(this._outputStatusBadge);
+
+    const actions = document.createElement('div');
+    actions.className = 'es-topbar__actions';
     this._openOutputBtn = this._createButton('Open Output', () => {
       if (this.onOpenOutputWindow) this.onOpenOutputWindow();
     }, { active: true });
@@ -308,15 +306,25 @@ export class UIManager {
       if (this.onFullscreenOutputWindow) this.onFullscreenOutputWindow();
     });
 
-    controls.append(
-      this._outputStatusBadge,
+    actions.append(
       this._openOutputBtn,
       this._focusOutputBtn,
       this._fullscreenOutputBtn,
     );
+    controls.append(status, actions);
 
-    bar.append(identity, tabs, controls);
+    bar.append(identity, controls);
     return bar;
+  }
+
+  _buildBottomNav() {
+    const nav = document.createElement('div');
+    nav.className = 'es-retro-panel es-bottom-nav';
+    nav.append(
+      this._createModuleButton('GEO', EDITOR_MODULE_GEO),
+      this._createModuleButton('SHADER', EDITOR_MODULE_SHADER),
+    );
+    return nav;
   }
 
   _buildGeoModule() {
@@ -324,12 +332,8 @@ export class UIManager {
     moduleEl.className = 'es-module es-module--geo';
 
     const controlsCard = this._createCard('es-card--controls');
-
-    const geoHeader = document.createElement('div');
-    geoHeader.className = 'es-inline-group';
-    geoHeader.append(
-      createText('div', 'GEO Workspace', 'es-text-title-sm'),
-      createText('div', 'Projection geometry, surface editing, feathering, and layer order live here.', 'es-text-subtitle'),
+    controlsCard.append(
+      this._createBracketHeader('GEO_WORKSPACE'),
     );
 
     const addSurfaceBtn = this._createButton('+ Add Surface', () => {
@@ -421,7 +425,6 @@ export class UIManager {
     featherSection.append(this._subtractLabel, subtractActions, subtractFeatherGroup.element);
 
     controlsCard.append(
-      geoHeader,
       addSurfaceBtn,
       workspaceSection,
       editSection,
@@ -436,7 +439,6 @@ export class UIManager {
     stageCopy.className = 'es-stage__copy';
     stageCopy.append(
       createText('div', 'GEO', 'es-text-title-xl'),
-      createText('div', 'This workspace stays centered on spatial editing. Use the stage itself for handles, while the side panels keep mapping controls organized.', 'es-text-desc'),
     );
     const stageBadges = document.createElement('div');
     stageBadges.className = 'es-stage__badges';
@@ -448,19 +450,29 @@ export class UIManager {
     this._stageCanvasFrame = document.createElement('div');
     this._stageCanvasFrame.className = 'es-retro-stage-frame es-stage__canvas-frame';
 
-    const stageFooter = createText('div', 'The projector output window remains separate. This main window is the operator console for GEO and SHADER.', 'es-text-footer');
-
-    stageCard.append(stageTop, this._stageCanvasFrame, stageFooter);
+    stageCard.append(stageTop, this._stageCanvasFrame);
 
     const surfacesCard = this._createCard('es-card--surfaces');
     surfacesCard.append(
-      createText('div', 'Surface Navigator', 'es-text-section-header'),
+      this._createBracketHeader('SURFACE_NAV'),
     );
     this._geoSurfaceListEl = document.createElement('div');
     this._geoSurfaceListEl.className = 'es-surface-list';
     surfacesCard.append(this._geoSurfaceListEl);
 
-    moduleEl.append(controlsCard, stageCard, surfacesCard);
+    const leftRail = document.createElement('div');
+    leftRail.className = 'es-geo-rail es-geo-rail--left';
+    leftRail.append(controlsCard);
+
+    const stageColumn = document.createElement('div');
+    stageColumn.className = 'es-geo-stage-column';
+    stageColumn.append(stageCard);
+
+    const rightRail = document.createElement('div');
+    rightRail.className = 'es-geo-rail es-geo-rail--right';
+    rightRail.append(surfacesCard);
+
+    moduleEl.append(leftRail, stageColumn, rightRail);
     return moduleEl;
   }
 
@@ -469,8 +481,13 @@ export class UIManager {
     moduleEl.className = 'es-module es-module--shader';
 
     const bodyCard = this._createCard('es-card--shader-body');
+    bodyCard.append(this._createBracketHeader('SHADER_ROUTER'));
+
+    this._shaderSummaryEl = createText('div', '', 'es-text-subtitle');
+    bodyCard.append(this._shaderSummaryEl);
+
     const panelWrap = document.createElement('div');
-    panelWrap.className = 'es-panel-wrap';
+    panelWrap.className = 'es-panel-wrap es-panel-wrap--shader';
 
     this._shaderMasterPanel = new ShaderTab({
       onSelectSurface: (surfaceId) => {
@@ -568,12 +585,25 @@ export class UIManager {
 
   _createModuleButton(label, module) {
     const button = this._createButton(label, () => {
+      if (module === this._activeModule) {
+        return;
+      }
       if (this.onModuleChange) {
         this.onModuleChange(module);
       }
-    }, { pill: true });
+    }, { nav: true });
     this._moduleButtons.set(module, button);
     return button;
+  }
+
+  _createBracketHeader(label) {
+    const header = document.createElement('div');
+    header.className = 'es-bracket-header';
+    header.append(
+      createText('div', label, 'es-bracket-header__label'),
+      createText('div', '', 'es-bracket-header__line'),
+    );
+    return header;
   }
 
   _createPreviewButton(label, mode) {
@@ -664,12 +694,14 @@ export class UIManager {
     active = false,
     pill = false,
     fullWidth = false,
+    nav = false,
   } = {}) {
     const button = document.createElement('button');
     let classes = 'es-retro-button es-btn';
     if (active) classes += ' es-btn--active';
     if (pill) classes += ' es-btn--pill';
     if (fullWidth) classes += ' es-btn--full';
+    if (nav) classes += ' es-btn--nav';
     button.className = classes;
     button.type = 'button';
     button.textContent = label;
@@ -679,7 +711,11 @@ export class UIManager {
 
   _syncModuleButtons() {
     this._moduleButtons.forEach((button, module) => {
-      this._syncToggleButton(button, module === this._activeModule, false);
+      const isActive = module === this._activeModule;
+      this._syncToggleButton(button, isActive, false);
+      button.dataset.active = isActive ? 'true' : 'false';
+      button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      button.setAttribute('aria-current', isActive ? 'page' : 'false');
     });
   }
 
@@ -860,11 +896,6 @@ export class UIManager {
   }
 
   dispose() {
-    if (this._stageProjectionTilt) {
-      this._stageProjectionTilt.dispose();
-      this._stageProjectionTilt = null;
-    }
-
     if (this._shell) {
       this._shell.remove();
     }
