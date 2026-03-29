@@ -149,6 +149,25 @@ export class SurfaceManager {
     return true;
   }
 
+  moveToIndex(id, targetIndex) {
+    const surfaces = this._sortSurfaces();
+    const currentIndex = surfaces.findIndex((surface) => surface.id === id);
+    if (currentIndex < 0) {
+      return false;
+    }
+
+    const [surface] = surfaces.splice(currentIndex, 1);
+    const boundedTargetIndex = Math.max(0, Math.min(targetIndex, surfaces.length));
+    if (currentIndex === boundedTargetIndex) {
+      surfaces.splice(currentIndex, 0, surface);
+      return false;
+    }
+
+    surfaces.splice(boundedTargetIndex, 0, surface);
+    this._applySurfaceOrder(surfaces);
+    return true;
+  }
+
   clear() {
     for (const id of Array.from(this._surfaces.keys())) {
       this.removeSurface(id);

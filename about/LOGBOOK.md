@@ -1,5 +1,90 @@
 # Electric Sheep Logbook
 
+## 2026-03-29 — GEO UI Terminal Pass And Reusable Style Guide
+
+### What Changed
+- Reworked the GEO tab toward a stricter atomic terminal / Pip-Boy-inspired interface with lower text density, lighter framing, and stronger stage-first hierarchy.
+- Added bounded draggable support for auxiliary GEO panels so the `MAP` and `SURFACES` rails can move on desktop without turning the UI into floating desktop windows.
+- Rebalanced the GEO layout so the left `MAP` rail hugs its content, while the right `SURFACES` rail grows with content and then scrolls when necessary.
+- Rebuilt the surface management flow around the `SURFACES` rail:
+  - ordering now happens directly in the layer list via drag-and-drop
+  - the old left-side order controls were removed
+  - feather controls were moved out of the left panel and into the selected surface inspector
+  - subtract quads are managed inside the surface inspector instead of as separate left-panel controls
+- Simplified the surface and subtract presentation to reduce clutter:
+  - removed redundant `Assigned`, `On`, and `Linked` labels from GEO layer rows
+  - collapsed subtract layers by default behind a compact expand/collapse control
+  - added a surface visibility icon directly in the surface row header
+  - moved subtract remove actions into the active subtract row
+- Refined the stage presentation:
+  - reduced stage copy and badge/button heaviness
+  - shifted stage readouts toward passive telemetry styling
+  - strengthened the stage grid / CRT treatment
+  - styled the `OPEN OUTPUT` call to action as a warning-style terminal action
+- Tightened edit affordances and mapping visuals:
+  - surface and subtract handles use circular terminal markers
+  - content handles use a more square/diamond treatment for differentiation
+  - overlay strokes and mapping lines now align better with the terminal-green palette
+- Reduced SHADER UI text and card heaviness to begin aligning SHADER with the GEO terminal language.
+- Added a reusable UI style guide for future SHADER work at `docs/geo-ui-style-guide.md`.
+
+### Architecture Changes
+- `src/ui/PanelDragger.ts` now owns bounded, persisted panel dragging with desktop-only activation and reset support via local storage.
+- `src/ui/UIManager.js` has become the main source of truth for GEO UI structure, including:
+  - compact stage/readout composition
+  - draggable rail hookup
+  - surface list drag-and-drop ordering
+  - selected-surface inspector rendering
+  - collapsed subtract list state
+  - surface visibility actions
+- `src/App.js` now wires more GEO UI-specific actions directly:
+  - subtract selection
+  - subtract feather updates
+  - surface visibility toggling
+  - surface ordering updates
+- `src/surfaces/Surface.js` and `src/surfaces/SurfaceManager.js` now support the newer GEO editing model:
+  - stable order-aware surface lists
+  - direct move-to-index behavior
+  - stable subtract / handle styling
+  - live subtract feather updates without destroying pointer interaction
+- SHADER UI files were lightly normalized to the same design family so the future SHADER pass can build on the same system instead of starting from a separate style language.
+
+### Files Modified
+- `about/LOGBOOK.md`
+- `control.html`
+- `docs/geo-ui-style-guide.md`
+- `src/App.js`
+- `src/overlays/MappingAssistOverlay.js`
+- `src/surfaces/Surface.js`
+- `src/surfaces/SurfaceManager.js`
+- `src/systems/shader-master/ui/OperatorMonitorPanel.ts`
+- `src/systems/shader-master/ui/OutputsPanel.ts`
+- `src/systems/shader-master/ui/ShaderTab.ts`
+- `src/systems/shader-master/ui/SurfacesPanel.ts`
+- `src/systems/shader-master/ui/UniformEditor.ts`
+- `src/systems/shader-master/ui/dom.ts`
+- `src/systems/shader-master/ui/operatorStyles.ts`
+- `src/ui/PanelDragger.ts`
+- `src/ui/UIManager.js`
+- `src/ui/retro-ui.css`
+
+### Notes For Future Development
+- Use `docs/geo-ui-style-guide.md` as the baseline before making another large SHADER UI pass. It captures the repeated user preferences more reliably than commit history alone.
+- The established design direction is:
+  - less panel feel
+  - fewer borders
+  - less text
+  - more stage emphasis
+  - compact instrumentation over generic app cards
+- Draggable behavior should stay limited and careful. Keep core stage areas fixed and use drag mainly for utility rails/panels.
+- Interactive controls inside draggable or reorderable lists must remain protected from drag gestures. This already mattered for feather sliders and will matter again in SHADER.
+- The GEO `SURFACES` panel is now the canonical place for per-surface inspection. Avoid reintroducing duplicate controls back into the left `MAP` rail.
+- If future UI work feels visually heavy, the first fixes should usually be:
+  - remove redundant text
+  - collapse secondary content by default
+  - reduce borders and card shells
+  - replace passive status words with iconography or structure
+
 ## 2026-03-25 — CSS Extraction: Inline Styles Moved To Separate Stylesheet
 
 ### What Changed

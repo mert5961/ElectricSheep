@@ -151,7 +151,7 @@ export class App {
       renderer: this.renderer.renderer,
       store: this.shaderMasterStore,
     });
-    this.assistOverlay = role === APP_ROLE_OUTPUT
+    this.assistOverlay = (role === APP_ROLE_EDITOR || role === APP_ROLE_OUTPUT)
       ? new MappingAssistOverlay(overlayEl)
       : null;
     this.outputUi = role === APP_ROLE_OUTPUT
@@ -462,7 +462,6 @@ export class App {
       const surface = this.surfaces.activeSurface;
       if (!surface) return;
       if (!surface.setSubtractQuadFeather(value)) return;
-      this.ui.updateActiveSurface(surface, this.surfaces.count);
       this._scheduleSceneBroadcast();
     };
 
@@ -494,39 +493,27 @@ export class App {
       this._scheduleSceneBroadcast();
     };
 
-    this.ui.onBringToFront = () => {
+    this.ui.onSelectSubtractQuad = (index) => {
       const surface = this.surfaces.activeSurface;
       if (!surface) return;
-      if (!this.surfaces.bringToFront(surface.id)) return;
-      this._syncShaderMasterSurfaces();
+      if (!surface.selectSubtractQuad(index)) return;
       this.ui.updateActiveSurface(surface, this.surfaces.count);
       this._scheduleSceneBroadcast();
     };
 
-    this.ui.onSendToBack = () => {
-      const surface = this.surfaces.activeSurface;
+    this.ui.onToggleSurfaceVisibility = (surfaceId, visible) => {
+      const surface = this.surfaces.all.find((entry) => entry.id === surfaceId);
       if (!surface) return;
-      if (!this.surfaces.sendToBack(surface.id)) return;
+      surface.setVisible(visible);
       this._syncShaderMasterSurfaces();
-      this.ui.updateActiveSurface(surface, this.surfaces.count);
+      this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
       this._scheduleSceneBroadcast();
     };
 
-    this.ui.onMoveForward = () => {
-      const surface = this.surfaces.activeSurface;
-      if (!surface) return;
-      if (!this.surfaces.moveForward(surface.id)) return;
+    this.ui.onMoveSurfaceToIndex = (surfaceId, targetIndex) => {
+      if (!this.surfaces.moveToIndex(surfaceId, targetIndex)) return;
       this._syncShaderMasterSurfaces();
-      this.ui.updateActiveSurface(surface, this.surfaces.count);
-      this._scheduleSceneBroadcast();
-    };
-
-    this.ui.onMoveBackward = () => {
-      const surface = this.surfaces.activeSurface;
-      if (!surface) return;
-      if (!this.surfaces.moveBackward(surface.id)) return;
-      this._syncShaderMasterSurfaces();
-      this.ui.updateActiveSurface(surface, this.surfaces.count);
+      this.ui.updateActiveSurface(this.surfaces.activeSurface, this.surfaces.count);
       this._scheduleSceneBroadcast();
     };
 
@@ -797,10 +784,9 @@ export class App {
   }
 
   _syncShaderMasterSurfaces() {
-    const shaderState = this.shaderMasterStore.getState();
-    shaderState.syncSurfaces(this._getSurfaceReferences());
-    shaderState.setSelectedSurface(this.surfaces.activeSurface?.id || null);
-    this._updateShaderMasterUi(shaderState);
+    this.shaderMasterStore.getState().syncSurfaces(this._getSurfaceReferences());
+    this.shaderMasterStore.getState().setSelectedSurface(this.surfaces.activeSurface?.id || null);
+    this._updateShaderMasterUi();
   }
 
   _applyShaderMasterStateToSurfaces() {

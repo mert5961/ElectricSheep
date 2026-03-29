@@ -16,6 +16,7 @@ import { OutputsPanel } from './OutputsPanel.ts';
 import { SurfacesPanel } from './SurfacesPanel.ts';
 import { UniformEditor } from './UniformEditor.ts';
 import { ensureOperatorWorkspaceStyles } from './operatorStyles.ts';
+import { DraggablePanelController } from '../../../ui/PanelDragger.ts';
 
 const SHADER_DEVELOPER_MODE_STORAGE_KEY = 'electric-sheep:shader-developer-mode';
 
@@ -78,6 +79,8 @@ export class ShaderTab {
   private readonly debugPanelWrap: HTMLDivElement;
 
   private developerModeEnabled = false;
+
+  private readonly panelControllers: DraggablePanelController[] = [];
 
   constructor({
     onSelectSurface,
@@ -160,24 +163,24 @@ export class ShaderTab {
     modeBar.className = 'es-machine-panel es-operator-modebar';
     const modeBarCopy = createElement('div', {
       display: 'grid',
-      gap: '6px',
+      gap: '4px',
     });
     modeBarCopy.append(
-      createElement('h3', {}, 'Operator Mode'),
-      createElement('p', {}, 'The SHADER workspace now defaults to a compact live console. Developer-only diagnostics stay hidden until you explicitly unlock them.'),
+      createElement('h3', {}, 'Mode'),
+      createElement('p', {}, 'Compact live view.'),
     );
     const modeBarActions = createElement('div', {
       display: 'grid',
       gap: '8px',
       justifyItems: 'end',
     });
-    this.developerToggleButton = createButton('Developer Mode Off', () => {
+    this.developerToggleButton = createButton('Debug Off', () => {
       this._setDeveloperMode(!this.developerModeEnabled);
     });
     this.developerStatusEl = createElement('div', {
       fontSize: '11px',
       color: 'var(--es-text-dim)',
-    }, 'Toggle or press Ctrl/Cmd + Shift + D');
+    }, 'Ctrl/Cmd + Shift + D');
     modeBarActions.append(this.developerToggleButton, this.developerStatusEl);
     modeBar.append(modeBarCopy, modeBarActions);
 
@@ -246,8 +249,8 @@ export class ShaderTab {
     const debugHead = createElement('div');
     debugHead.className = 'es-dev-panel-head';
     debugHead.append(
-      createElement('h3', {}, 'Developer Debug Mode'),
-      createElement('p', {}, 'All existing recipes, diagnostics, analyzer tests, smoothing controls, latency probes, and audio visual mapping tools remain here unchanged.'),
+      createElement('h3', {}, 'Debug'),
+      createElement('p', {}, 'Recipes, analyzer, mapping.'),
     );
     const debugBody = createElement('div');
     debugBody.className = 'es-dev-panel-body';
@@ -255,6 +258,7 @@ export class ShaderTab {
     this.debugPanelWrap.append(debugHead, debugBody);
 
     this.element.append(modeBar, operatorShell, this.debugPanelWrap);
+    this._setupDraggablePanels(operatorShell);
 
     this._installDeveloperShortcut();
     this._syncDeveloperMode();
@@ -304,21 +308,44 @@ export class ShaderTab {
     this._syncDeveloperMode();
   }
 
+  private _setupDraggablePanels(boundsEl: HTMLDivElement): void {
+    const draggablePanels = [
+      ['shader-outputs-panel', this.outputsPanel.element],
+      ['shader-surfaces-panel', this.surfacesPanel.element],
+      ['shader-params-panel', this.uniformEditor.element],
+    ] as const;
+
+    draggablePanels.forEach(([id, element]) => {
+      const handle = element.querySelector('[data-role="drag-handle"]') as HTMLElement | null;
+      if (!handle) {
+        return;
+      }
+
+      this.panelControllers.push(new DraggablePanelController({
+        id,
+        element,
+        handle,
+        boundsEl,
+        mode: 'translate',
+      }));
+    });
+  }
+
   private _syncDeveloperMode(): void {
     this.debugPanelWrap.dataset.active = this.developerModeEnabled ? 'true' : 'false';
-    this.developerToggleButton.textContent = this.developerModeEnabled ? 'Developer Mode On' : 'Developer Mode Off';
+    this.developerToggleButton.textContent = this.developerModeEnabled ? 'Debug On' : 'Debug Off';
     this.developerToggleButton.dataset.active = this.developerModeEnabled ? 'true' : 'false';
     this.developerToggleButton.dataset.activeAccent = '#d7d38a';
     this.developerToggleButton.style.borderColor = this.developerModeEnabled ? 'rgba(215, 211, 138, 0.46)' : 'rgba(120, 170, 96, 0.28)';
     this.developerToggleButton.style.background = this.developerModeEnabled
-      ? 'rgba(215, 211, 138, 0.14)'
-      : 'linear-gradient(180deg, rgba(15, 30, 14, 0.96) 0%, rgba(7, 18, 7, 0.98) 100%)';
+      ? 'rgba(215, 211, 138, 0.12)'
+      : 'rgba(12, 24, 11, 0.42)';
     this.developerToggleButton.style.color = this.developerModeEnabled ? '#f3efd0' : '#d5f7c4';
     this.developerToggleButton.style.boxShadow = this.developerModeEnabled
-      ? '0 0 0 1px rgba(215, 211, 138, 0.18) inset, 0 0 18px rgba(215, 211, 138, 0.1)'
-      : 'inset 0 0 0 1px rgba(189, 255, 172, 0.03), 0 0 12px rgba(116, 255, 108, 0.05)';
+      ? '0 0 0 1px rgba(215, 211, 138, 0.12) inset, 0 0 18px rgba(215, 211, 138, 0.08)'
+      : '0 0 12px rgba(116, 255, 108, 0.05)';
     this.developerStatusEl.textContent = this.developerModeEnabled
-      ? 'Developer diagnostics unlocked'
-      : 'Toggle or press Ctrl/Cmd + Shift + D';
+      ? 'Ctrl/Cmd + Shift + D to hide'
+      : 'Ctrl/Cmd + Shift + D';
   }
 }

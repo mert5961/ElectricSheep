@@ -60,7 +60,7 @@ function createPlaceholder(): HTMLDivElement {
     color: '#86a675',
     fontSize: '13px',
     textAlign: 'center',
-  }, 'Select an output to edit its uniform schema.');
+  }, 'Select an output');
 }
 
 export class UniformEditor {
@@ -86,7 +86,7 @@ export class UniformEditor {
     onUpdateUniform: (outputId: string, key: string, value: unknown) => void;
   }) {
     this.onUpdateUniform = onUpdateUniform;
-    this.element = createCardShell('Parameters', 'Schema-driven controls for the selected output. Runtime, audio, and feeling fields are read-only.');
+    this.element = createCardShell('Params');
     this.listEl = createElement('div', {
       display: 'flex',
       flexDirection: 'column',
@@ -163,10 +163,10 @@ export class UniformEditor {
     const card = createElement('div', {
       display: 'grid',
       gap: '10px',
-      padding: '14px',
+      padding: '10px 12px',
       borderRadius: '3px',
-      border: '1px solid rgba(120, 170, 96, 0.18)',
-      background: editable ? 'rgba(8, 16, 8, 0.78)' : 'rgba(8, 16, 8, 0.62)',
+      border: '1px solid rgba(120, 170, 96, 0.1)',
+      background: editable ? 'rgba(8, 16, 8, 0.38)' : 'rgba(8, 16, 8, 0.26)',
       opacity: editable ? '1' : '0.78',
     });
 
@@ -178,7 +178,7 @@ export class UniformEditor {
     });
     const labelWrap = createElement('div', {
       display: 'grid',
-      gap: '4px',
+      gap: '0',
     });
     labelWrap.append(
       createElement('span', {
@@ -186,11 +186,6 @@ export class UniformEditor {
         fontWeight: '600',
         color: '#d5f7c4',
       }, field.label),
-      createElement('span', {
-        fontSize: '12px',
-        color: '#8fb181',
-        lineHeight: '1.4',
-      }, field.description || field.key),
     );
     header.append(
       labelWrap,
@@ -208,10 +203,10 @@ export class UniformEditor {
 
     if (!editable) {
       const valueEl = createElement('div', {
-        padding: '10px 12px',
+        padding: '9px 10px',
         borderRadius: '2px',
-        background: 'rgba(5, 12, 5, 0.9)',
-        border: '1px solid rgba(120, 170, 96, 0.18)',
+        background: 'rgba(5, 12, 5, 0.5)',
+        border: '1px solid rgba(120, 170, 96, 0.1)',
         color: '#b8de9d',
         fontSize: '13px',
       });

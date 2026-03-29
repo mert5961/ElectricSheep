@@ -98,8 +98,8 @@ export class MappingAssistOverlay {
   _drawViewportGuides(ctx) {
     ctx.save();
     ctx.strokeStyle = this._mode === OUTPUT_DISPLAY_MODE_CALIBRATION
-      ? 'rgba(255,255,255,0.35)'
-      : 'rgba(111, 194, 255, 0.16)';
+      ? 'rgba(110, 255, 110, 0.28)'
+      : 'rgba(51, 255, 51, 0.12)';
     ctx.lineWidth = 1;
     ctx.strokeRect(12.5, 12.5, this._canvas.width - 25, this._canvas.height - 25);
 
@@ -116,7 +116,7 @@ export class MappingAssistOverlay {
   _drawAlignmentGrid(ctx) {
     const step = 120;
     ctx.save();
-    ctx.strokeStyle = 'rgba(111, 194, 255, 0.12)';
+    ctx.strokeStyle = 'rgba(51, 255, 51, 0.08)';
     ctx.lineWidth = 1;
     for (let x = 0; x <= this._canvas.width; x += step) {
       ctx.beginPath();
@@ -135,15 +135,15 @@ export class MappingAssistOverlay {
 
   _drawSurface(ctx, surface, isSelected) {
     const accent = this._mode === OUTPUT_DISPLAY_MODE_CALIBRATION
-      ? (isSelected ? '#ffe58c' : '#ffffff')
-      : (isSelected ? '#ffb454' : '#66d4ff');
+      ? (isSelected ? '#9bff8f' : 'rgba(155, 255, 143, 0.78)')
+      : (isSelected ? '#33ff33' : 'rgba(51, 255, 51, 0.62)');
 
-    this._drawQuad(ctx, surface.surfaceQuad, accent, isSelected ? 2.2 : 1.4, false);
-    this._drawQuad(ctx, surface.contentQuad, isSelected ? '#ffd699' : '#ffb454', 1.2, true);
+    this._drawQuad(ctx, surface.surfaceQuad, accent, isSelected ? 1.8 : 1.2, false);
+    this._drawQuad(ctx, surface.contentQuad, isSelected ? '#9bff8f' : 'rgba(155, 255, 143, 0.52)', 1, true);
 
     if (this._mode === OUTPUT_DISPLAY_MODE_CALIBRATION) {
       this._drawQuadDiagonals(ctx, surface.surfaceQuad, accent);
-      this._drawQuadDiagonals(ctx, surface.contentQuad, 'rgba(255, 180, 84, 0.55)');
+      this._drawQuadDiagonals(ctx, surface.contentQuad, 'rgba(155, 255, 143, 0.36)');
     }
 
     surface.subtractQuads?.forEach((subtractQuad, index) => {
@@ -155,7 +155,7 @@ export class MappingAssistOverlay {
     });
 
     surface.surfaceQuad.forEach((corner, index) => {
-      this._drawMarker(ctx, corner.x, corner.y, accent, isSelected ? 6 : 4);
+      this._drawMarker(ctx, corner.x, corner.y, accent, isSelected ? 4 : 3);
       if (this._mode === OUTPUT_DISPLAY_MODE_CALIBRATION) {
         this._drawLabel(ctx, String(index + 1), corner.x + 8, corner.y - 8, accent);
       }
@@ -177,7 +177,7 @@ export class MappingAssistOverlay {
     ctx.save();
     ctx.strokeStyle = color;
     ctx.lineWidth = 1;
-    ctx.setLineDash([6, 6]);
+    ctx.setLineDash([6, 8]);
     ctx.beginPath();
     ctx.moveTo(quad[0].x, quad[0].y);
     ctx.lineTo(quad[3].x, quad[3].y);
@@ -207,8 +207,8 @@ export class MappingAssistOverlay {
   _drawMarker(ctx, x, y, color, radius) {
     ctx.save();
     ctx.fillStyle = color;
-    ctx.strokeStyle = 'rgba(0,0,0,0.65)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.72)';
+    ctx.lineWidth = 1.25;
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
