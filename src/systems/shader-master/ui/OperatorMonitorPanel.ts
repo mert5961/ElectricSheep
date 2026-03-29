@@ -71,7 +71,7 @@ function setTransportButtonState(button: HTMLButtonElement, active: boolean, acc
   button.style.borderColor = active ? accent : 'rgba(120, 170, 96, 0.28)';
   button.style.background = active
     ? `${accent}18`
-    : 'linear-gradient(180deg, rgba(15, 30, 14, 0.96) 0%, rgba(7, 18, 7, 0.98) 100%)';
+    : 'rgba(12, 24, 11, 0.42)';
   button.style.color = active ? '#f0ffe9' : '#d5f7c4';
   button.style.boxShadow = active ? `0 0 0 1px ${accent}33 inset, 0 0 16px ${accent}18` : 'none';
 }
@@ -154,22 +154,21 @@ export class OperatorMonitorPanel {
     const leftCopy = createElement('div');
     leftCopy.className = 'es-command-stats';
     leftCopy.append(
-      createElement('div', { fontSize: '18px', fontWeight: '700', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--es-text-strong)' }, 'Operator Console'),
-      createElement('div', { fontSize: '12px', lineHeight: '1.6', color: 'var(--es-text-dim)' }, 'Live shader operation view. Signal flow, AI response, spectrum activity, and audio capture controls stay in one compact machine panel.'),
+      createElement('div', { fontSize: '16px', fontWeight: '700', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--es-text-strong)' }, 'Console'),
     );
 
     const summaryGrid = createElement('div');
     summaryGrid.className = 'es-summary-grid';
-    this.outputValueEl = this._createSummaryCell(summaryGrid, 'Selected Output');
+    this.outputValueEl = this._createSummaryCell(summaryGrid, 'Output');
     this.presetValueEl = this._createSummaryCell(summaryGrid, 'Preset');
-    this.routingValueEl = this._createSummaryCell(summaryGrid, 'Routing');
-    this.liveStateValueEl = this._createSummaryCell(summaryGrid, 'Live State');
+    this.routingValueEl = this._createSummaryCell(summaryGrid, 'Route');
+    this.liveStateValueEl = this._createSummaryCell(summaryGrid, 'State');
 
     const commandBadges = createElement('div');
     commandBadges.className = 'es-badge-row';
-    this.sourceTagEl = createTag('Source: Manual');
-    this.statusTagEl = createTag('Status: idle');
-    this.aiTagEl = createTag('AI: Live');
+    this.sourceTagEl = createTag('Manual');
+    this.statusTagEl = createTag('Idle');
+    this.aiTagEl = createTag('AI Live');
     commandBadges.append(this.sourceTagEl, this.statusTagEl, this.aiTagEl);
 
     leftCopy.append(summaryGrid, commandBadges);
@@ -177,14 +176,13 @@ export class OperatorMonitorPanel {
     const rightCopy = createElement('div');
     rightCopy.className = 'es-command-stats';
     rightCopy.append(
-      createElement('div', { fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--es-text-dim)' }, 'Capture Controls'),
-      createElement('div', { fontSize: '12px', lineHeight: '1.6', color: 'var(--es-text-dim)' }, 'Use the same analyzer actions as the developer tools without opening the debug console.'),
+      createElement('div', { fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--es-text-dim)' }, 'Audio'),
     );
     this.analyzerMetaEl = createElement('div', {
       fontSize: '12px',
       lineHeight: '1.55',
       color: 'var(--es-text-strong)',
-    }, 'Manual standby is active.');
+    }, 'Standby');
     rightCopy.append(this.analyzerMetaEl);
 
     commandCopy.append(leftCopy, rightCopy);
@@ -197,21 +195,14 @@ export class OperatorMonitorPanel {
     this.standbyButton = createButton('Standby', () => {
       onStopAudioAnalyzer?.();
     });
-    this.microphoneButton = createButton('Use Microphone', () => {
+    this.microphoneButton = createButton('Mic', () => {
       onStartMicrophoneAudio?.();
     });
-    this.displayAudioButton = createButton('Display Audio', () => {
+    this.displayAudioButton = createButton('Display', () => {
       onStartDisplayAudio?.();
     });
     actionRow.append(this.standbyButton, this.microphoneButton, this.displayAudioButton);
-    actions.append(
-      actionRow,
-      createElement('div', {
-        fontSize: '11px',
-        color: 'var(--es-text-dim)',
-        textAlign: 'right',
-      }, 'Developer diagnostics keeps tests, latency probes, mappings, and analyzer tuning hidden until needed.'),
-    );
+    actions.append(actionRow);
 
     commandDeck.append(commandCopy, actions);
 
@@ -222,9 +213,9 @@ export class OperatorMonitorPanel {
     const monitorInner = createElement('div');
     monitorInner.className = 'crt-panel__content es-monitor-shell';
 
-    const monitorTitle = createElement('h2', {}, 'Signal Monitor');
+    const monitorTitle = createElement('h2', {}, 'Monitor');
     monitorTitle.className = 'crt-title';
-    const monitorSubtitle = createElement('p', {}, 'Audio, feeling, AI state, spectrum, and spectrogram merged into a compact operator display.');
+    const monitorSubtitle = createElement('p', {}, 'Audio + state');
     monitorSubtitle.className = 'crt-subtitle';
 
     const statusRow = createElement('div');
@@ -243,15 +234,14 @@ export class OperatorMonitorPanel {
     const leftStack = createElement('div');
     leftStack.className = 'es-monitor-stack';
     leftStack.append(
-      this._createSignalSection('Audio Bus', 'Effective mapped audio values reaching the shader outputs.', AUDIO_UNIFORM_SCHEMA, this.audioMeters),
-      this._createSignalSection('Feeling Layer', 'Effective feeling state after AI/manual resolution.', FEELING_UNIFORM_SCHEMA, this.feelingMeters),
+      this._createSignalSection('Audio', '', AUDIO_UNIFORM_SCHEMA, this.audioMeters),
+      this._createSignalSection('Feel', '', FEELING_UNIFORM_SCHEMA, this.feelingMeters),
     );
 
     const rightStack = createElement('div');
     rightStack.className = 'es-monitor-stack';
     rightStack.append(
       this._createAISection(),
-      this._createTelemetrySection(),
     );
 
     monitorGrid.append(leftStack, rightStack);
@@ -262,7 +252,7 @@ export class OperatorMonitorPanel {
     const spectrumSection = createElement('div');
     spectrumSection.className = 'es-monitor-section es-spectrum-wrap';
     spectrumSection.append(
-      this._createSectionHead('Spectrum', 'Instant band energy'),
+      this._createSectionHead('Spectrum', ''),
     );
     const spectrumBars = createElement('div');
     spectrumBars.className = 'es-spectrum-bars';
@@ -287,7 +277,7 @@ export class OperatorMonitorPanel {
     const spectrogramSection = createElement('div');
     spectrogramSection.className = 'es-monitor-section es-spectrum-wrap';
     spectrogramSection.append(
-      this._createSectionHead('Spectrogram', 'Time scrolls left to right'),
+      this._createSectionHead('Spectrogram', ''),
     );
     this.spectrogramCanvas = createElement('canvas') as HTMLCanvasElement;
     this.spectrogramCanvas.className = 'es-spectrogram';
@@ -337,20 +327,20 @@ export class OperatorMonitorPanel {
       : state.surfaces.filter((surface) => surface.assignedOutputId !== null).length;
     const activeVisualState = state.visualState.transition ? state.visualState.target : state.visualState.current;
 
-    this.outputValueEl.textContent = selectedOutput?.name || 'No output selected';
-    this.presetValueEl.textContent = selectedOutput?.presetLabel || 'No preset loaded';
+    this.outputValueEl.textContent = selectedOutput?.name || 'No output';
+    this.presetValueEl.textContent = selectedOutput?.presetLabel || 'No preset';
     this.routingValueEl.textContent = selectedOutput
-      ? `${routedSurfaceCount}/${state.surfaces.length} surfaces on ${selectedOutput.name}`
-      : `${routedSurfaceCount}/${state.surfaces.length} routed`;
+      ? `${routedSurfaceCount}/${state.surfaces.length} on ${selectedOutput.name}`
+      : `${routedSurfaceCount}/${state.surfaces.length}`;
     this.liveStateValueEl.textContent = activeVisualState
       ? `${activeVisualState.recipeLabel} • ${activeVisualState.outputId}`
       : selectedSurface
-        ? `Surface focus • ${selectedSurface.name}`
-        : 'Manual / custom state';
+        ? selectedSurface.name
+        : 'Manual';
 
-    this.sourceTagEl.textContent = `Source: ${formatSourceLabel(audioInputState)}`;
-    this.statusTagEl.textContent = `Status: ${formatStatusLabel(audioInputState)}`;
-    this.aiTagEl.textContent = `AI: ${state.aiState.aiFallbackActive ? 'Fallback' : (state.aiState.aiEnabled ? 'Live' : 'Disabled')}`;
+    this.sourceTagEl.textContent = formatSourceLabel(audioInputState);
+    this.statusTagEl.textContent = formatStatusLabel(audioInputState);
+    this.aiTagEl.textContent = state.aiState.aiFallbackActive ? 'AI Fallback' : (state.aiState.aiEnabled ? 'AI Live' : 'AI Off');
 
     const isManual = !audioInputState || audioInputState.source === 'manual';
     const isMicrophone = audioInputState?.source === 'microphone';
@@ -358,12 +348,12 @@ export class OperatorMonitorPanel {
     const isRequesting = audioInputState?.status === 'requesting';
 
     this.analyzerMetaEl.textContent = isManual
-      ? 'Manual standby is active. Audio values shown here are the current effective shader inputs.'
+      ? 'Standby'
       : isMicrophone
-        ? 'Microphone analysis is live. Monitor the mapped bus and AI response together while performing.'
+        ? 'Mic live'
         : isDisplay
-          ? 'Display audio capture is live. Useful when routing system audio directly into the analyzer.'
-          : 'Developer test input is active. Operator console remains read-only while diagnostics drive the analyzer.';
+          ? 'Display live'
+          : 'Test live';
 
     setButtonEnabled(this.microphoneButton, this.hasMicrophoneAction && (!isRequesting || isMicrophone));
     setButtonEnabled(this.displayAudioButton, this.hasDisplayAudioAction && (!isRequesting || isDisplay));
@@ -495,7 +485,7 @@ export class OperatorMonitorPanel {
   private _createAISection(): HTMLDivElement {
     const section = createElement('div');
     section.className = 'es-monitor-section';
-    section.append(this._createSectionHead('AI State', 'Musical state and feeling bias'));
+    section.append(this._createSectionHead('AI', ''));
 
     const grid = createElement('div');
     grid.className = 'es-ai-grid';
@@ -504,14 +494,14 @@ export class OperatorMonitorPanel {
       ['Phrase', 'phraseState'],
       ['Section', 'sectionState'],
       ['Commit', 'commitReason'],
-      ['Last Update', 'lastUpdate'],
+      ['Update', 'lastUpdate'],
       ['Tension', 'tension'],
       ['Glow', 'glow'],
       ['Fragment', 'fragmentation'],
       ['Stillness', 'stillness'],
-      ['Flow Bias', 'flowBias'],
+      ['Flow', 'flowBias'],
       ['Warmth', 'warmth'],
-      ['Confidence', 'confidence'],
+      ['Conf', 'confidence'],
       ['Change', 'changeStrength'],
     ].forEach(([label, key]) => {
       const chip = createElement('div');
@@ -526,20 +516,6 @@ export class OperatorMonitorPanel {
     });
 
     section.append(grid);
-    return section;
-  }
-
-  private _createTelemetrySection(): HTMLDivElement {
-    const section = createElement('div');
-    section.className = 'es-monitor-section';
-    section.append(this._createSectionHead('Operator Note', 'Readable state without diagnostics clutter'));
-    section.append(
-      createElement('div', {
-        fontSize: '12px',
-        lineHeight: '1.6',
-        color: 'var(--es-text-dim)',
-      }, 'Detailed recipes, analyzer tuning, latency tools, test generators, and audio visual mapping stay available in Developer Debug Mode so normal operation remains compact and glanceable.'),
-    );
     return section;
   }
 

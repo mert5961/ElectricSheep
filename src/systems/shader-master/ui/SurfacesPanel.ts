@@ -21,7 +21,7 @@ export class SurfacesPanel {
   }) {
     this.onSelectSurface = onSelectSurface;
     this.onAssignOutput = onAssignOutput;
-    this.element = createCardShell('Routing', 'Route shared outputs into Geo Master surfaces without touching geometry.');
+    this.element = createCardShell('Surfaces');
     this.listEl = createElement('div', {
       display: 'flex',
       flexDirection: 'column',
@@ -54,7 +54,7 @@ export class SurfacesPanel {
           fontSize: '13px',
           textAlign: 'center',
           background: 'rgba(8, 16, 8, 0.62)',
-        }, 'No surfaces available. Add one from the output editor or control toolbar.'),
+        }, 'No surfaces'),
       );
       return;
     }
@@ -64,17 +64,25 @@ export class SurfacesPanel {
       return accumulator;
     }, {});
 
-    state.surfaces.forEach((surface) => {
+    const displaySurfaces = [...state.surfaces].sort((left, right) => {
+      if (left.order !== right.order) {
+        return right.order - left.order;
+      }
+
+      return left.id.localeCompare(right.id);
+    });
+
+    displaySurfaces.forEach((surface) => {
       const isSelected = surface.id === state.selectedSurfaceId;
       const row = createElement('div', {
         display: 'grid',
         gridTemplateColumns: 'minmax(0, 1fr)',
         gap: '10px',
-        padding: '14px',
+        padding: '10px 12px',
         borderRadius: '3px',
-        border: isSelected ? '1px solid rgba(166, 223, 134, 0.42)' : '1px solid rgba(120, 170, 96, 0.18)',
-        background: isSelected ? 'rgba(20, 38, 18, 0.82)' : 'rgba(8, 16, 8, 0.72)',
-        boxShadow: isSelected ? '0 0 16px rgba(116, 255, 108, 0.1)' : 'none',
+        border: isSelected ? '1px solid rgba(166, 223, 134, 0.2)' : '1px solid rgba(120, 170, 96, 0.1)',
+        background: isSelected ? 'rgba(20, 38, 18, 0.38)' : 'rgba(8, 16, 8, 0.3)',
+        boxShadow: isSelected ? '0 0 16px rgba(116, 255, 108, 0.05)' : 'none',
       });
 
       const header = createElement('div', {
@@ -110,13 +118,13 @@ export class SurfacesPanel {
         createElement('span', {
           fontSize: '12px',
           color: '#8fb181',
-        }, `Layer ${surface.order + 1} • ${surface.visible ? 'Visible' : 'Hidden'}`),
+        }, surface.visible ? 'On' : 'Off'),
       );
 
       const assignmentTag = createTag(
         surface.assignedOutputId && outputLookup[surface.assignedOutputId]
           ? outputLookup[surface.assignedOutputId].name
-          : 'Unassigned',
+          : 'None',
         surface.assignedOutputId
           ? {
               background: 'rgba(20, 38, 18, 0.9)',
@@ -131,7 +139,7 @@ export class SurfacesPanel {
       const select = createElement('select', FIELD_CLASS);
       select.style.appearance = 'none';
       select.innerHTML = [
-        '<option value="">Unassigned</option>',
+        '<option value="">None</option>',
         ...state.outputs.map((output) => `<option value="${output.id}">${output.name}</option>`),
       ].join('');
       select.value = surface.assignedOutputId || '';

@@ -56,7 +56,7 @@ export class OutputsPanel {
     onChangeOutputPreset: (outputId: string, presetId: string) => void;
   }) {
     this.onSelectOutput = onSelectOutput;
-    this.element = createCardShell('Outputs', 'Outputs hold the preset and uniform state. Surfaces only point at output ids.');
+    this.element = createCardShell('Outputs');
 
     const topControls = createElement('div', {
       display: 'grid',
@@ -67,7 +67,7 @@ export class OutputsPanel {
     this.createPresetSelector = new PresetSelector((presetId) => {
       this._selectedCreatePresetId = presetId;
     });
-    this.createButtonEl = createButton('Create Output', () => {
+    this.createButtonEl = createButton('Add', () => {
       onCreateOutput(this._selectedCreatePresetId);
     });
     topControls.append(this.createPresetSelector.element, this.createButtonEl);
@@ -83,11 +83,11 @@ export class OutputsPanel {
 
     this.selectedOutputControlsEl = createElement('div', {
       display: 'grid',
-      gap: '12px',
-      padding: '14px',
+      gap: '10px',
+      padding: '10px 12px',
       borderRadius: '3px',
-      border: '1px solid rgba(120, 170, 96, 0.18)',
-      background: 'rgba(8, 16, 8, 0.72)',
+      border: '1px solid rgba(120, 170, 96, 0.1)',
+      background: 'rgba(8, 16, 8, 0.34)',
     });
 
     const renameGroup = createElement('div', {
@@ -203,7 +203,7 @@ export class OutputsPanel {
             fontSize: '13px',
             textAlign: 'center',
             background: 'rgba(8, 16, 8, 0.62)',
-          }, 'No outputs yet. Create one from a preset.'),
+          }, 'No outputs'),
         );
       }
 
@@ -215,14 +215,14 @@ export class OutputsPanel {
           gap: '12px',
           alignItems: 'center',
           width: '100%',
-          padding: '14px',
+          padding: '10px 12px',
           borderRadius: '3px',
-          border: isSelected ? '1px solid rgba(166, 223, 134, 0.42)' : '1px solid rgba(120, 170, 96, 0.18)',
-          background: isSelected ? 'rgba(20, 38, 18, 0.82)' : 'rgba(8, 16, 8, 0.72)',
+          border: isSelected ? '1px solid rgba(166, 223, 134, 0.2)' : '1px solid rgba(120, 170, 96, 0.1)',
+          background: isSelected ? 'rgba(20, 38, 18, 0.38)' : 'rgba(8, 16, 8, 0.3)',
           color: '#d5f7c4',
           textAlign: 'left',
           cursor: 'pointer',
-          boxShadow: isSelected ? '0 0 16px rgba(116, 255, 108, 0.1)' : 'none',
+          boxShadow: isSelected ? '0 0 16px rgba(116, 255, 108, 0.05)' : 'none',
         });
         row.type = 'button';
         row.addEventListener('click', () => {

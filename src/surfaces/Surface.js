@@ -32,35 +32,38 @@ let surfaceCounter = 0;
 const QUAD_INDICES = new Uint16Array([0, 2, 1, 1, 2, 3]);
 const QUAD_UVS = new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]);
 
-const HANDLE_SIZE = 12;
+const HANDLE_SIZE = 10;
 
 const HANDLE_THEME = {
   surface: {
-    accent: '#66d4ff',
-    background: 'rgba(102, 212, 255, 0.22)',
-    border: 'rgba(102, 212, 255, 0.55)',
+    accent: '#33ff33',
+    background: 'rgba(51, 255, 51, 0.14)',
+    border: 'rgba(51, 255, 51, 0.55)',
     transform: 'translate(-50%, -50%)',
     shape: '50%',
+    glow: '0 0 10px rgba(51, 255, 51, 0.16)',
   },
   content: {
-    accent: '#ffb454',
-    background: 'rgba(255, 180, 84, 0.22)',
-    border: 'rgba(255, 180, 84, 0.55)',
+    accent: '#9bff8f',
+    background: 'rgba(155, 255, 143, 0.12)',
+    border: 'rgba(155, 255, 143, 0.5)',
     transform: 'translate(-50%, -50%) rotate(45deg)',
-    shape: '3px',
+    shape: '2px',
+    glow: '0 0 10px rgba(155, 255, 143, 0.14)',
   },
   subtract: {
     accent: '#ff6f61',
-    background: 'rgba(255, 111, 97, 0.18)',
-    border: 'rgba(255, 111, 97, 0.6)',
+    background: 'rgba(255, 111, 97, 0.12)',
+    border: 'rgba(255, 111, 97, 0.5)',
     transform: 'translate(-50%, -50%)',
-    shape: '2px',
+    shape: '50%',
+    glow: '0 0 10px rgba(255, 111, 97, 0.12)',
   },
 };
 
 const OUTLINE_THEME = {
-  surface: { color: 0x66d4ff },
-  content: { color: 0xffb454 },
+  surface: { color: 0x33ff33 },
+  content: { color: 0x9bff8f },
   subtract: { color: 0xff6f61 },
 };
 
@@ -697,8 +700,8 @@ export class Surface {
         height: `${HANDLE_SIZE}px`,
         borderRadius: theme.shape,
         background: theme.background,
-        border: `1.5px solid ${theme.border}`,
-        boxShadow: '0 0 0 1px rgba(0, 0, 0, 0.45)',
+        border: `1px solid ${theme.border}`,
+        boxShadow: `0 0 0 1px rgba(0, 0, 0, 0.45), ${theme.glow}`,
         transform: theme.transform,
         cursor: 'grab',
         zIndex: quadType === EDIT_TARGET_CONTENT ? '12' : '10',
@@ -777,6 +780,9 @@ export class Surface {
         handle.style.pointerEvents = display === 'block' ? 'auto' : 'none';
         handle.style.borderColor = this.isSelected ? theme.accent : theme.border;
         handle.style.background = this.isSelected ? `${theme.accent}33` : theme.background;
+        handle.style.boxShadow = this.isSelected
+          ? `0 0 0 1px rgba(0, 0, 0, 0.52), ${theme.glow}`
+          : '0 0 0 1px rgba(0, 0, 0, 0.42)';
       });
     });
 
@@ -792,6 +798,9 @@ export class Surface {
         handle.style.pointerEvents = display === 'block' ? 'auto' : 'none';
         handle.style.borderColor = this.isSelected ? HANDLE_THEME.subtract.accent : HANDLE_THEME.subtract.border;
         handle.style.background = this.isSelected ? `${HANDLE_THEME.subtract.accent}33` : HANDLE_THEME.subtract.background;
+        handle.style.boxShadow = this.isSelected
+          ? `0 0 0 1px rgba(0, 0, 0, 0.52), ${HANDLE_THEME.subtract.glow}`
+          : '0 0 0 1px rgba(0, 0, 0, 0.42)';
       });
     });
   }

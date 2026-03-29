@@ -15,6 +15,7 @@ import {
   PREVIEW_MODE_OUTPUT,
 } from '../core/AppModes.js';
 import { ShaderTab } from '../systems/shader-master/ui/ShaderTab.ts';
+import { DraggablePanelController, resetAllPanelLayouts } from './PanelDragger.ts';
 import './retro-ui.css';
 
 function createText(tagName, text, className = '') {
@@ -39,6 +40,9 @@ export class UIManager {
     this._shaderMasterSnapshot = null;
     this._audioAnalyzerState = null;
     this._geoSurfaceListSignature = '';
+    this._geoSurfaceDragState = null;
+    this._activeSurfaceDetails = null;
+    this._surfaceSubtractExpanded = new Map();
 
     this._shell = null;
     this._topbar = null;
@@ -52,30 +56,19 @@ export class UIManager {
     this._editTargetButtons = new Map();
     this._surfaceLabel = null;
     this._surfaceMetaLabel = null;
-    this._surfaceOrderLabel = null;
-    this._subtractLabel = null;
-    this._featherSlider = null;
-    this._featherLabel = null;
-    this._subtractFeatherSlider = null;
-    this._subtractFeatherLabel = null;
     this._addSubtractBtn = null;
-    this._removeSubtractBtn = null;
-    this._prevSubtractBtn = null;
-    this._nextSubtractBtn = null;
-    this._bringToFrontBtn = null;
-    this._sendToBackBtn = null;
-    this._moveForwardBtn = null;
-    this._moveBackwardBtn = null;
-    this._openOutputBtn = null;
+    this._openOutputCtaBtn = null;
     this._focusOutputBtn = null;
     this._fullscreenOutputBtn = null;
-    this._outputStatusBadge = null;
+    this._resetLayoutBtn = null;
+    this._topbarPreviewReadout = null;
+    this._topbarModeReadout = null;
     this._geoSurfaceListEl = null;
-    this._geoStagePreviewBadge = null;
-    this._geoStageModeBadge = null;
+    this._geoSurfacesRail = null;
     this._shaderSummaryEl = null;
     this._shaderMasterPanel = null;
     this._stageCanvasFrame = null;
+    this._panelControllers = [];
 
     this.onModuleChange = null;
     this.onAddSurface = null;
@@ -84,11 +77,9 @@ export class UIManager {
     this.onEditTargetChange = null;
     this.onAddSubtractQuad = null;
     this.onRemoveSubtractQuad = null;
-    this.onCycleSubtractQuad = null;
-    this.onBringToFront = null;
-    this.onSendToBack = null;
-    this.onMoveForward = null;
-    this.onMoveBackward = null;
+    this.onSelectSubtractQuad = null;
+    this.onToggleSurfaceVisibility = null;
+    this.onMoveSurfaceToIndex = null;
     this.onOpenOutputWindow = null;
     this.onFocusOutputWindow = null;
     this.onFullscreenOutputWindow = null;
@@ -183,6 +174,20 @@ export class UIManager {
 
   updateActiveSurface(surface, surfaceCount = 0) {
     this._hasActiveSurface = Boolean(surface);
+    this._activeSurfaceDetails = surface
+      ? {
+          id: surface.id,
+          feather: surface.feather,
+          subtractQuadCount: surface.subtractQuadCount,
+          activeSubtractQuadIndex: surface.activeSubtractQuadIndex,
+          activeSubtractFeather: surface.activeSubtractFeather,
+          subtractQuads: surface.subtractQuads.map((subtractQuad, index) => ({
+            feather: subtractQuad.feather,
+            visible: subtractQuad.visible,
+            index,
+          })),
+        }
+      : null;
 
     if (surface) {
       if (this._surfaceLabel) {
@@ -191,17 +196,6 @@ export class UIManager {
       if (this._surfaceMetaLabel) {
         this._surfaceMetaLabel.textContent = `Editing ${this._describeEditTarget(this._editTarget)} on the shared stage`;
       }
-      const resolvedSurfaceCount = Math.max(surfaceCount, surface.order + 1);
-      this._surfaceOrderLabel.textContent = `Layer ${surface.order + 1}/${resolvedSurfaceCount}`;
-      this._featherSlider.value = String(surface.feather);
-      this._featherLabel.textContent = surface.feather.toFixed(2);
-      this._featherSlider.disabled = false;
-      this._subtractLabel.textContent = surface.subtractQuadCount > 0
-        ? `Subtract ${surface.activeSubtractQuadIndex + 1}/${surface.subtractQuadCount}`
-        : 'No subtract quads';
-      this._subtractFeatherSlider.value = String(surface.activeSubtractFeather);
-      this._subtractFeatherLabel.textContent = surface.activeSubtractFeather.toFixed(2);
-      this._subtractFeatherSlider.disabled = surface.subtractQuadCount === 0;
     } else {
       if (this._surfaceLabel) {
         this._surfaceLabel.textContent = 'No surface selected';
@@ -209,19 +203,11 @@ export class UIManager {
       if (this._surfaceMetaLabel) {
         this._surfaceMetaLabel.textContent = 'Add a surface or click one directly on the stage to begin mapping.';
       }
-      this._surfaceOrderLabel.textContent = 'No layer';
-      this._featherSlider.value = '0';
-      this._featherLabel.textContent = '0.00';
-      this._featherSlider.disabled = true;
-      this._subtractLabel.textContent = 'No subtract quads';
-      this._subtractFeatherSlider.value = '0';
-      this._subtractFeatherLabel.textContent = '0.00';
-      this._subtractFeatherSlider.disabled = true;
     }
 
     this._syncEditTargetButtons();
     this._syncSubtractButtons(surface);
-    this._syncSurfaceOrderButtons(surface, surfaceCount);
+    this._syncGeoSurfaceList();
   }
 
   updateShaderMaster(snapshot, audioAnalyzerState = this._audioAnalyzerState) {
@@ -267,7 +253,6 @@ export class UIManager {
     this._syncOutputModeButtons();
     this._syncEditTargetButtons();
     this._syncSubtractButtons(null);
-    this._syncSurfaceOrderButtons(null, 0);
     this._syncOutputWindowControls();
     this._syncGeoStageBadges();
     this._syncShaderSummary();
@@ -281,37 +266,37 @@ export class UIManager {
     identity.className = 'es-topbar__identity';
     identity.append(
       createText('div', 'ELECTRIC_SHEEP', 'es-text-title'),
-      createText('div', 'GEO_ENGINE / SHADER_ROUTING', 'es-text-subtitle'),
+      createText('div', 'GEO / SHADER', 'es-text-subtitle'),
     );
 
     const controls = document.createElement('div');
     controls.className = 'es-topbar__controls';
 
-    const status = document.createElement('div');
-    status.className = 'es-topbar__status';
-
-    this._outputStatusBadge = this._createBadge('Output Offline');
-    this._outputStatusBadge.classList.add('es-output-badge');
-    status.append(this._outputStatusBadge);
-
     const actions = document.createElement('div');
     actions.className = 'es-topbar__actions';
-    this._openOutputBtn = this._createButton('Open Output', () => {
-      if (this.onOpenOutputWindow) this.onOpenOutputWindow();
-    }, { active: true });
-    this._focusOutputBtn = this._createButton('Focus Output', () => {
+    this._focusOutputBtn = this._createIconButton('center_focus_strong', 'Focus', () => {
       if (this.onFocusOutputWindow) this.onFocusOutputWindow();
     });
-    this._fullscreenOutputBtn = this._createButton('Fullscreen Output', () => {
+    this._fullscreenOutputBtn = this._createIconButton('fullscreen', 'Fullscreen', () => {
       if (this.onFullscreenOutputWindow) this.onFullscreenOutputWindow();
+    });
+    this._resetLayoutBtn = this._createIconButton('restart_alt', 'Reset', () => {
+      resetAllPanelLayouts();
     });
 
     actions.append(
-      this._openOutputBtn,
       this._focusOutputBtn,
       this._fullscreenOutputBtn,
+      this._resetLayoutBtn,
     );
-    controls.append(status, actions);
+
+    const status = document.createElement('div');
+    status.className = 'es-topbar__status';
+    this._topbarPreviewReadout = this._createTopbarReadout('visibility', 'VIEW: EDIT');
+    this._topbarModeReadout = this._createTopbarReadout('tune', 'MODE: SHOW');
+    status.append(this._topbarPreviewReadout, this._topbarModeReadout);
+
+    controls.append(actions, status);
 
     bar.append(identity, controls);
     return bar;
@@ -332,21 +317,27 @@ export class UIManager {
     moduleEl.className = 'es-module es-module--geo';
 
     const controlsCard = this._createCard('es-card--controls');
-    controlsCard.append(
-      this._createBracketHeader('GEO_WORKSPACE'),
-    );
+    const controlsHeader = this._createBracketHeader('MAP');
+    controlsCard.append(controlsHeader);
 
-    const addSurfaceBtn = this._createButton('+ Add Surface', () => {
+    const addSurfaceBtn = this._createButton('Add Surface', () => {
       if (this.onAddSurface) this.onAddSurface();
-    }, { active: true, fullWidth: true });
+    }, { active: true, fullWidth: true, className: 'es-btn--add-surface' });
+    this._addSubtractBtn = this._createButton('Add Subtract', () => {
+      if (this.onAddSubtractQuad) this.onAddSubtractQuad();
+    }, { fullWidth: true, className: 'es-btn--minor' });
 
-    const workspaceSection = this._createSection('Workspace');
+    const workspaceSection = this._createSection('View');
     const previewGroup = this._createInlineGroup('Preview');
+    previewGroup.element.classList.add('es-inline-group--stage');
+    previewGroup.row.classList.add('es-inline-group__row--stage');
     previewGroup.row.append(
       this._createPreviewButton('Edit', PREVIEW_MODE_EDIT),
       this._createPreviewButton('Output', PREVIEW_MODE_OUTPUT),
     );
     const outputModeGroup = this._createInlineGroup('Stage');
+    outputModeGroup.element.classList.add('es-inline-group--stage');
+    outputModeGroup.row.classList.add('es-inline-group__row--stage');
     outputModeGroup.row.append(
       this._createOutputModeButton('Show', OUTPUT_DISPLAY_MODE_SHOW),
       this._createOutputModeButton('Mapping', OUTPUT_DISPLAY_MODE_MAPPING_ASSIST),
@@ -354,9 +345,9 @@ export class UIManager {
     );
     workspaceSection.append(previewGroup.element, outputModeGroup.element);
 
-    const editSection = this._createSection('Edit Target');
+    const editSection = this._createSection('Target');
     const editButtons = document.createElement('div');
-    editButtons.className = 'es-grid-3col';
+    editButtons.className = 'es-stack-list';
     editButtons.append(
       this._createEditTargetButton('Surface', EDIT_TARGET_SURFACE),
       this._createEditTargetButton('Content', EDIT_TARGET_CONTENT),
@@ -364,100 +355,32 @@ export class UIManager {
     );
     editSection.append(editButtons);
 
-    const layerSection = this._createSection('Layer Order');
-    this._surfaceOrderLabel = this._createBadge('No layer');
-    const orderButtons = document.createElement('div');
-    orderButtons.className = 'es-grid-2col';
-    this._sendToBackBtn = this._createButton('To Back', () => {
-      if (this.onSendToBack) this.onSendToBack();
-    });
-    this._moveBackwardBtn = this._createButton('Backward', () => {
-      if (this.onMoveBackward) this.onMoveBackward();
-    });
-    this._moveForwardBtn = this._createButton('Forward', () => {
-      if (this.onMoveForward) this.onMoveForward();
-    });
-    this._bringToFrontBtn = this._createButton('To Front', () => {
-      if (this.onBringToFront) this.onBringToFront();
-    });
-    orderButtons.append(
-      this._sendToBackBtn,
-      this._moveBackwardBtn,
-      this._moveForwardBtn,
-      this._bringToFrontBtn,
-    );
-    layerSection.append(this._surfaceOrderLabel, orderButtons);
-
-    const featherSection = this._createSection('Feather & Masking');
-    const surfaceFeatherGroup = this._createSliderGroup('Surface Feather', MAX_SURFACE_FEATHER, (value) => {
-      if (this.onFeatherChange) this.onFeatherChange(value);
-    });
-    this._featherSlider = surfaceFeatherGroup.input;
-    this._featherLabel = surfaceFeatherGroup.valueLabel;
-    featherSection.append(surfaceFeatherGroup.element);
-
-    this._subtractLabel = this._createBadge('No subtract quads');
-    const subtractActions = document.createElement('div');
-    subtractActions.className = 'es-grid-2col';
-    this._addSubtractBtn = this._createButton('+ Subtract', () => {
-      if (this.onAddSubtractQuad) this.onAddSubtractQuad();
-    });
-    this._removeSubtractBtn = this._createButton('- Subtract', () => {
-      if (this.onRemoveSubtractQuad) this.onRemoveSubtractQuad();
-    });
-    this._prevSubtractBtn = this._createButton('Prev', () => {
-      if (this.onCycleSubtractQuad) this.onCycleSubtractQuad(-1);
-    });
-    this._nextSubtractBtn = this._createButton('Next', () => {
-      if (this.onCycleSubtractQuad) this.onCycleSubtractQuad(1);
-    });
-    subtractActions.append(
-      this._addSubtractBtn,
-      this._removeSubtractBtn,
-      this._prevSubtractBtn,
-      this._nextSubtractBtn,
-    );
-    const subtractFeatherGroup = this._createSliderGroup('Subtract Feather', MAX_SUBTRACT_FEATHER, (value) => {
-      if (this.onSubtractFeatherChange) this.onSubtractFeatherChange(value);
-    });
-    this._subtractFeatherSlider = subtractFeatherGroup.input;
-    this._subtractFeatherLabel = subtractFeatherGroup.valueLabel;
-    featherSection.append(this._subtractLabel, subtractActions, subtractFeatherGroup.element);
-
     controlsCard.append(
       addSurfaceBtn,
+      this._addSubtractBtn,
       workspaceSection,
       editSection,
-      layerSection,
-      featherSection,
     );
 
     const stageCard = this._createCard('es-card--stage');
-    const stageTop = document.createElement('div');
-    stageTop.className = 'es-stage__top';
-    const stageCopy = document.createElement('div');
-    stageCopy.className = 'es-stage__copy';
-    stageCopy.append(
-      createText('div', 'GEO', 'es-text-title-xl'),
-    );
-    const stageBadges = document.createElement('div');
-    stageBadges.className = 'es-stage__badges';
-    this._geoStagePreviewBadge = this._createBadge('Preview: Edit');
-    this._geoStageModeBadge = this._createBadge('Stage: Show');
-    stageBadges.append(this._geoStagePreviewBadge, this._geoStageModeBadge);
-    stageTop.append(stageCopy, stageBadges);
-
     this._stageCanvasFrame = document.createElement('div');
-    this._stageCanvasFrame.className = 'es-retro-stage-frame es-stage__canvas-frame';
+    this._stageCanvasFrame.className = 'es-stage__canvas-frame';
+    const stageGrid = document.createElement('div');
+    stageGrid.className = 'es-stage__canvas-grid';
+    this._stageCanvasFrame.append(stageGrid);
 
-    stageCard.append(stageTop, this._stageCanvasFrame);
+    this._openOutputCtaBtn = this._createOpenOutputCta();
+
+    stageCard.append(this._stageCanvasFrame, this._openOutputCtaBtn);
 
     const surfacesCard = this._createCard('es-card--surfaces');
-    surfacesCard.append(
-      this._createBracketHeader('SURFACE_NAV'),
-    );
+    const surfacesHeader = this._createBracketHeader('SURFACES');
+    surfacesCard.append(surfacesHeader);
     this._geoSurfaceListEl = document.createElement('div');
     this._geoSurfaceListEl.className = 'es-surface-list';
+    this._geoSurfaceListEl.addEventListener('dragover', this._handleGeoSurfaceListDragOver);
+    this._geoSurfaceListEl.addEventListener('drop', this._handleGeoSurfaceListDrop);
+    this._geoSurfaceListEl.addEventListener('dragleave', this._handleGeoSurfaceListDragLeave);
     surfacesCard.append(this._geoSurfaceListEl);
 
     const leftRail = document.createElement('div');
@@ -470,9 +393,27 @@ export class UIManager {
 
     const rightRail = document.createElement('div');
     rightRail.className = 'es-geo-rail es-geo-rail--right';
+    rightRail.dataset.visible = 'false';
     rightRail.append(surfacesCard);
+    this._geoSurfacesRail = rightRail;
 
     moduleEl.append(leftRail, stageColumn, rightRail);
+    this._panelControllers.push(
+      new DraggablePanelController({
+        id: 'geo-map-panel',
+        element: leftRail,
+        handle: controlsHeader,
+        boundsEl: moduleEl,
+        mode: 'absolute',
+      }),
+      new DraggablePanelController({
+        id: 'geo-surfaces-panel',
+        element: rightRail,
+        handle: surfacesHeader,
+        boundsEl: moduleEl,
+        mode: 'absolute',
+      }),
+    );
     return moduleEl;
   }
 
@@ -481,7 +422,7 @@ export class UIManager {
     moduleEl.className = 'es-module es-module--shader';
 
     const bodyCard = this._createCard('es-card--shader-body');
-    bodyCard.append(this._createBracketHeader('SHADER_ROUTER'));
+    bodyCard.append(this._createBracketHeader('SHADER'));
 
     this._shaderSummaryEl = createText('div', '', 'es-text-subtitle');
     bodyCard.append(this._shaderSummaryEl);
@@ -609,7 +550,7 @@ export class UIManager {
   _createPreviewButton(label, mode) {
     const button = this._createButton(label, () => {
       if (this.onPreviewModeChange) this.onPreviewModeChange(mode);
-    });
+    }, { className: 'es-btn--stage-mode' });
     this._previewButtons.set(mode, button);
     return button;
   }
@@ -617,7 +558,7 @@ export class UIManager {
   _createOutputModeButton(label, mode) {
     const button = this._createButton(label, () => {
       if (this.onOutputDisplayModeChange) this.onOutputDisplayModeChange(mode);
-    });
+    }, { className: 'es-btn--stage-mode' });
     this._outputModeButtons.set(mode, button);
     return button;
   }
@@ -626,7 +567,7 @@ export class UIManager {
     const button = this._createButton(label, () => {
       if (!this._hasActiveSurface) return;
       if (this.onEditTargetChange) this.onEditTargetChange(target);
-    });
+    }, { className: 'es-btn--stage-mode' });
     this._editTargetButtons.set(target, button);
     return button;
   }
@@ -661,6 +602,83 @@ export class UIManager {
     return badge;
   }
 
+  _createIconButton(icon, title, onClick) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'es-bracket-btn';
+    button.title = title;
+    button.setAttribute('aria-label', title);
+
+    const iconEl = document.createElement('span');
+    iconEl.className = 'material-symbols-outlined es-bracket-btn__icon';
+    iconEl.textContent = icon;
+    button.append(iconEl);
+    button.addEventListener('click', onClick);
+    return button;
+  }
+
+  _createMiniIconButton(icon, title, onClick, className = '') {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `es-mini-icon-btn${className ? ` ${className}` : ''}`;
+    button.title = title;
+    button.setAttribute('aria-label', title);
+    button.addEventListener('click', onClick);
+
+    const iconEl = document.createElement('span');
+    iconEl.className = 'material-symbols-outlined es-mini-icon-btn__icon';
+    iconEl.textContent = icon;
+    button.append(iconEl);
+    return button;
+  }
+
+  _createTopbarReadout(icon, value, flicker = false) {
+    const item = document.createElement('div');
+    item.className = `es-topbar__readout${flicker ? ' es-topbar__readout--flicker' : ''}`;
+
+    const iconEl = document.createElement('span');
+    iconEl.className = 'material-symbols-outlined es-topbar__readout-icon';
+    iconEl.textContent = icon;
+
+    const valueEl = createText('span', value, 'es-topbar__readout-value');
+    item.append(iconEl, valueEl);
+    item._valueEl = valueEl;
+    return item;
+  }
+
+  _createStageInfo(label, value) {
+    const item = document.createElement('div');
+    item.className = 'es-stage-info';
+
+    const labelEl = createText('span', `${label}:`, 'es-stage-info__label');
+    const valueEl = createText('span', value, 'es-stage-info__value');
+    item.append(labelEl, valueEl);
+    item._valueEl = valueEl;
+    return item;
+  }
+
+  _createOpenOutputCta() {
+    const wrap = document.createElement('div');
+    wrap.className = 'es-stage__open-output';
+    wrap.dataset.visible = 'true';
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'es-open-output-cta';
+    button.addEventListener('click', () => {
+      if (this.onOpenOutputWindow) this.onOpenOutputWindow();
+    });
+    button.append(
+      createText('span', '[', 'es-open-output-cta__bracket'),
+      createText('span', 'OPEN', 'es-open-output-cta__label'),
+      createText('span', 'OUTPUT', 'es-open-output-cta__label'),
+      createText('span', ']', 'es-open-output-cta__bracket'),
+    );
+
+    wrap.append(button);
+    return wrap;
+  }
+
   _createSliderGroup(label, maxValue, onChange) {
     const group = document.createElement('div');
     group.className = 'es-slider';
@@ -682,8 +700,10 @@ export class UIManager {
     input.addEventListener('input', (event) => {
       const value = Number.parseFloat(event.target.value);
       valueLabel.textContent = value.toFixed(2);
+      this._syncSliderProgress(input);
       onChange(value);
     });
+    this._syncSliderProgress(input);
 
     header.append(title, valueLabel);
     group.append(header, input);
@@ -695,6 +715,7 @@ export class UIManager {
     pill = false,
     fullWidth = false,
     nav = false,
+    className = '',
   } = {}) {
     const button = document.createElement('button');
     let classes = 'es-retro-button es-btn';
@@ -702,6 +723,7 @@ export class UIManager {
     if (pill) classes += ' es-btn--pill';
     if (fullWidth) classes += ' es-btn--full';
     if (nav) classes += ' es-btn--nav';
+    if (className) classes += ` ${className}`;
     button.className = classes;
     button.type = 'button';
     button.textContent = label;
@@ -742,18 +764,11 @@ export class UIManager {
 
   _syncOutputWindowControls() {
     const { available, connected } = this._outputWindowState;
-    if (connected) {
-      this._outputStatusBadge.textContent = 'Output Live';
-      this._outputStatusBadge.dataset.status = 'connected';
-    } else if (available) {
-      this._outputStatusBadge.textContent = 'Output Opening';
-      this._outputStatusBadge.dataset.status = 'available';
-    } else {
-      this._outputStatusBadge.textContent = 'Output Offline';
-      this._outputStatusBadge.dataset.status = 'offline';
-    }
-
     this._syncButtonState(this._focusOutputBtn, available);
+    this._syncButtonState(this._fullscreenOutputBtn, available);
+    if (this._openOutputCtaBtn) {
+      this._openOutputCtaBtn.dataset.visible = available ? 'false' : 'true';
+    }
   }
 
   _syncPreviewButtons() {
@@ -775,18 +790,18 @@ export class UIManager {
   }
 
   _syncGeoStageBadges() {
-    if (this._geoStagePreviewBadge) {
-      this._geoStagePreviewBadge.textContent = this._previewMode === PREVIEW_MODE_EDIT
-        ? 'Preview: Edit'
-        : 'Preview: Output';
+    if (this._topbarPreviewReadout) {
+      this._topbarPreviewReadout._valueEl.textContent = this._previewMode === PREVIEW_MODE_EDIT
+        ? 'VIEW: EDIT'
+        : 'VIEW: OUTPUT';
     }
 
-    if (this._geoStageModeBadge) {
-      this._geoStageModeBadge.textContent = this._outputDisplayMode === OUTPUT_DISPLAY_MODE_MAPPING_ASSIST
-        ? 'Stage: Mapping'
+    if (this._topbarModeReadout) {
+      this._topbarModeReadout._valueEl.textContent = this._outputDisplayMode === OUTPUT_DISPLAY_MODE_MAPPING_ASSIST
+        ? 'MODE: MAP'
         : this._outputDisplayMode === OUTPUT_DISPLAY_MODE_CALIBRATION
-          ? 'Stage: Calibration'
-          : 'Stage: Show';
+          ? 'MODE: CAL'
+          : 'MODE: SHOW';
     }
   }
 
@@ -798,7 +813,7 @@ export class UIManager {
     const outputCount = this._shaderMasterSnapshot?.outputs?.length || 0;
     const surfaceCount = this._shaderMasterSnapshot?.surfaces?.length || 0;
     const assignedCount = this._shaderMasterSnapshot?.surfaces?.filter((surface) => surface.assignedOutputId).length || 0;
-    this._shaderSummaryEl.textContent = `${outputCount} output${outputCount === 1 ? '' : 's'} • ${surfaceCount} surface${surfaceCount === 1 ? '' : 's'} • ${assignedCount} assigned`;
+    this._shaderSummaryEl.textContent = `${outputCount} out • ${surfaceCount} surf • ${assignedCount} live`;
   }
 
   _syncGeoSurfaceList() {
@@ -808,9 +823,20 @@ export class UIManager {
 
     const snapshot = this._shaderMasterSnapshot;
     const surfaces = snapshot?.surfaces || [];
+    const displaySurfaces = this._getGeoDisplaySurfaces(surfaces);
+    if (this._geoSurfacesRail) {
+      this._geoSurfacesRail.dataset.visible = surfaces.length > 0 ? 'true' : 'false';
+    }
     const nextSignature = [
       snapshot?.selectedSurfaceId || '',
-      ...surfaces.map((surface) => `${surface.id}:${surface.name}:${surface.order}:${surface.assignedOutputId || ''}:${surface.visible}`),
+      [...this._surfaceSubtractExpanded.entries()]
+        .map(([surfaceId, expanded]) => `${surfaceId}:${expanded ? '1' : '0'}`)
+        .sort()
+        .join(','),
+      this._activeSurfaceDetails
+        ? `${this._activeSurfaceDetails.id}:${this._activeSurfaceDetails.feather}:${this._activeSurfaceDetails.activeSubtractQuadIndex}:${this._activeSurfaceDetails.activeSubtractFeather}:${this._activeSurfaceDetails.subtractQuads.map((subtractQuad) => `${subtractQuad.index}:${subtractQuad.feather}:${subtractQuad.visible}`).join(',')}`
+        : '',
+      ...displaySurfaces.map((surface) => `${surface.id}:${surface.name}:${surface.order}:${surface.assignedOutputId || ''}:${surface.visible}`),
     ].join('|');
 
     if (nextSignature === this._geoSurfaceListSignature) {
@@ -820,35 +846,242 @@ export class UIManager {
     this._geoSurfaceListSignature = nextSignature;
     this._geoSurfaceListEl.replaceChildren();
 
-    if (surfaces.length === 0) {
+    if (displaySurfaces.length === 0) {
       this._geoSurfaceListEl.append(
         createText('div', 'No surfaces yet. Add one from GEO to start mapping.', 'es-surface-empty'),
       );
       return;
     }
 
-    surfaces.forEach((surface) => {
+    displaySurfaces.forEach((surface) => {
       const isSelected = surface.id === snapshot.selectedSurfaceId;
-      const row = document.createElement('button');
-      row.type = 'button';
+      const row = document.createElement('div');
       row.className = 'es-surface-row';
+      row.dataset.surfaceId = surface.id;
       row.dataset.selected = isSelected ? 'true' : 'false';
-      row.addEventListener('click', () => {
+      row.dataset.visible = surface.visible ? 'true' : 'false';
+      const canDrag = displaySurfaces.length > 1;
+
+      const summary = document.createElement('div');
+      summary.className = 'es-surface-row__summary';
+      summary.tabIndex = 0;
+      summary.draggable = canDrag;
+      summary.addEventListener('dragstart', (event) => {
+        const dragTarget = event.target instanceof HTMLElement ? event.target : null;
+        if (dragTarget?.closest('.es-surface-inspector, input, select, textarea, button, a')) {
+          event.preventDefault();
+          return;
+        }
+
+        if (!canDrag) {
+          event.preventDefault();
+          return;
+        }
+
+        this._geoSurfaceDragState = {
+          sourceId: surface.id,
+          targetId: surface.id,
+          position: 'after',
+        };
+        row.dataset.dragging = 'true';
+        this._geoSurfaceListEl.dataset.dragging = 'true';
+
+        if (event.dataTransfer) {
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', surface.id);
+        }
+      });
+      summary.addEventListener('dragend', () => {
+        this._commitGeoSurfaceDrag();
+      });
+
+      summary.addEventListener('click', () => {
+        if (this.onSelectSurface) this.onSelectSurface(surface.id);
+      });
+      summary.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') {
+          return;
+        }
+        event.preventDefault();
         if (this.onSelectSurface) this.onSelectSurface(surface.id);
       });
 
       const top = document.createElement('div');
       top.className = 'es-surface-row__top';
-      top.append(
-        createText('div', surface.name, 'es-surface-row__name'),
-        this._createBadge(surface.assignedOutputId ? 'Assigned' : 'Unassigned', Boolean(surface.assignedOutputId)),
+      top.append(createText('div', surface.name, 'es-surface-row__name'));
+
+      const actions = document.createElement('div');
+      actions.className = 'es-surface-row__actions';
+
+      const visibilityBtn = this._createMiniIconButton(
+        surface.visible ? 'visibility' : 'visibility_off',
+        surface.visible ? `Hide ${surface.name}` : `Show ${surface.name}`,
+        (event) => {
+          event.stopPropagation();
+          if (this.onToggleSurfaceVisibility) {
+            this.onToggleSurfaceVisibility(surface.id, !surface.visible);
+          }
+        },
+        'es-surface-row__action',
       );
+      visibilityBtn.dataset.active = surface.visible ? 'true' : 'false';
+      actions.append(visibilityBtn);
 
-      const meta = createText('div', `Layer ${surface.order + 1} • ${surface.visible ? 'Visible' : 'Hidden'}`, 'es-surface-row__meta');
+      top.append(actions);
 
-      row.append(top, meta);
+      summary.append(top);
+      row.append(summary);
+
+      if (isSelected) {
+        row.append(this._createGeoSurfaceInspector(surface));
+      }
+
       this._geoSurfaceListEl.append(row);
     });
+  }
+
+  _createGeoSurfaceInspector(surface) {
+    const inspector = document.createElement('div');
+    inspector.className = 'es-surface-inspector';
+
+    const details = this._activeSurfaceDetails?.id === surface.id
+      ? this._activeSurfaceDetails
+      : null;
+
+    const surfaceSlider = this._createMiniSlider({
+      label: 'Surface Feather',
+      value: details?.feather ?? 0,
+      max: MAX_SURFACE_FEATHER,
+      disabled: !details,
+      onInput: (value) => {
+        if (this.onFeatherChange) this.onFeatherChange(value);
+      },
+    });
+    inspector.append(surfaceSlider);
+
+    const isSubtractExpanded = this._surfaceSubtractExpanded.get(surface.id) === true;
+    const subtractHeader = document.createElement('div');
+    subtractHeader.className = 'es-surface-inspector__header';
+    const subtractTitle = document.createElement('div');
+    subtractTitle.className = 'es-surface-inspector__heading';
+    subtractTitle.append(
+      createText('div', 'Subtract', 'es-surface-inspector__title'),
+      createText(
+        'div',
+        details?.subtractQuadCount ? `${details.subtractQuadCount}` : '0',
+        'es-surface-inspector__count',
+      ),
+    );
+
+    const subtractToggle = this._createMiniIconButton(
+      isSubtractExpanded ? 'expand_less' : 'expand_more',
+      isSubtractExpanded ? 'Collapse subtracts' : 'Expand subtracts',
+      (event) => {
+        event.stopPropagation();
+        this._surfaceSubtractExpanded.set(surface.id, !isSubtractExpanded);
+        this._geoSurfaceListSignature = '';
+        this._syncGeoSurfaceList();
+      },
+      'es-surface-inspector__toggle',
+    );
+    subtractToggle.dataset.expanded = isSubtractExpanded ? 'true' : 'false';
+    subtractHeader.append(
+      subtractTitle,
+      subtractToggle,
+    );
+    inspector.append(subtractHeader);
+
+    if (!isSubtractExpanded) {
+      return inspector;
+    }
+
+    const subtractList = document.createElement('div');
+    subtractList.className = 'es-subtract-list';
+
+    if (!details || details.subtractQuads.length === 0) {
+      subtractList.append(createText('div', 'No subtract quads', 'es-subtract-empty'));
+    } else {
+      details.subtractQuads.forEach((subtractQuad) => {
+        const isActive = subtractQuad.index === details.activeSubtractQuadIndex;
+        const item = document.createElement('div');
+        item.className = 'es-subtract-item';
+        item.dataset.active = isActive ? 'true' : 'false';
+
+        const itemButton = document.createElement('button');
+        itemButton.type = 'button';
+        itemButton.className = 'es-subtract-item__button';
+        itemButton.addEventListener('click', () => {
+          if (this.onSelectSubtractQuad) this.onSelectSubtractQuad(subtractQuad.index);
+        });
+        itemButton.append(createText('span', `Subtract ${subtractQuad.index + 1}`, 'es-subtract-item__label'));
+
+        if (isActive) {
+          const removeBtn = this._createButton('Remove', (event) => {
+            event?.stopPropagation?.();
+            if (this.onRemoveSubtractQuad) this.onRemoveSubtractQuad();
+          }, { className: 'es-btn--minor es-btn--tight' });
+          removeBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+          });
+          itemButton.append(removeBtn);
+        }
+        item.append(itemButton);
+
+        if (isActive) {
+          item.append(this._createMiniSlider({
+            label: 'Subtract Feather',
+            value: details.activeSubtractFeather,
+            max: MAX_SUBTRACT_FEATHER,
+            onInput: (value) => {
+              if (this.onSubtractFeatherChange) this.onSubtractFeatherChange(value);
+            },
+          }));
+        }
+
+        subtractList.append(item);
+      });
+    }
+
+    inspector.append(subtractList);
+    return inspector;
+  }
+
+  _createMiniSlider({
+    label,
+    value,
+    max,
+    disabled = false,
+    onInput,
+  }) {
+    const group = document.createElement('div');
+    group.className = 'es-slider es-slider--compact';
+
+    const header = document.createElement('div');
+    header.className = 'es-slider__header';
+    header.append(
+      createText('div', label, 'es-slider__title'),
+      createText('div', Number.parseFloat(value || 0).toFixed(2), 'es-slider__value'),
+    );
+
+    const valueLabel = header.lastChild;
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.min = '0';
+    input.max = String(max);
+    input.step = '0.005';
+    input.value = String(value ?? 0);
+    input.disabled = disabled;
+    input.className = 'es-slider__input';
+    input.addEventListener('input', (event) => {
+      const nextValue = Number.parseFloat(event.target.value);
+      valueLabel.textContent = nextValue.toFixed(2);
+      this._syncSliderProgress(input);
+      onInput(nextValue);
+    });
+    this._syncSliderProgress(input);
+
+    group.append(header, input);
+    return group;
   }
 
   _syncToggleButton(button, isActive, isDisabled) {
@@ -860,33 +1093,149 @@ export class UIManager {
     const hasSurface = Boolean(surface);
     const subtractCount = surface ? surface.subtractQuadCount : 0;
     const canAddSubtract = hasSurface && subtractCount < (surface?.subtractQuadLimit ?? 0);
-    const canManageSubtract = hasSurface && subtractCount > 0;
-
-    [
-      [this._addSubtractBtn, canAddSubtract],
-      [this._removeSubtractBtn, canManageSubtract],
-      [this._prevSubtractBtn, canManageSubtract],
-      [this._nextSubtractBtn, canManageSubtract],
-    ].forEach(([button, enabled]) => {
-      this._syncButtonState(button, enabled);
-    });
-  }
-
-  _syncSurfaceOrderButtons(surface, surfaceCount) {
-    const hasSurface = Boolean(surface);
-    const canReorder = hasSurface && surfaceCount > 1;
-    const canMoveBackward = canReorder && surface.order > 0;
-    const canMoveForward = canReorder && surface.order < surfaceCount - 1;
-
-    this._syncButtonState(this._sendToBackBtn, canMoveBackward);
-    this._syncButtonState(this._moveBackwardBtn, canMoveBackward);
-    this._syncButtonState(this._moveForwardBtn, canMoveForward);
-    this._syncButtonState(this._bringToFrontBtn, canMoveForward);
+    this._syncButtonState(this._addSubtractBtn, canAddSubtract);
   }
 
   _syncButtonState(button, enabled) {
     if (!button) return;
     button.disabled = !enabled;
+  }
+
+  _syncSliderProgress(input) {
+    if (!input) {
+      return;
+    }
+
+    const min = Number.parseFloat(input.min || '0');
+    const max = Number.parseFloat(input.max || '1');
+    const value = Number.parseFloat(input.value || '0');
+    const range = max - min;
+    const progress = range <= 0 ? 0 : ((value - min) / range) * 100;
+    input.style.setProperty('--es-slider-progress', `${Math.max(0, Math.min(100, progress))}%`);
+  }
+
+  _handleGeoSurfaceListDragOver = (event) => {
+    if (!this._geoSurfaceDragState || !this._geoSurfaceListEl) {
+      return;
+    }
+
+    event.preventDefault();
+    const target = event.target instanceof Element ? event.target : null;
+    const row = target?.closest('.es-surface-row');
+    if (row && row.dataset.surfaceId) {
+      const rect = row.getBoundingClientRect();
+      const position = event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+      this._setGeoSurfaceDropTarget(row.dataset.surfaceId, position);
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'move';
+      }
+      return;
+    }
+
+    const rows = Array.from(this._geoSurfaceListEl.querySelectorAll('.es-surface-row'));
+    const lastRow = rows.at(-1);
+    if (lastRow?.dataset.surfaceId) {
+      this._setGeoSurfaceDropTarget(lastRow.dataset.surfaceId, 'after');
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'move';
+      }
+    }
+  };
+
+  _handleGeoSurfaceListDrop = (event) => {
+    if (!this._geoSurfaceDragState) {
+      return;
+    }
+
+    event.preventDefault();
+    this._commitGeoSurfaceDrag();
+  };
+
+  _commitGeoSurfaceDrag() {
+    if (!this._geoSurfaceDragState) {
+      return;
+    }
+
+    const { sourceId, targetId, position } = this._geoSurfaceDragState;
+    const displaySurfaces = this._getGeoDisplaySurfaces(this._shaderMasterSnapshot?.surfaces || []);
+    const currentIndex = displaySurfaces.findIndex((surface) => surface.id === sourceId);
+    const targetIndex = displaySurfaces.findIndex((surface) => surface.id === targetId);
+    if (currentIndex < 0 || targetIndex < 0) {
+      this._clearGeoSurfaceDragState();
+      return;
+    }
+
+    let nextIndex = targetIndex;
+    if (position === 'before') {
+      nextIndex = targetIndex - (currentIndex < targetIndex ? 1 : 0);
+    } else {
+      nextIndex = targetIndex + (currentIndex > targetIndex ? 1 : 0);
+    }
+
+    const actualIndex = Math.max(0, Math.min(displaySurfaces.length - 1, (displaySurfaces.length - 1) - nextIndex));
+    if (sourceId !== targetId && this.onMoveSurfaceToIndex) {
+      this.onMoveSurfaceToIndex(sourceId, actualIndex);
+    }
+
+    this._clearGeoSurfaceDragState();
+  }
+
+  _handleGeoSurfaceListDragLeave = (event) => {
+    if (!this._geoSurfaceListEl) {
+      return;
+    }
+
+    const nextTarget = event.relatedTarget;
+    if (nextTarget && this._geoSurfaceListEl.contains(nextTarget)) {
+      return;
+    }
+
+    this._clearGeoSurfaceDropTarget();
+  };
+
+  _setGeoSurfaceDropTarget(targetId, position) {
+    if (!this._geoSurfaceDragState || !this._geoSurfaceListEl) {
+      return;
+    }
+
+    this._geoSurfaceDragState.targetId = targetId;
+    this._geoSurfaceDragState.position = position;
+
+    Array.from(this._geoSurfaceListEl.querySelectorAll('.es-surface-row')).forEach((row) => {
+      row.dataset.dropPosition = row.dataset.surfaceId === targetId ? position : '';
+    });
+  }
+
+  _clearGeoSurfaceDropTarget() {
+    if (!this._geoSurfaceListEl) {
+      return;
+    }
+
+    Array.from(this._geoSurfaceListEl.querySelectorAll('.es-surface-row')).forEach((row) => {
+      delete row.dataset.dropPosition;
+    });
+  }
+
+  _clearGeoSurfaceDragState() {
+    if (this._geoSurfaceListEl) {
+      delete this._geoSurfaceListEl.dataset.dragging;
+      Array.from(this._geoSurfaceListEl.querySelectorAll('.es-surface-row')).forEach((row) => {
+        delete row.dataset.dragging;
+        delete row.dataset.dropPosition;
+      });
+    }
+
+    this._geoSurfaceDragState = null;
+  }
+
+  _getGeoDisplaySurfaces(surfaces) {
+    return [...surfaces].sort((left, right) => {
+      if (left.order !== right.order) {
+        return right.order - left.order;
+      }
+
+      return left.id.localeCompare(right.id);
+    });
   }
 
   _describeEditTarget(target) {

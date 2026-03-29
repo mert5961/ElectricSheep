@@ -52,16 +52,14 @@ export function ensureOperatorWorkspaceStyles(): void {
     .es-machine-panel {
       position: relative;
       isolation: isolate;
-      padding: 16px;
-      border: 1px solid var(--es-line);
+      padding: 14px;
+      border: 1px solid rgba(120, 255, 150, 0.08);
       border-radius: 0;
       background:
-        radial-gradient(circle at center, rgba(120, 255, 150, 0.04), transparent 60%),
-        linear-gradient(180deg, rgba(8, 20, 10, 0.96) 0%, rgba(4, 12, 6, 0.99) 100%);
+        radial-gradient(circle at center, rgba(120, 255, 150, 0.02), transparent 60%),
+        linear-gradient(180deg, rgba(8, 20, 10, 0.54) 0%, rgba(4, 12, 6, 0.34) 100%);
       box-shadow:
-        inset 0 0 0 1px rgba(140, 255, 170, 0.06),
-        inset 0 0 36px rgba(0, 0, 0, 0.42),
-        inset 0 0 88px rgba(30, 120, 40, 0.06),
+        inset 0 0 24px rgba(0, 0, 0, 0.18),
         var(--es-glow-soft);
       overflow: hidden;
       animation: es-border-hum 6.4s ease-in-out infinite;
@@ -75,14 +73,14 @@ export function ensureOperatorWorkspaceStyles(): void {
       background:
         repeating-linear-gradient(
           to bottom,
-          rgba(190, 255, 200, 0.032) 0px,
-          rgba(190, 255, 200, 0.032) 1px,
+          rgba(190, 255, 200, 0.02) 0px,
+          rgba(190, 255, 200, 0.02) 1px,
           rgba(0, 0, 0, 0) 2px,
           rgba(0, 0, 0, 0) 4px
         ),
-        linear-gradient(180deg, rgba(180, 255, 190, 0.03), transparent 34%);
+        linear-gradient(180deg, rgba(180, 255, 190, 0.018), transparent 34%);
       mix-blend-mode: screen;
-      opacity: 0.18;
+      opacity: 0.1;
     }
 
     .es-machine-panel::after {
@@ -91,21 +89,11 @@ export function ensureOperatorWorkspaceStyles(): void {
       position: absolute;
       inset: 0;
       background:
-        radial-gradient(circle at center, transparent 50%, rgba(0, 0, 0, 0.36) 100%),
-        linear-gradient(
-          125deg,
-          rgba(255, 255, 255, 0.02) 0%,
-          rgba(255, 255, 255, 0.005) 20%,
-          rgba(0, 0, 0, 0.02) 42%,
-          rgba(255, 255, 255, 0.015) 58%,
-          rgba(0, 0, 0, 0.025) 76%,
-          rgba(255, 255, 255, 0.01) 100%
-        ),
         radial-gradient(circle at 15% 18%, rgba(191, 255, 174, 0.14) 0 0.6px, transparent 0.8px),
         radial-gradient(circle at 78% 28%, rgba(191, 255, 174, 0.1) 0 0.55px, transparent 0.8px),
         radial-gradient(circle at 61% 74%, rgba(191, 255, 174, 0.08) 0 0.5px, transparent 0.8px);
-      opacity: 0.18;
-      background-repeat: no-repeat, no-repeat, repeat, repeat, repeat;
+      opacity: 0.1;
+      background-repeat: repeat, repeat, repeat;
     }
 
     .es-machine-panel > * {
@@ -137,9 +125,9 @@ export function ensureOperatorWorkspaceStyles(): void {
     .es-operator-modebar {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
-      gap: 12px;
+      gap: 10px;
       align-items: center;
-      padding: 14px 16px;
+      padding: 10px 12px;
     }
 
     .es-operator-modebar h3,
@@ -155,8 +143,8 @@ export function ensureOperatorWorkspaceStyles(): void {
     .es-operator-modebar p,
     .es-dev-panel p {
       margin: 0;
-      font-size: 12px;
-      line-height: 1.55;
+      font-size: 11px;
+      line-height: 1.45;
       color: var(--es-text-dim);
     }
 
@@ -228,11 +216,11 @@ export function ensureOperatorWorkspaceStyles(): void {
       position: relative;
       display: grid;
       gap: 4px;
-      padding: 10px 12px;
-      border: 1px solid rgba(120, 255, 150, 0.08);
+      padding: 8px 10px;
+      border: 1px solid rgba(120, 255, 150, 0.05);
       border-radius: 0;
-      background: rgba(80, 255, 120, 0.02);
-      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
+      background: rgba(80, 255, 120, 0.014);
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
       min-width: 0;
       overflow: hidden;
       animation: es-border-hum-subtle 5.8s ease-in-out infinite;
@@ -298,11 +286,11 @@ export function ensureOperatorWorkspaceStyles(): void {
       position: relative;
       overflow: hidden;
       background:
-        radial-gradient(circle at center, rgba(120, 255, 150, 0.035), transparent 58%),
+        radial-gradient(circle at center, rgba(120, 255, 150, 0.02), transparent 58%),
         linear-gradient(180deg, var(--crt-bg-2) 0%, var(--crt-bg) 100%);
       color: var(--crt-text);
-      border: 1px solid var(--crt-line);
-      box-shadow: var(--crt-inset-shadow), var(--crt-glow-soft);
+      border: 1px solid rgba(120, 255, 150, 0.08);
+      box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.18), var(--crt-glow-soft);
       border-radius: 0;
       isolation: isolate;
       animation: es-border-hum 6.8s ease-in-out infinite;
@@ -354,7 +342,7 @@ export function ensureOperatorWorkspaceStyles(): void {
     .crt-panel__content {
       position: relative;
       z-index: 3;
-      padding: 16px;
+      padding: 12px;
     }
 
     .es-monitor-shell {
@@ -363,18 +351,18 @@ export function ensureOperatorWorkspaceStyles(): void {
     }
 
     .crt-title {
-      margin: 0 0 10px;
-      font-size: 13px;
+      margin: 0 0 6px;
+      font-size: 11px;
       font-weight: 700;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
       color: var(--crt-text-strong);
       text-shadow: 0 0 8px rgba(120, 255, 150, 0.12);
     }
 
     .crt-subtitle {
-      margin: 0 0 14px;
-      font-size: 11px;
+      margin: 0 0 10px;
+      font-size: 10px;
       line-height: 1.5;
       color: var(--crt-text-dim);
     }
@@ -411,7 +399,7 @@ export function ensureOperatorWorkspaceStyles(): void {
     .crt-monitor {
       position: relative;
       min-height: 160px;
-      border: 1px solid rgba(120, 255, 150, 0.12);
+      border: 1px solid rgba(120, 255, 150, 0.06);
       background:
         linear-gradient(180deg, rgba(120, 255, 150, 0.025), rgba(0, 0, 0, 0.02)),
         rgba(0, 0, 0, 0.16);
@@ -504,11 +492,11 @@ export function ensureOperatorWorkspaceStyles(): void {
 
     .es-monitor-section {
       position: relative;
-      padding: 12px;
-      border: 1px solid rgba(120, 255, 150, 0.08);
+      padding: 10px;
+      border: 1px solid rgba(120, 255, 150, 0.05);
       border-radius: 0;
-      background: rgba(80, 255, 120, 0.02);
-      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
+      background: rgba(80, 255, 120, 0.012);
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
       min-width: 0;
       overflow: hidden;
       animation: es-border-hum-subtle 6s ease-in-out infinite;
@@ -535,6 +523,10 @@ export function ensureOperatorWorkspaceStyles(): void {
       white-space: nowrap;
     }
 
+    .es-monitor-meta:empty {
+      display: none;
+    }
+
     .es-signal-stack {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -544,9 +536,9 @@ export function ensureOperatorWorkspaceStyles(): void {
       display: grid;
       gap: 6px;
       padding: 8px 10px;
-      border: 1px solid rgba(120, 255, 150, 0.08);
-      background: rgba(80, 255, 120, 0.02);
-      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
+      border: 1px solid rgba(120, 255, 150, 0.04);
+      background: rgba(80, 255, 120, 0.012);
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
       min-width: 0;
       overflow: hidden;
       animation: es-border-hum-subtle 5.6s ease-in-out infinite;

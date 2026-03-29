@@ -88,15 +88,16 @@ export function createCardShell(title: string, subtitle?: string): HTMLDivElemen
   card.style.minHeight = '100%';
   card.style.display = 'flex';
   card.style.flexDirection = 'column';
-  card.style.gap = '16px';
-  card.style.padding = '18px';
+  card.style.gap = '12px';
+  card.style.padding = '12px';
   card.style.overflow = 'hidden';
 
   const header = createElement('div', {
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
+    gap: '2px',
   });
+  header.dataset.role = 'drag-handle';
   const titleEl = createElement('h3', 'es-card-header__title', title);
   header.append(titleEl);
 
