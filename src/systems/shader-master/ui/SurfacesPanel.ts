@@ -1,5 +1,5 @@
-import type { ShaderMasterSnapshot, ShaderOutputSnapshot } from '../contracts/types.ts';
-import { FIELD_CLASS, createCardShell, createElement, createTag } from './dom.ts';
+import type { ShaderMasterSnapshot } from '../contracts/types.ts';
+import { FIELD_CLASS, createCardShell, createElement } from './dom.ts';
 
 export class SurfacesPanel {
   readonly element: HTMLDivElement;
@@ -21,12 +21,13 @@ export class SurfacesPanel {
   }) {
     this.onSelectSurface = onSelectSurface;
     this.onAssignOutput = onAssignOutput;
-    this.element = createCardShell('Surfaces');
-    this.listEl = createElement('div', {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '12px',
+    this.element = createCardShell('Surfaces', undefined, {
+      bracketHeader: true,
+      extraClassName: 'es-shader-panel es-shader-panel--surfaces',
     });
+    this.element.classList.add('es-shader-panel');
+    this.element.classList.add('es-shader-panel--surfaces');
+    this.listEl = createElement('div', 'es-shader-panel__list es-shader-panel__list--surfaces');
     this.element.append(this.listEl);
   }
 
@@ -46,23 +47,10 @@ export class SurfacesPanel {
 
     if (state.surfaces.length === 0) {
       this.listEl.append(
-        createElement('div', {
-          padding: '16px',
-          borderRadius: '2px',
-          border: '1px dashed rgba(120, 170, 96, 0.24)',
-          color: '#86a675',
-          fontSize: '13px',
-          textAlign: 'center',
-          background: 'rgba(8, 16, 8, 0.62)',
-        }, 'No surfaces'),
+        createElement('div', 'es-shader-empty', 'No surfaces'),
       );
       return;
     }
-
-    const outputLookup = state.outputs.reduce<Record<string, ShaderOutputSnapshot>>((accumulator, output) => {
-      accumulator[output.id] = output;
-      return accumulator;
-    }, {});
 
     const displaySurfaces = [...state.surfaces].sort((left, right) => {
       if (left.order !== right.order) {
@@ -74,80 +62,40 @@ export class SurfacesPanel {
 
     displaySurfaces.forEach((surface) => {
       const isSelected = surface.id === state.selectedSurfaceId;
-      const row = createElement('div', {
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1fr)',
-        gap: '10px',
-        padding: '10px 12px',
-        borderRadius: '3px',
-        border: isSelected ? '1px solid rgba(166, 223, 134, 0.2)' : '1px solid rgba(120, 170, 96, 0.1)',
-        background: isSelected ? 'rgba(20, 38, 18, 0.38)' : 'rgba(8, 16, 8, 0.3)',
-        boxShadow: isSelected ? '0 0 16px rgba(116, 255, 108, 0.05)' : 'none',
-      });
+      const row = createElement('div', 'es-shader-row es-shader-row--surface');
+      row.dataset.selected = isSelected ? 'true' : 'false';
+      row.dataset.linked = surface.assignedOutputId ? 'true' : 'false';
 
-      const header = createElement('div', {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: '10px',
-      });
+      const header = createElement('div', 'es-shader-row__header');
 
-      const surfaceButton = createElement('button', {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        gap: '4px',
-        width: '100%',
-        background: 'transparent',
-        border: 'none',
-        color: '#d5f7c4',
-        cursor: 'pointer',
-        padding: '0',
-        textAlign: 'left',
-      });
+      const surfaceButton = createElement('button', 'es-shader-row__button');
       surfaceButton.type = 'button';
       surfaceButton.addEventListener('click', () => {
         this.onSelectSurface(surface.id);
       });
-      surfaceButton.append(
-        createElement('span', {
-          fontSize: '14px',
-          fontWeight: '600',
-          color: '#d5f7c4',
-        }, surface.name),
-        createElement('span', {
-          fontSize: '12px',
-          color: '#8fb181',
-        }, surface.visible ? 'On' : 'Off'),
-      );
+      surfaceButton.append(createElement('span', 'es-shader-row__title', surface.name));
 
-      const assignmentTag = createTag(
-        surface.assignedOutputId && outputLookup[surface.assignedOutputId]
-          ? outputLookup[surface.assignedOutputId].name
-          : 'None',
-        surface.assignedOutputId
-          ? {
-              background: 'rgba(20, 38, 18, 0.9)',
-              borderColor: 'rgba(166, 223, 134, 0.26)',
-              color: '#d5f7c4',
-            }
-          : undefined,
-      );
+      const statusDot = createElement('span', 'es-shader-row__dot');
+      statusDot.dataset.state = surface.assignedOutputId ? 'linked' : 'idle';
+      header.append(surfaceButton, statusDot);
 
-      header.append(surfaceButton, assignmentTag);
+      row.append(header);
 
-      const select = createElement('select', FIELD_CLASS);
-      select.style.appearance = 'none';
-      select.innerHTML = [
-        '<option value="">None</option>',
-        ...state.outputs.map((output) => `<option value="${output.id}">${output.name}</option>`),
-      ].join('');
-      select.value = surface.assignedOutputId || '';
-      select.addEventListener('change', () => {
-        this.onAssignOutput(surface.id, select.value || null);
-      });
+      if (isSelected) {
+        const select = createElement('select', FIELD_CLASS);
+        select.classList.add('es-shader-row__select');
+        select.style.appearance = 'none';
+        select.innerHTML = [
+          '<option value="">Route</option>',
+          ...state.outputs.map((output) => `<option value="${output.id}">${output.name}</option>`),
+        ].join('');
+        select.value = surface.assignedOutputId || '';
+        select.addEventListener('change', () => {
+          this.onAssignOutput(surface.id, select.value || null);
+        });
+        row.append(select);
+      }
 
-      row.append(header, select);
       this.listEl.append(row);
     });
   }

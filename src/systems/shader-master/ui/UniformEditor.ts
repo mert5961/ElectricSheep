@@ -8,7 +8,6 @@ import {
   FIELD_CLASS,
   createCardShell,
   createElement,
-  createTag,
   formatUniformValue,
   hexToVec3,
   vectorToHex,
@@ -52,15 +51,7 @@ function syncCheckboxValue(input: HTMLInputElement, nextChecked: boolean): void 
 }
 
 function createPlaceholder(): HTMLDivElement {
-  return createElement('div', {
-    padding: '16px',
-    borderRadius: '2px',
-    border: '1px dashed rgba(120, 170, 96, 0.24)',
-    background: 'rgba(8, 16, 8, 0.62)',
-    color: '#86a675',
-    fontSize: '13px',
-    textAlign: 'center',
-  }, 'Select an output');
+  return createElement('div', 'es-shader-empty', 'Select output');
 }
 
 export class UniformEditor {
@@ -86,15 +77,13 @@ export class UniformEditor {
     onUpdateUniform: (outputId: string, key: string, value: unknown) => void;
   }) {
     this.onUpdateUniform = onUpdateUniform;
-    this.element = createCardShell('Params');
-    this.listEl = createElement('div', {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '12px',
-      maxHeight: '720px',
-      overflowY: 'auto',
-      paddingRight: '4px',
+    this.element = createCardShell('Params', undefined, {
+      bracketHeader: true,
+      extraClassName: 'es-shader-panel es-shader-panel--params',
     });
+    this.element.classList.add('es-shader-panel');
+    this.element.classList.add('es-shader-panel--params');
+    this.listEl = createElement('div', 'es-uniform-list');
     this.element.append(this.listEl);
     this.showPlaceholder();
   }
@@ -160,66 +149,29 @@ export class UniformEditor {
     field: UniformSchemaField,
   ): FieldController {
     const editable = field.source === 'manual';
-    const card = createElement('div', {
-      display: 'grid',
-      gap: '10px',
-      padding: '10px 12px',
-      borderRadius: '3px',
-      border: '1px solid rgba(120, 170, 96, 0.1)',
-      background: editable ? 'rgba(8, 16, 8, 0.38)' : 'rgba(8, 16, 8, 0.26)',
-      opacity: editable ? '1' : '0.78',
-    });
+    const card = createElement('div', 'es-uniform-card');
+    card.dataset.editable = editable ? 'true' : 'false';
 
-    const header = createElement('div', {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      gap: '12px',
-    });
-    const labelWrap = createElement('div', {
-      display: 'grid',
-      gap: '0',
-    });
+    const header = createElement('div', 'es-uniform-header');
+    const labelWrap = createElement('div', 'es-uniform-label');
     labelWrap.append(
-      createElement('span', {
-        fontSize: '13px',
-        fontWeight: '600',
-        color: '#d5f7c4',
-      }, field.label),
+      createElement('span', 'es-uniform-label__title', field.label),
     );
-    header.append(
-      labelWrap,
-      createTag(field.source, {
-        textTransform: 'capitalize',
-      }),
-    );
+    header.append(labelWrap);
 
-    const content = createElement('div', {
-      display: 'grid',
-      gap: '8px',
-    });
+    const content = createElement('div', 'es-uniform-content');
 
     let update = (_nextOutput: ShaderOutputSnapshot, _nextPreset: PresetCatalogEntry) => {};
 
     if (!editable) {
-      const valueEl = createElement('div', {
-        padding: '9px 10px',
-        borderRadius: '2px',
-        background: 'rgba(5, 12, 5, 0.5)',
-        border: '1px solid rgba(120, 170, 96, 0.1)',
-        color: '#b8de9d',
-        fontSize: '13px',
-      });
+      const valueEl = createElement('div', 'es-uniform-value');
       content.append(valueEl);
 
       update = (nextOutput, nextPreset) => {
         valueEl.textContent = formatUniformValue(getFieldValue(field, nextOutput, nextPreset));
       };
     } else if (field.type === 'float' || field.type === 'int') {
-      const rangeInput = createElement('input', {
-        width: '100%',
-        accentColor: '#9ddf74',
-      }) as HTMLInputElement;
+      const rangeInput = createElement('input', 'es-slider__input es-uniform-range') as HTMLInputElement;
       rangeInput.type = 'range';
       rangeInput.min = String(field.min ?? 0);
       rangeInput.max = String(field.max ?? Math.max(Number(field.defaultValue), 1));
@@ -254,14 +206,7 @@ export class UniformEditor {
         syncInputValue(numberInput, String(numericValue));
       };
     } else if (field.type === 'bool') {
-      const checkboxLabel = createElement('label', {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        color: '#c9ecb7',
-        fontSize: '13px',
-        cursor: 'pointer',
-      });
+      const checkboxLabel = createElement('label', 'es-shader-toggle');
       const checkbox = createElement('input') as HTMLInputElement;
       checkbox.type = 'checkbox';
       const checkboxText = createElement('span');
@@ -277,10 +222,7 @@ export class UniformEditor {
         checkboxText.textContent = checked ? 'Enabled' : 'Disabled';
       };
     } else {
-      const vectorGrid = createElement('div', {
-        display: 'grid',
-        gap: '8px',
-      });
+      const vectorGrid = createElement('div', 'es-uniform-vector');
 
       const numericInputs: HTMLInputElement[] = [];
 
@@ -295,14 +237,7 @@ export class UniformEditor {
 
       let colorInput: HTMLInputElement | null = null;
       if ((field.type === 'vec3' || field.type === 'vec4') && field.key.toLowerCase().includes('color')) {
-        colorInput = createElement('input', {
-          width: '100%',
-          height: '40px',
-          padding: '4px',
-          background: 'rgba(6, 14, 8, 0.88)',
-          border: '1px solid rgba(120, 170, 96, 0.28)',
-          borderRadius: '2px',
-        }) as HTMLInputElement;
+        colorInput = createElement('input', 'es-uniform-color') as HTMLInputElement;
         colorInput.type = 'color';
         colorInput.addEventListener('input', () => {
           const nextColor = hexToVec3(colorInput?.value || '#000000');
@@ -315,11 +250,8 @@ export class UniformEditor {
         vectorGrid.append(colorInput);
       }
 
-      const numericGrid = createElement('div', {
-        display: 'grid',
-        gridTemplateColumns: `repeat(${Array.isArray(field.defaultValue) ? field.defaultValue.length : 0}, minmax(0, 1fr))`,
-        gap: '8px',
-      });
+      const numericGrid = createElement('div', 'es-uniform-vector-grid');
+      numericGrid.style.gridTemplateColumns = `repeat(${Array.isArray(field.defaultValue) ? field.defaultValue.length : 0}, minmax(0, 1fr))`;
 
       const initialValue = getFieldValue(field, output, preset);
       const initialVector = Array.isArray(initialValue)

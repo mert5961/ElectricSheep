@@ -1,7 +1,7 @@
 import { AUDIO_UNIFORM_SCHEMA, FEELING_UNIFORM_SCHEMA } from '../contracts/uniforms.ts';
 import type { ShaderMasterSnapshot } from '../contracts/types.ts';
 import type { AudioAnalyzerState } from '../../audio-analyzer/audioAnalyzerStore.ts';
-import { createButton, createElement, createTag, setButtonEnabled } from './dom.ts';
+import { createElement, setButtonEnabled } from './dom.ts';
 
 interface MeterController {
   valueEl: HTMLSpanElement;
@@ -16,46 +16,6 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
-function formatSourceLabel(audioInputState: AudioAnalyzerState | null): string {
-  if (!audioInputState) {
-    return 'Manual';
-  }
-
-  if (audioInputState.source === 'microphone') {
-    return 'Microphone';
-  }
-
-  if (audioInputState.source === 'display') {
-    return 'Display';
-  }
-
-  if (audioInputState.source === 'test-generator') {
-    return 'Debug Test';
-  }
-
-  return 'Manual';
-}
-
-function formatStatusLabel(audioInputState: AudioAnalyzerState | null): string {
-  if (!audioInputState) {
-    return 'idle';
-  }
-
-  if (audioInputState.status === 'requesting') {
-    return 'requesting';
-  }
-
-  if (audioInputState.status === 'running') {
-    return 'running';
-  }
-
-  if (audioInputState.status === 'error') {
-    return 'error';
-  }
-
-  return 'idle';
-}
-
 function formatAIUpdateTimestamp(timestampMs: number | null): string {
   if (timestampMs === null) {
     return 'Awaiting sync';
@@ -65,15 +25,40 @@ function formatAIUpdateTimestamp(timestampMs: number | null): string {
   return `${new Date(timestampMs).toLocaleTimeString()} • ${secondsAgo}s ago`;
 }
 
-function setTransportButtonState(button: HTMLButtonElement, active: boolean, accent: string): void {
+function setTransportButtonState(button: HTMLButtonElement, active: boolean): void {
   button.dataset.active = active ? 'true' : 'false';
-  button.dataset.activeAccent = accent;
-  button.style.borderColor = active ? accent : 'rgba(120, 170, 96, 0.28)';
-  button.style.background = active
-    ? `${accent}18`
-    : 'rgba(12, 24, 11, 0.42)';
-  button.style.color = active ? '#f0ffe9' : '#d5f7c4';
-  button.style.boxShadow = active ? `0 0 0 1px ${accent}33 inset, 0 0 16px ${accent}18` : 'none';
+}
+
+function formatSurfaceChipLabel(name: string, index: number): string {
+  const numericMatch = name.match(/\d+/);
+  if (numericMatch) {
+    return `S${numericMatch[0]}`;
+  }
+
+  return `S${index + 1}`;
+}
+
+function resolveLiveState(audioInputState: AudioAnalyzerState | null): {
+  label: string;
+  status: 'idle' | 'live' | 'wait' | 'error';
+} {
+  if (!audioInputState) {
+    return { label: 'IDLE', status: 'idle' };
+  }
+
+  if (audioInputState.status === 'requesting') {
+    return { label: 'WAIT', status: 'wait' };
+  }
+
+  if (audioInputState.status === 'error') {
+    return { label: 'ERROR', status: 'error' };
+  }
+
+  if (audioInputState.status === 'running') {
+    return { label: 'LIVE', status: 'live' };
+  }
+
+  return { label: 'IDLE', status: 'idle' };
 }
 
 export class OperatorMonitorPanel {
@@ -89,21 +74,11 @@ export class OperatorMonitorPanel {
 
   private readonly hasDisplayAudioAction: boolean;
 
-  private readonly outputValueEl: HTMLDivElement;
+  private readonly shaderValueEl: HTMLSpanElement;
 
-  private readonly presetValueEl: HTMLDivElement;
+  private readonly surfaceStripEl: HTMLDivElement;
 
-  private readonly routingValueEl: HTMLDivElement;
-
-  private readonly liveStateValueEl: HTMLDivElement;
-
-  private readonly sourceTagEl: HTMLSpanElement;
-
-  private readonly statusTagEl: HTMLSpanElement;
-
-  private readonly aiTagEl: HTMLSpanElement;
-
-  private readonly analyzerMetaEl: HTMLDivElement;
+  private readonly liveStateEl: HTMLDivElement;
 
   private readonly statusTextEl: HTMLSpanElement;
 
@@ -129,10 +104,12 @@ export class OperatorMonitorPanel {
     onStartMicrophoneAudio,
     onStartDisplayAudio,
     onStopAudioAnalyzer,
+    onSelectSurface,
   }: {
     onStartMicrophoneAudio?: () => void;
     onStartDisplayAudio?: () => void;
     onStopAudioAnalyzer?: () => void;
+    onSelectSurface?: (surfaceId: string) => void;
   }) {
     this.hasStandbyAction = Boolean(onStopAudioAnalyzer);
     this.hasMicrophoneAction = Boolean(onStartMicrophoneAudio);
@@ -145,66 +122,54 @@ export class OperatorMonitorPanel {
     this.element.className = 'es-operator-layout';
 
     this.commandDeckElement = createElement('div');
-    this.commandDeckElement.className = 'es-machine-panel es-operator-command';
+    this.commandDeckElement.className = 'es-operator-strip';
     const commandDeck = this.commandDeckElement;
 
-    const commandCopy = createElement('div');
-    commandCopy.className = 'es-command-copy';
+    const leftStrip = createElement('div');
+    leftStrip.className = 'es-operator-strip__left';
 
-    const leftCopy = createElement('div');
-    leftCopy.className = 'es-command-stats';
-    leftCopy.append(
-      createElement('div', { fontSize: '16px', fontWeight: '700', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--es-text-strong)' }, 'Console'),
+    const shaderGroup = createElement('div');
+    shaderGroup.className = 'es-operator-strip__group';
+    shaderGroup.append(
+      createElement('span', 'es-operator-strip__label', 'Shader'),
+    );
+    this.shaderValueEl = createElement('span', 'es-operator-strip__value', 'None');
+    shaderGroup.append(this.shaderValueEl);
+
+    const surfacesGroup = createElement('div');
+    surfacesGroup.className = 'es-operator-strip__group es-operator-strip__group--surfaces';
+    this.surfaceStripEl = createElement('div');
+    this.surfaceStripEl.className = 'es-operator-strip__surfaces';
+    surfacesGroup.append(this.surfaceStripEl);
+
+    leftStrip.append(shaderGroup, surfacesGroup);
+
+    const rightStrip = createElement('div');
+    rightStrip.className = 'es-operator-strip__right';
+
+    this.liveStateEl = createElement('div');
+    this.liveStateEl.className = 'es-operator-strip__state';
+    this.liveStateEl.append(
+      createElement('span', 'es-operator-strip__state-dot'),
+      createElement('span', 'es-operator-strip__state-label', 'IDLE'),
     );
 
-    const summaryGrid = createElement('div');
-    summaryGrid.className = 'es-summary-grid';
-    this.outputValueEl = this._createSummaryCell(summaryGrid, 'Output');
-    this.presetValueEl = this._createSummaryCell(summaryGrid, 'Preset');
-    this.routingValueEl = this._createSummaryCell(summaryGrid, 'Route');
-    this.liveStateValueEl = this._createSummaryCell(summaryGrid, 'State');
+    const controls = createElement('div');
+    controls.className = 'es-operator-strip__controls';
 
-    const commandBadges = createElement('div');
-    commandBadges.className = 'es-badge-row';
-    this.sourceTagEl = createTag('Manual');
-    this.statusTagEl = createTag('Idle');
-    this.aiTagEl = createTag('AI Live');
-    commandBadges.append(this.sourceTagEl, this.statusTagEl, this.aiTagEl);
-
-    leftCopy.append(summaryGrid, commandBadges);
-
-    const rightCopy = createElement('div');
-    rightCopy.className = 'es-command-stats';
-    rightCopy.append(
-      createElement('div', { fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--es-text-dim)' }, 'Audio'),
-    );
-    this.analyzerMetaEl = createElement('div', {
-      fontSize: '12px',
-      lineHeight: '1.55',
-      color: 'var(--es-text-strong)',
-    }, 'Standby');
-    rightCopy.append(this.analyzerMetaEl);
-
-    commandCopy.append(leftCopy, rightCopy);
-
-    const actions = createElement('div');
-    actions.className = 'es-command-actions';
-
-    const actionRow = createElement('div');
-    actionRow.className = 'es-command-action-row';
-    this.standbyButton = createButton('Standby', () => {
+    this.standbyButton = this._createTransportButton('power_settings_new', 'Standby', () => {
       onStopAudioAnalyzer?.();
     });
-    this.microphoneButton = createButton('Mic', () => {
+    this.microphoneButton = this._createTransportButton('mic', 'Mic', () => {
       onStartMicrophoneAudio?.();
     });
-    this.displayAudioButton = createButton('Display', () => {
+    this.displayAudioButton = this._createTransportButton('tv', 'Display', () => {
       onStartDisplayAudio?.();
     });
-    actionRow.append(this.standbyButton, this.microphoneButton, this.displayAudioButton);
-    actions.append(actionRow);
+    controls.append(this.standbyButton, this.microphoneButton, this.displayAudioButton);
 
-    commandDeck.append(commandCopy, actions);
+    rightStrip.append(this.liveStateEl, controls);
+    commandDeck.append(leftStrip, rightStrip);
 
     this.signalMonitorElement = createElement('div');
     this.signalMonitorElement.className = 'es-operator-crt crt-panel';
@@ -327,40 +292,39 @@ export class OperatorMonitorPanel {
       : state.surfaces.filter((surface) => surface.assignedOutputId !== null).length;
     const activeVisualState = state.visualState.transition ? state.visualState.target : state.visualState.current;
 
-    this.outputValueEl.textContent = selectedOutput?.name || 'No output';
-    this.presetValueEl.textContent = selectedOutput?.presetLabel || 'No preset';
-    this.routingValueEl.textContent = selectedOutput
-      ? `${routedSurfaceCount}/${state.surfaces.length} on ${selectedOutput.name}`
-      : `${routedSurfaceCount}/${state.surfaces.length}`;
-    this.liveStateValueEl.textContent = activeVisualState
-      ? `${activeVisualState.recipeLabel} • ${activeVisualState.outputId}`
-      : selectedSurface
-        ? selectedSurface.name
-        : 'Manual';
+    this.shaderValueEl.textContent = selectedOutput?.presetLabel || activeVisualState?.recipeLabel || 'None';
+    this.surfaceStripEl.replaceChildren();
+    state.surfaces.forEach((surface, index) => {
+      const chip = createElement('button');
+      chip.type = 'button';
+      chip.className = 'es-operator-strip__surface';
+      chip.textContent = formatSurfaceChipLabel(surface.name, index);
+      chip.dataset.selected = surface.id === state.selectedSurfaceId ? 'true' : 'false';
+      chip.dataset.assigned = selectedOutput && surface.assignedOutputId === selectedOutput.id ? 'true' : 'false';
+      chip.addEventListener('click', () => {
+        onSelectSurface?.(surface.id);
+      });
+      this.surfaceStripEl.append(chip);
+    });
 
-    this.sourceTagEl.textContent = formatSourceLabel(audioInputState);
-    this.statusTagEl.textContent = formatStatusLabel(audioInputState);
-    this.aiTagEl.textContent = state.aiState.aiFallbackActive ? 'AI Fallback' : (state.aiState.aiEnabled ? 'AI Live' : 'AI Off');
+    const liveState = resolveLiveState(audioInputState);
+    this.liveStateEl.dataset.status = liveState.status;
+    const liveStateLabel = this.liveStateEl.querySelector('.es-operator-strip__state-label');
+    if (liveStateLabel) {
+      liveStateLabel.textContent = liveState.label;
+    }
 
     const isManual = !audioInputState || audioInputState.source === 'manual';
     const isMicrophone = audioInputState?.source === 'microphone';
     const isDisplay = audioInputState?.source === 'display';
     const isRequesting = audioInputState?.status === 'requesting';
 
-    this.analyzerMetaEl.textContent = isManual
-      ? 'Standby'
-      : isMicrophone
-        ? 'Mic live'
-        : isDisplay
-          ? 'Display live'
-          : 'Test live';
-
     setButtonEnabled(this.microphoneButton, this.hasMicrophoneAction && (!isRequesting || isMicrophone));
     setButtonEnabled(this.displayAudioButton, this.hasDisplayAudioAction && (!isRequesting || isDisplay));
     setButtonEnabled(this.standbyButton, this.hasStandbyAction);
-    setTransportButtonState(this.standbyButton, isManual, '#d7d38a');
-    setTransportButtonState(this.microphoneButton, Boolean(isMicrophone), '#8cff98');
-    setTransportButtonState(this.displayAudioButton, Boolean(isDisplay), '#d5f7c4');
+    setTransportButtonState(this.standbyButton, isManual);
+    setTransportButtonState(this.microphoneButton, Boolean(isMicrophone));
+    setTransportButtonState(this.displayAudioButton, Boolean(isDisplay));
 
     AUDIO_UNIFORM_SCHEMA.forEach((field) => {
       const controller = this.audioMeters.get(field.key);
@@ -425,6 +389,21 @@ export class OperatorMonitorPanel {
     cell.append(labelEl, value);
     container.append(cell);
     return value;
+  }
+
+  private _createTransportButton(icon: string, title: string, onClick: () => void): HTMLButtonElement {
+    const button = createElement('button') as HTMLButtonElement;
+    button.type = 'button';
+    button.className = 'es-operator-strip__toggle';
+    button.title = title;
+    button.setAttribute('aria-label', title);
+    button.addEventListener('click', onClick);
+
+    const iconEl = createElement('span');
+    iconEl.className = 'material-symbols-outlined es-operator-strip__toggle-icon';
+    iconEl.textContent = icon;
+    button.append(iconEl);
+    return button;
   }
 
   private _createSectionHead(title: string, meta: string): HTMLDivElement {

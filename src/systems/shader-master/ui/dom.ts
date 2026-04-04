@@ -7,6 +7,11 @@ export const FIELD_BASE_STYLES: StyleMap = {};
 
 export const FIELD_CLASS = 'es-field';
 
+type CardShellOptions = {
+  bracketHeader?: boolean;
+  extraClassName?: string;
+};
+
 export function createElement<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   stylesOrClass: StyleMap | string = {},
@@ -39,12 +44,12 @@ export function createButton(
   button.addEventListener('mouseenter', () => {
     if (!button.disabled) {
       const activeAccent = button.dataset.active === 'true'
-        ? (button.dataset.activeAccent || 'rgba(166, 223, 134, 0.5)')
+        ? (button.dataset.activeAccent || 'rgba(51, 255, 51, 0.42)')
         : null;
       button.style.background = activeAccent
         ? `${activeAccent}22`
         : 'linear-gradient(180deg, rgba(22, 42, 20, 0.98) 0%, rgba(9, 22, 9, 1) 100%)';
-      button.style.borderColor = activeAccent || 'rgba(166, 223, 134, 0.5)';
+      button.style.borderColor = activeAccent || 'rgba(51, 255, 51, 0.42)';
       button.style.boxShadow = activeAccent
         ? `0 0 0 1px ${activeAccent}33 inset, 0 0 16px ${activeAccent}18`
         : 'inset 0 0 0 1px rgba(189, 255, 172, 0.08), 0 0 16px rgba(116, 255, 108, 0.12)';
@@ -81,29 +86,40 @@ export function setButtonEnabled(button: HTMLButtonElement, enabled: boolean): v
   }
 }
 
-export function createCardShell(title: string, subtitle?: string): HTMLDivElement {
+export function createCardShell(title: string, subtitle?: string, options: CardShellOptions = {}): HTMLDivElement {
+  const { bracketHeader = false, extraClassName = '' } = options;
   const card = createElement('div');
-  card.className = 'es-machine-panel es-workspace-card';
+  card.className = bracketHeader
+    ? `es-retro-panel es-card es-card--shader-panel ${extraClassName}`.trim()
+    : `es-machine-panel es-workspace-card ${extraClassName}`.trim();
   card.style.position = 'relative';
-  card.style.minHeight = '100%';
+  card.style.minHeight = '0';
   card.style.display = 'flex';
   card.style.flexDirection = 'column';
   card.style.gap = '12px';
-  card.style.padding = '12px';
+  card.style.padding = bracketHeader ? '' : '12px';
   card.style.overflow = 'hidden';
 
-  const header = createElement('div', {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
-  });
+  const header = bracketHeader
+    ? createElement('div', 'es-bracket-header')
+    : createElement('div', {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '2px',
+      });
   header.dataset.role = 'drag-handle';
-  const titleEl = createElement('h3', 'es-card-header__title', title);
+  const titleEl = bracketHeader
+    ? createElement('div', 'es-bracket-header__label', title)
+    : createElement('h3', 'es-card-header__title', title);
   header.append(titleEl);
+
+  if (bracketHeader) {
+    header.append(createElement('div', 'es-bracket-header__line'));
+  }
 
   if (subtitle) {
     header.append(
-      createElement('p', 'es-card-header__subtitle', subtitle),
+      createElement('p', bracketHeader ? 'es-text-subtitle' : 'es-card-header__subtitle', subtitle),
     );
   }
 

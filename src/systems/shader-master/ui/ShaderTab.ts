@@ -161,26 +161,16 @@ export class ShaderTab {
 
     const modeBar = createElement('div');
     modeBar.className = 'es-machine-panel es-operator-modebar';
-    const modeBarCopy = createElement('div', {
-      display: 'grid',
-      gap: '4px',
-    });
+    const modeBarCopy = createElement('div', 'es-shader-modebar__copy');
     modeBarCopy.append(
-      createElement('h3', {}, 'Mode'),
-      createElement('p', {}, 'Compact live view.'),
+      createElement('h3', 'es-shader-modebar__title', 'Shader'),
+      createElement('p', 'es-shader-modebar__meta', 'Operator view'),
     );
-    const modeBarActions = createElement('div', {
-      display: 'grid',
-      gap: '8px',
-      justifyItems: 'end',
-    });
+    const modeBarActions = createElement('div', 'es-shader-modebar__actions');
     this.developerToggleButton = createButton('Debug Off', () => {
       this._setDeveloperMode(!this.developerModeEnabled);
     });
-    this.developerStatusEl = createElement('div', {
-      fontSize: '11px',
-      color: 'var(--es-text-dim)',
-    }, 'Ctrl/Cmd + Shift + D');
+    this.developerStatusEl = createElement('div', 'es-shader-modebar__hint', 'Ctrl/Cmd + Shift + D');
     modeBarActions.append(this.developerToggleButton, this.developerStatusEl);
     modeBar.append(modeBarCopy, modeBarActions);
 
@@ -250,7 +240,7 @@ export class ShaderTab {
     debugHead.className = 'es-dev-panel-head';
     debugHead.append(
       createElement('h3', {}, 'Debug'),
-      createElement('p', {}, 'Recipes, analyzer, mapping.'),
+      createElement('p', {}, 'Analyzer / mapping'),
     );
     const debugBody = createElement('div');
     debugBody.className = 'es-dev-panel-body';
@@ -335,14 +325,14 @@ export class ShaderTab {
     this.debugPanelWrap.dataset.active = this.developerModeEnabled ? 'true' : 'false';
     this.developerToggleButton.textContent = this.developerModeEnabled ? 'Debug On' : 'Debug Off';
     this.developerToggleButton.dataset.active = this.developerModeEnabled ? 'true' : 'false';
-    this.developerToggleButton.dataset.activeAccent = '#d7d38a';
-    this.developerToggleButton.style.borderColor = this.developerModeEnabled ? 'rgba(215, 211, 138, 0.46)' : 'rgba(120, 170, 96, 0.28)';
+    this.developerToggleButton.dataset.activeAccent = 'rgba(51, 255, 51, 0.44)';
+    this.developerToggleButton.style.borderColor = this.developerModeEnabled ? 'rgba(51, 255, 51, 0.38)' : 'rgba(51, 255, 51, 0.18)';
     this.developerToggleButton.style.background = this.developerModeEnabled
-      ? 'rgba(215, 211, 138, 0.12)'
+      ? 'rgba(51, 255, 51, 0.1)'
       : 'rgba(12, 24, 11, 0.42)';
-    this.developerToggleButton.style.color = this.developerModeEnabled ? '#f3efd0' : '#d5f7c4';
+    this.developerToggleButton.style.color = this.developerModeEnabled ? '#9bff8f' : '#75f76b';
     this.developerToggleButton.style.boxShadow = this.developerModeEnabled
-      ? '0 0 0 1px rgba(215, 211, 138, 0.12) inset, 0 0 18px rgba(215, 211, 138, 0.08)'
+      ? '0 0 0 1px rgba(51, 255, 51, 0.12) inset, 0 0 18px rgba(51, 255, 51, 0.08)'
       : '0 0 12px rgba(116, 255, 108, 0.05)';
     this.developerStatusEl.textContent = this.developerModeEnabled
       ? 'Ctrl/Cmd + Shift + D to hide'
