@@ -41,6 +41,7 @@ const AI_MIN_SECTION_UPDATE_INTERVAL_MS = IS_REMOTE_AI_RUNTIME ? 12000 : 4000;
 const AI_MIN_PHRASE_UPDATE_INTERVAL_MS = IS_REMOTE_AI_RUNTIME ? 18000 : 7000;
 const AI_MAX_UPDATE_INTERVAL_MS = IS_REMOTE_AI_RUNTIME ? 30000 : 14000;
 const AI_STALE_THRESHOLD_MS = IS_REMOTE_AI_RUNTIME ? 45000 : 22000;
+const SHADER_STAGE_FILTER = 'blur(9px) brightness(0.34) saturate(0.78)';
 
 function clamp01(value) {
   return Math.max(0, Math.min(1, value));
@@ -113,6 +114,8 @@ export class App {
     const uiEl = document.getElementById('ui');
 
     this._bridge = bridge;
+    this._appEl = appEl;
+    this._canvasEl = canvas;
     this._role = role;
     this._activeModule = EDITOR_MODULE_GEO;
     this._editTarget = EDIT_TARGET_SURFACE;
@@ -772,7 +775,25 @@ export class App {
       && this._activeModule === EDITOR_MODULE_GEO
       && this._previewMode === PREVIEW_MODE_EDIT
     );
+    const softenEditorStage = (
+      this._role === APP_ROLE_EDITOR
+      && this._activeModule === EDITOR_MODULE_SHADER
+    );
+
     this.surfaces.setDebugVisible(showDebug);
+
+    if (this._canvasEl) {
+      this._canvasEl.style.transition = 'filter 180ms ease, opacity 180ms ease, transform 180ms ease';
+      this._canvasEl.style.filter = softenEditorStage ? SHADER_STAGE_FILTER : 'none';
+      this._canvasEl.style.opacity = softenEditorStage ? '0.5' : '1';
+      this._canvasEl.style.transform = softenEditorStage ? 'scale(1.01)' : 'none';
+      this._canvasEl.style.transformOrigin = 'center center';
+    }
+
+    if (this._appEl) {
+      this._appEl.dataset.module = this._activeModule;
+    }
+
     document.body.style.cursor = this._role === APP_ROLE_OUTPUT
       ? ((this.outputUi?.isFullscreenPromptVisible() ?? false) ? '' : 'none')
       : (showDebug ? '' : 'default');
