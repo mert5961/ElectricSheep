@@ -4,7 +4,6 @@ import {
   createButton,
   createCardShell,
   createElement,
-  createTag,
   setButtonEnabled,
 } from './dom.ts';
 import { PresetSelector } from './PresetSelector.ts';
@@ -56,53 +55,33 @@ export class OutputsPanel {
     onChangeOutputPreset: (outputId: string, presetId: string) => void;
   }) {
     this.onSelectOutput = onSelectOutput;
-    this.element = createCardShell('Outputs');
-
-    const topControls = createElement('div', {
-      display: 'grid',
-      gridTemplateColumns: 'minmax(0, 1fr) auto',
-      gap: '10px',
-      alignItems: 'center',
+    this.element = createCardShell('Outputs', undefined, {
+      bracketHeader: true,
+      extraClassName: 'es-shader-panel es-shader-panel--outputs',
     });
+    this.element.classList.add('es-shader-panel');
+    this.element.classList.add('es-shader-panel--outputs');
+
+    const topControls = createElement('div', 'es-shader-panel__controls');
     this.createPresetSelector = new PresetSelector((presetId) => {
       this._selectedCreatePresetId = presetId;
     });
     this.createButtonEl = createButton('Add', () => {
       onCreateOutput(this._selectedCreatePresetId);
     });
+    this.createButtonEl.classList.add('es-btn--minor', 'es-btn--tight');
     topControls.append(this.createPresetSelector.element, this.createButtonEl);
 
-    this.listEl = createElement('div', {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '10px',
-      maxHeight: '400px',
-      overflowY: 'auto',
-      paddingRight: '4px',
-    });
+    this.listEl = createElement('div', 'es-shader-panel__list');
 
-    this.selectedOutputControlsEl = createElement('div', {
-      display: 'grid',
-      gap: '10px',
-      padding: '10px 12px',
-      borderRadius: '3px',
-      border: '1px solid rgba(120, 170, 96, 0.1)',
-      background: 'rgba(8, 16, 8, 0.34)',
-    });
+    this.selectedOutputControlsEl = createElement('div', 'es-shader-panel__detail');
 
-    const renameGroup = createElement('div', {
-      display: 'grid',
-      gap: '6px',
-    });
+    const renameGroup = createElement('div', 'es-shader-form-group');
     renameGroup.append(
-      createElement('label', {
-        fontSize: '11px',
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
-        color: '#7fa96f',
-      }, 'Name'),
+      createElement('label', 'es-shader-form-group__label', 'Name'),
     );
     this.renameInputEl = createElement('input', FIELD_CLASS);
+    this.renameInputEl.placeholder = 'Output';
     this.renameInputEl.addEventListener('change', () => {
       if (this.selectedOutputId) {
         onRenameOutput(this.selectedOutputId, this.renameInputEl.value);
@@ -110,18 +89,7 @@ export class OutputsPanel {
     });
     renameGroup.append(this.renameInputEl);
 
-    const presetGroup = createElement('div', {
-      display: 'grid',
-      gap: '6px',
-    });
-    presetGroup.append(
-      createElement('label', {
-        fontSize: '11px',
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
-        color: '#7fa96f',
-      }, 'Preset'),
-    );
+    const presetGroup = createElement('div', 'es-shader-form-group');
     this.detailPresetSelector = new PresetSelector((presetId) => {
       if (this.selectedOutputId) {
         onChangeOutputPreset(this.selectedOutputId, presetId);
@@ -129,14 +97,7 @@ export class OutputsPanel {
     });
     presetGroup.append(this.detailPresetSelector.element);
 
-    const toggleGroup = createElement('label', {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-      color: '#c9ecb7',
-      fontSize: '13px',
-      cursor: 'pointer',
-    });
+    const toggleGroup = createElement('label', 'es-shader-toggle');
     this.enabledToggleEl = createElement('input') as HTMLInputElement;
     this.enabledToggleEl.type = 'checkbox';
     this.enabledToggleEl.addEventListener('change', () => {
@@ -144,18 +105,16 @@ export class OutputsPanel {
         onSetOutputEnabled(this.selectedOutputId, this.enabledToggleEl.checked);
       }
     });
-    toggleGroup.append(this.enabledToggleEl, createElement('span', {}, 'Enabled'));
+    toggleGroup.append(this.enabledToggleEl, createElement('span', {}, 'On'));
 
-    const actionRow = createElement('div', {
-      display: 'flex',
-      gap: '10px',
-    });
-    this.duplicateButtonEl = createButton('Duplicate', () => {
+    const actionRow = createElement('div', 'es-shader-action-row');
+    this.duplicateButtonEl = createButton('Copy', () => {
       if (this.selectedOutputId) {
         onDuplicateOutput(this.selectedOutputId);
       }
     });
-    this.deleteButtonEl = createButton('Delete', () => {
+    this.duplicateButtonEl.classList.add('es-btn--minor', 'es-btn--tight');
+    this.deleteButtonEl = createButton('Drop', () => {
       if (this.selectedOutputId) {
         onDeleteOutput(this.selectedOutputId);
       }
@@ -163,6 +122,7 @@ export class OutputsPanel {
       borderColor: 'rgba(120, 170, 96, 0.28)',
       color: '#d5f7c4',
     });
+    this.deleteButtonEl.classList.add('es-btn--minor', 'es-btn--tight');
     actionRow.append(this.duplicateButtonEl, this.deleteButtonEl);
 
     this.selectedOutputControlsEl.append(renameGroup, presetGroup, toggleGroup, actionRow);
@@ -195,75 +155,32 @@ export class OutputsPanel {
 
       if (state.outputs.length === 0) {
         this.listEl.append(
-          createElement('div', {
-          padding: '16px',
-            borderRadius: '2px',
-            border: '1px dashed rgba(120, 170, 96, 0.24)',
-            color: '#86a675',
-            fontSize: '13px',
-            textAlign: 'center',
-            background: 'rgba(8, 16, 8, 0.62)',
-          }, 'No outputs'),
+          createElement('div', 'es-shader-empty', 'No outputs'),
         );
       }
 
       state.outputs.forEach((output) => {
         const isSelected = output.id === state.selectedOutputId;
-        const row = createElement('button', {
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr) auto',
-          gap: '12px',
-          alignItems: 'center',
-          width: '100%',
-          padding: '10px 12px',
-          borderRadius: '3px',
-          border: isSelected ? '1px solid rgba(166, 223, 134, 0.2)' : '1px solid rgba(120, 170, 96, 0.1)',
-          background: isSelected ? 'rgba(20, 38, 18, 0.38)' : 'rgba(8, 16, 8, 0.3)',
-          color: '#d5f7c4',
-          textAlign: 'left',
-          cursor: 'pointer',
-          boxShadow: isSelected ? '0 0 16px rgba(116, 255, 108, 0.05)' : 'none',
-        });
+        const row = createElement('button', 'es-shader-row');
         row.type = 'button';
+        row.dataset.selected = isSelected ? 'true' : 'false';
+        row.dataset.enabled = output.enabled ? 'true' : 'false';
         row.addEventListener('click', () => {
           this.onSelectOutput(output.id);
         });
 
-        const copy = createElement('div', {
-          display: 'grid',
-          gap: '4px',
-        });
+        const copy = createElement('div', 'es-shader-row__copy');
         copy.append(
-          createElement('span', {
-            fontSize: '14px',
-            fontWeight: '600',
-          }, output.name),
-          createElement('span', {
-            fontSize: '12px',
-            color: '#8fb181',
-          }, output.presetLabel),
+          createElement('span', 'es-shader-row__title', output.name),
+          createElement('span', 'es-shader-row__meta', output.presetLabel),
         );
 
-        const tags = createElement('div', {
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-        });
-        tags.append(
-          createTag(output.enabled ? 'Enabled' : 'Disabled', output.enabled
-            ? {
-                background: 'rgba(20, 38, 18, 0.9)',
-                borderColor: 'rgba(166, 223, 134, 0.26)',
-                color: '#d5f7c4',
-              }
-            : {
-                background: 'rgba(10, 17, 9, 0.9)',
-                borderColor: 'rgba(120, 170, 96, 0.18)',
-                color: '#88a675',
-              }),
-        );
+        const aside = createElement('div', 'es-shader-row__aside');
+        const statusDot = createElement('span', 'es-shader-row__dot');
+        statusDot.dataset.state = output.enabled ? 'live' : 'idle';
+        aside.append(statusDot);
 
-        row.append(copy, tags);
+        row.append(copy, aside);
         this.listEl.append(row);
       });
     }
@@ -288,6 +205,7 @@ export class OutputsPanel {
     const hasSelection = Boolean(selectedOutput);
     if (nextDetailSignature !== this.detailSignature) {
       this.detailSignature = nextDetailSignature;
+      this.selectedOutputControlsEl.dataset.visible = hasSelection ? 'true' : 'false';
       this.renameInputEl.disabled = !hasSelection;
       this.renameInputEl.style.opacity = hasSelection ? '1' : '0.5';
       if (document.activeElement !== this.renameInputEl) {
@@ -300,26 +218,6 @@ export class OutputsPanel {
       setButtonEnabled(this.duplicateButtonEl, hasSelection);
       setButtonEnabled(this.deleteButtonEl, hasSelection);
 
-      const tagsRow = createElement('div', {
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '8px',
-      });
-      tagsRow.append(
-        createTag(selectedOutput ? selectedOutput.id : 'No output selected'),
-      );
-      if (selectedPreset?.tags) {
-        selectedPreset.tags.forEach((tag) => {
-          tagsRow.append(createTag(tag));
-        });
-      }
-
-      const previousTagsRow = this.selectedOutputControlsEl.querySelector('[data-role="output-tags"]');
-      if (previousTagsRow) {
-        previousTagsRow.remove();
-      }
-      tagsRow.dataset.role = 'output-tags';
-      this.selectedOutputControlsEl.prepend(tagsRow);
     }
   }
 }
