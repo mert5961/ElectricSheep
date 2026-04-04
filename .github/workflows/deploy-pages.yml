@@ -35,6 +35,9 @@ jobs:
         run: npm ci
 
       - name: Build
+        env:
+          VITE_AI_BACKEND_URL: https://electric-sheep-ai.electric-sheep-mert5961.workers.dev/ai-state
+          VITE_AI_MODE: remote
         run: npm run build:pages
 
       - name: Setup Pages

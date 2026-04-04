@@ -1,0 +1,5 @@
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_MODEL=qwen/qwen3.6-plus:free
+ALLOWED_ORIGINS=http://localhost:5173,https://mert5961.github.io
+OPENROUTER_SITE_URL=https://mert5961.github.io/ElectricSheep/
+OPENROUTER_APP_NAME=Electric Sheep

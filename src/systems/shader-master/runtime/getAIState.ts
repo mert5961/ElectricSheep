@@ -5,6 +5,8 @@ interface OllamaGenerateResponse {
   response?: string;
 }
 
+type AIRuntimeMode = 'auto' | 'local' | 'remote';
+
 export interface AIRequestMeta {
   fallbackActive: boolean;
   receivedAtMs: number | null;
@@ -18,6 +20,8 @@ export interface AIRequestContext {
 
 const OLLAMA_ENDPOINT = 'http://localhost:11434/api/generate';
 const OLLAMA_MODEL = 'qwen2.5:7b-instruct';
+const REMOTE_ENDPOINT = (import.meta.env.VITE_AI_BACKEND_URL || '').trim();
+const AI_RUNTIME_MODE = normalizeRuntimeMode(import.meta.env.VITE_AI_MODE);
 
 const REQUIRED_AI_STATE_KEYS = [
   'tension',
@@ -94,6 +98,35 @@ let lastAIRequestMeta: AIRequestMeta = {
   receivedAtMs: null,
   reason: null,
 };
+
+function normalizeRuntimeMode(value: string | undefined): AIRuntimeMode {
+  if (value === 'local' || value === 'remote') {
+    return value;
+  }
+
+  return 'auto';
+}
+
+function resolveAIRuntimeTarget(): { endpoint: string; mode: 'local' | 'remote' } {
+  if (AI_RUNTIME_MODE === 'local') {
+    return {
+      endpoint: OLLAMA_ENDPOINT,
+      mode: 'local',
+    };
+  }
+
+  if (REMOTE_ENDPOINT) {
+    return {
+      endpoint: REMOTE_ENDPOINT,
+      mode: 'remote',
+    };
+  }
+
+  return {
+    endpoint: OLLAMA_ENDPOINT,
+    mode: 'local',
+  };
+}
 
 function clampValue(value: number, min = 0, max = 1): number {
   if (!Number.isFinite(value)) {
@@ -500,23 +533,29 @@ export async function getAIState(
   context: AIRequestContext = {},
 ): Promise<AIState> {
   const prompt = buildPrompt(featureSummary, context);
+  const runtimeTarget = resolveAIRuntimeTarget();
+  const requestBody = runtimeTarget.mode === 'remote'
+    ? {
+      prompt,
+    }
+    : {
+      model: OLLAMA_MODEL,
+      prompt,
+      stream: false,
+      keep_alive: '10m',
+    };
 
   try {
-    const response = await fetch(OLLAMA_ENDPOINT, {
+    const response = await fetch(runtimeTarget.endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        prompt,
-        stream: false,
-        keep_alive: '10m',
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
-      return useFallbackState(`HTTP ${response.status}`);
+      return useFallbackState(`HTTP ${response.status} from ${runtimeTarget.mode} AI runtime.`);
     }
 
     const payload = (await response.json()) as OllamaGenerateResponse;
@@ -552,6 +591,6 @@ export async function getAIState(
     return cloneAIState(shapedState);
   } catch (error) {
     console.warn('[getAIState] Request failed.', error);
-    return useFallbackState('Request failure.');
+    return useFallbackState(`Request failure from ${runtimeTarget.mode} AI runtime.`);
   }
 }

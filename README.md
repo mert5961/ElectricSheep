@@ -231,4 +231,71 @@ npm run build:pages
 Note:
 
 - The public GitHub Pages version is static and works in the browser without install.
-- AI-driven features that depend on a local backend in [src/systems/shader-master/runtime/getAIState.ts](/Users/mertbarut/Desktop/ElectricSheep/src/systems/shader-master/runtime/getAIState.ts) will not work for other people unless that backend is hosted separately.
+- Local development uses Ollama by default through [src/systems/shader-master/runtime/getAIState.ts](/Users/mertbarut/Desktop/ElectricSheep/src/systems/shader-master/runtime/getAIState.ts).
+- The public GitHub Pages version can use a hosted AI backend by setting `VITE_AI_BACKEND_URL` during the GitHub Pages build.
+
+## Hosted AI Setup
+
+Electric Sheep now supports two AI modes:
+
+- `local`: calls Ollama on `http://localhost:11434/api/generate`
+- `remote`: calls a hosted backend endpoint that returns the same `{ response }` payload shape
+
+If `VITE_AI_BACKEND_URL` is set, the app automatically prefers the hosted backend. If it is not set, the app falls back to local Ollama.
+
+### Cloudflare Worker + OpenRouter
+
+The repository includes a ready-to-deploy Cloudflare Worker in [workers/openrouter-ai/src/index.ts](/Users/mertbarut/Desktop/ElectricSheep/workers/openrouter-ai/src/index.ts).
+
+1. Install Wrangler if you do not already have it:
+
+```bash
+npm install -g wrangler
+```
+
+2. Log in to Cloudflare:
+
+```bash
+wrangler login
+```
+
+3. Create a local worker env file from [workers/openrouter-ai/.dev.vars.example](/Users/mertbarut/Desktop/ElectricSheep/workers/openrouter-ai/.dev.vars.example):
+
+```bash
+cp workers/openrouter-ai/.dev.vars.example workers/openrouter-ai/.dev.vars
+```
+
+4. Set the production OpenRouter key as a Cloudflare secret:
+
+```bash
+wrangler secret put OPENROUTER_API_KEY --config workers/openrouter-ai/wrangler.toml
+```
+
+5. Deploy the worker:
+
+```bash
+wrangler deploy --config workers/openrouter-ai/wrangler.toml
+```
+
+6. In GitHub, set these repository variables for the Pages build:
+
+- `VITE_AI_BACKEND_URL`
+  Example: `https://electric-sheep-ai.<your-subdomain>.workers.dev/ai-state`
+- `VITE_AI_MODE`
+  Recommended value: `remote`
+
+7. Push to `main` or rerun the GitHub Pages workflow.
+
+### Worker Environment Variables
+
+- `OPENROUTER_API_KEY`
+  Required. Keep this secret in Cloudflare only.
+- `OPENROUTER_MODEL`
+  Optional. Defaults to `qwen/qwen3.6-plus:free`.
+- `ALLOWED_ORIGINS`
+  Optional comma-separated list.
+  Example: `http://localhost:5173,https://mert5961.github.io`
+- `OPENROUTER_SITE_URL`
+  Optional referer header for OpenRouter.
+- `OPENROUTER_APP_NAME`
+  Optional display title for OpenRouter analytics.
