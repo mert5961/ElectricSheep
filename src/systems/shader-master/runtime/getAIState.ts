@@ -11,6 +11,7 @@ export interface AIRequestMeta {
   fallbackActive: boolean;
   receivedAtMs: number | null;
   reason: string | null;
+  backoffUntilMs: number | null;
 }
 
 export interface AIRequestContext {
@@ -97,6 +98,7 @@ let lastAIRequestMeta: AIRequestMeta = {
   fallbackActive: false,
   receivedAtMs: null,
   reason: null,
+  backoffUntilMs: null,
 };
 
 function normalizeRuntimeMode(value: string | undefined): AIRuntimeMode {
@@ -126,6 +128,26 @@ function resolveAIRuntimeTarget(): { endpoint: string; mode: 'local' | 'remote' 
     endpoint: OLLAMA_ENDPOINT,
     mode: 'local',
   };
+}
+
+function parseRetryAfterMs(response: Response): number | null {
+  const retryAfterHeader = response.headers.get('Retry-After');
+
+  if (!retryAfterHeader) {
+    return null;
+  }
+
+  const numericSeconds = Number(retryAfterHeader);
+  if (Number.isFinite(numericSeconds) && numericSeconds >= 0) {
+    return Math.round(numericSeconds * 1000);
+  }
+
+  const retryAtMs = Date.parse(retryAfterHeader);
+  if (Number.isFinite(retryAtMs)) {
+    return Math.max(0, retryAtMs - Date.now());
+  }
+
+  return null;
 }
 
 function clampValue(value: number, min = 0, max = 1): number {
@@ -509,6 +531,7 @@ function useFallbackState(reason: string): AIState {
     fallbackActive: true,
     receivedAtMs: Date.now(),
     reason,
+    backoffUntilMs: lastAIRequestMeta.backoffUntilMs,
   };
   console.warn('[getAIState] Using fallback state:', reason, lastValidState);
   return cloneAIState(lastValidState);
@@ -555,6 +578,16 @@ export async function getAIState(
     });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        const retryAfterMs = parseRetryAfterMs(response) ?? 60_000;
+        lastAIRequestMeta = {
+          fallbackActive: true,
+          receivedAtMs: Date.now(),
+          reason: 'rate-limited',
+          backoffUntilMs: Date.now() + retryAfterMs,
+        };
+      }
+
       return useFallbackState(`HTTP ${response.status} from ${runtimeTarget.mode} AI runtime.`);
     }
 
@@ -586,6 +619,7 @@ export async function getAIState(
       fallbackActive: false,
       receivedAtMs: Date.now(),
       reason: null,
+      backoffUntilMs: null,
     };
 
     return cloneAIState(shapedState);

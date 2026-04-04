@@ -33,12 +33,14 @@ import { MappingAssistOverlay } from './overlays/MappingAssistOverlay.js';
 import { OutputStageUI } from './ui/OutputStageUI.js';
 import { mountWindowCrtEffects } from './ui/windowCrtEffects.js';
 
+const IS_REMOTE_AI_RUNTIME = Boolean(import.meta.env.VITE_AI_BACKEND_URL)
+  && import.meta.env.VITE_AI_MODE !== 'local';
 const AI_BOOT_WARMUP_MS = 3000;
-const AI_REQUEST_COOLDOWN_MS = 3000;
-const AI_MIN_SECTION_UPDATE_INTERVAL_MS = 4000;
-const AI_MIN_PHRASE_UPDATE_INTERVAL_MS = 7000;
-const AI_MAX_UPDATE_INTERVAL_MS = 14000;
-const AI_STALE_THRESHOLD_MS = 22000;
+const AI_REQUEST_COOLDOWN_MS = IS_REMOTE_AI_RUNTIME ? 8000 : 3000;
+const AI_MIN_SECTION_UPDATE_INTERVAL_MS = IS_REMOTE_AI_RUNTIME ? 12000 : 4000;
+const AI_MIN_PHRASE_UPDATE_INTERVAL_MS = IS_REMOTE_AI_RUNTIME ? 18000 : 7000;
+const AI_MAX_UPDATE_INTERVAL_MS = IS_REMOTE_AI_RUNTIME ? 30000 : 14000;
+const AI_STALE_THRESHOLD_MS = IS_REMOTE_AI_RUNTIME ? 45000 : 22000;
 
 function clamp01(value) {
   return Math.max(0, Math.min(1, value));
@@ -847,7 +849,15 @@ export class App {
 
   _maybeRequestAIState(featureSummary, frameTimeMs) {
     const shaderState = this.shaderMasterStore.getState();
+    const requestMeta = getLastAIRequestMeta();
     if (!shaderState.aiState.aiEnabled || this._aiRequestInFlight) {
+      return;
+    }
+
+    if (
+      requestMeta.backoffUntilMs !== null
+      && Date.now() < requestMeta.backoffUntilMs
+    ) {
       return;
     }
 
