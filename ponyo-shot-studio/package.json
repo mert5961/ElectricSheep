@@ -1,0 +1,54 @@
+{
+  "name": "ponyo-shot-studio",
+  "version": "1.0.0",
+  "description": "Local still-image shot generation studio for visual development.",
+  "private": true,
+  "type": "module",
+  "main": "out/main/main.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "build:mac": "npm run build && electron-builder --mac dir",
+    "package:mac": "npm run build && electron-builder --mac",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "preview": "electron-vite preview"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.1.1",
+    "dotenv": "latest",
+    "openai": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "zustand": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "electron": "latest",
+    "electron-builder": "latest",
+    "electron-vite": "latest",
+    "typescript": "latest",
+    "vite": "^7.3.6",
+    "vitest": "latest"
+  },
+  "build": {
+    "appId": "studio.ponyo.shot",
+    "productName": "Ponyo Shot Studio",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.graphics-design",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    }
+  }
+}
